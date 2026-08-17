@@ -10,7 +10,25 @@ import {
   deleteIngredient,
   saveMenuSettings,
   processOrderCheckout,
-  authenticateUser
+  authenticateUser,
+  getCategories,
+  saveCategory,
+  deleteCategory,
+  getPurchases,
+  savePurchase,
+  getDiscounts,
+  saveDiscount,
+  getDiningTables,
+  saveDiningTable,
+  getCustomers,
+  saveCustomer,
+  getExpenses,
+  saveExpense,
+  getOrdersHistory,
+  getPaymentMethods,
+  savePaymentMethod,
+  getSystemSettings,
+  saveSystemSetting
 } from "@/lib/actions";
 
 export async function GET(request: Request) {
@@ -18,18 +36,18 @@ export async function GET(request: Request) {
   const type = searchParams.get("type");
 
   try {
-    if (type === "ingredients") {
-      const data = await getIngredients();
-      return NextResponse.json(data);
-    }
-    if (type === "employees") {
-      const data = await getEmployees();
-      return NextResponse.json(data);
-    }
-    if (type === "menus" || type === "menus_with_recipes") {
-      const data = await getMenusWithRecipes();
-      return NextResponse.json(data);
-    }
+    if (type === "ingredients") return NextResponse.json(await getIngredients());
+    if (type === "employees") return NextResponse.json(await getEmployees());
+    if (type === "menus" || type === "menus_with_recipes") return NextResponse.json(await getMenusWithRecipes());
+    if (type === "categories") return NextResponse.json(await getCategories());
+    if (type === "purchases") return NextResponse.json(await getPurchases());
+    if (type === "discounts") return NextResponse.json(await getDiscounts());
+    if (type === "tables") return NextResponse.json(await getDiningTables());
+    if (type === "customers") return NextResponse.json(await getCustomers());
+    if (type === "expenses") return NextResponse.json(await getExpenses());
+    if (type === "orders_history") return NextResponse.json(await getOrdersHistory());
+    if (type === "payment_methods") return NextResponse.json(await getPaymentMethods());
+    if (type === "settings") return NextResponse.json(await getSystemSettings());
 
     // Default: Dashboard data
     const data = await getDashboardData();
@@ -46,40 +64,24 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    if (type === "login") {
-      const result = await authenticateUser(body);
-      return NextResponse.json(result);
-    }
-
-    if (type === "update_stock") {
-      const result = await updateIngredientStock(body);
-      return NextResponse.json(result);
-    }
-
-    if (type === "update_ingredient_detail") {
-      const result = await updateIngredientDetail(body);
-      return NextResponse.json(result);
-    }
-
-    if (type === "delete_ingredient") {
-      const result = await deleteIngredient(body.id);
-      return NextResponse.json(result);
-    }
-
-    if (type === "ingredient") {
-      const result = await createIngredient(body);
-      return NextResponse.json(result);
-    }
-
-    if (type === "save_menu_settings") {
-      const result = await saveMenuSettings(body);
-      return NextResponse.json(result);
-    }
-
-    if (type === "checkout") {
-      const result = await processOrderCheckout(body);
-      return NextResponse.json(result);
-    }
+    if (type === "login") return NextResponse.json(await authenticateUser(body));
+    if (type === "update_stock") return NextResponse.json(await updateIngredientStock(body));
+    if (type === "update_ingredient_detail") return NextResponse.json(await updateIngredientDetail(body));
+    if (type === "delete_ingredient") return NextResponse.json(await deleteIngredient(body.id));
+    if (type === "ingredient") return NextResponse.json(await createIngredient(body));
+    if (type === "save_menu_settings") return NextResponse.json(await saveMenuSettings(body));
+    if (type === "checkout") return NextResponse.json(await processOrderCheckout(body));
+    
+    // New Extended Modules POST Handlers
+    if (type === "save_category") return NextResponse.json(await saveCategory(body));
+    if (type === "delete_category") return NextResponse.json(await deleteCategory(body.id));
+    if (type === "save_purchase") return NextResponse.json(await savePurchase(body));
+    if (type === "save_discount") return NextResponse.json(await saveDiscount(body));
+    if (type === "save_table") return NextResponse.json(await saveDiningTable(body));
+    if (type === "save_customer") return NextResponse.json(await saveCustomer(body));
+    if (type === "save_expense") return NextResponse.json(await saveExpense(body));
+    if (type === "save_payment_method") return NextResponse.json(await savePaymentMethod(body));
+    if (type === "save_setting") return NextResponse.json(await saveSystemSetting(body.key, body.value));
 
     return NextResponse.json({ error: "Invalid action type" }, { status: 400 });
   } catch (error: any) {

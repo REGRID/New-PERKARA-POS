@@ -1,6 +1,4 @@
-"use client";
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
@@ -19,7 +17,17 @@ import {
   CircleDot,
   Database,
   LogOut,
-  UserCheck
+  ChevronDown,
+  ChevronUp,
+  Tag,
+  Package,
+  Percent,
+  Grid,
+  LayoutGrid,
+  FileText,
+  CreditCard,
+  Settings as SettingsIcon,
+  TrendingUp
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,11 +37,11 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ElementType;
-  accentColor: string; // Tailored subtle accent color
   badge?: string;
 }
 
 interface NavGroup {
+  id: string;
   groupName: string;
   items: NavItem[];
 }
@@ -51,65 +59,81 @@ export function Sidebar() {
 
   const navigation: NavGroup[] = [
     {
-      groupName: "Menu Utama",
+      id: "OPERATIONS",
+      groupName: "OPERATIONS",
       items: [
-        { 
-          name: "Dashboard", 
-          href: "/", 
-          icon: LayoutDashboard, 
-          accentColor: "text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-500/10" 
-        },
-        { 
-          name: "Terminal Kasir POS", 
-          href: "/pos", 
-          icon: ShoppingCart, 
-          accentColor: "text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-500/10",
-          badge: "Live"
-        },
+        { name: "POS Terminal", href: "/pos", icon: ShoppingCart, badge: "Live" },
+        { name: "Transactions", href: "/orders", icon: FileText },
+        { name: "Tables", href: "/tables", icon: Grid },
+        { name: "Customers", href: "/customers", icon: Users },
+        { name: "QR Menu", href: "/qr-menu/outlet-1", icon: CircleDot },
+        { name: "Attendance", href: "/attendance", icon: Clock },
       ]
     },
     {
-      groupName: "Inventaris & Resep",
+      id: "CATALOG",
+      groupName: "CATALOG",
       items: [
-        { 
-          name: "Stok Bahan Baku", 
-          href: "/inventory/raw-materials", 
-          icon: Boxes, 
-          accentColor: "text-blue-600 dark:text-blue-400 group-hover:bg-blue-500/10",
-          badge: "Urgent"
-        },
-        { 
-          name: "Resep & HPP", 
-          href: "/inventory/recipes", 
-          icon: ClipboardList, 
-          accentColor: "text-violet-600 dark:text-violet-400 group-hover:bg-violet-500/10" 
-        },
-        { 
-          name: "Add-on Terintegrasi", 
-          href: "/inventory/addons", 
-          icon: Layers, 
-          accentColor: "text-amber-600 dark:text-amber-400 group-hover:bg-amber-500/10" 
-        },
+        { name: "Categories", href: "/categories", icon: Tag },
+        { name: "Products", href: "/products", icon: Package },
+        { name: "Add-Ons", href: "/inventory/addons", icon: Layers },
+        { name: "Discounts", href: "/discounts", icon: Percent },
       ]
     },
     {
-      groupName: "Operasional",
+      id: "INVENTORY",
+      groupName: "INVENTORY",
       items: [
-        { 
-          name: "Scan Nota AI", 
-          href: "/receipts/upload", 
-          icon: Camera, 
-          accentColor: "text-rose-600 dark:text-rose-400 group-hover:bg-rose-500/10" 
-        },
-        { 
-          name: "Absensi PIN", 
-          href: "/attendance", 
-          icon: Clock, 
-          accentColor: "text-teal-600 dark:text-teal-400 group-hover:bg-teal-500/10" 
-        },
+        { name: "Raw Materials", href: "/inventory/raw-materials", icon: Boxes },
+        { name: "Purchases", href: "/purchases", icon: ShoppingCart },
+        { name: "Recipes & HPP", href: "/inventory/recipes", icon: ClipboardList },
+        { name: "Scan Receipt AI", href: "/receipts/upload", icon: Camera },
+      ]
+    },
+    {
+      id: "REPORTS",
+      groupName: "REPORTS",
+      items: [
+        { name: "Cash Flow", href: "/reports/cash-flow", icon: TrendingUp },
+        { name: "Daily Recaps", href: "/reports/daily-recaps", icon: ClipboardList },
+      ]
+    },
+    {
+      id: "SYSTEM",
+      groupName: "SYSTEM",
+      items: [
+        { name: "Payment Methods", href: "/payment-methods", icon: CreditCard },
+        { name: "Settings", href: "/settings", icon: SettingsIcon },
       ]
     }
   ];
+
+  // Open groups state (all default open or expand the active route's group)
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = { OPERATIONS: true, CATALOG: false, INVENTORY: false, REPORTS: false, SYSTEM: false };
+    navigation.forEach((group) => {
+      if (group.items.some((item) => item.href === pathname)) {
+        initial[group.id] = true;
+      }
+    });
+    return initial;
+  });
+
+  // Keep group expanded if pathname changes
+  useEffect(() => {
+    navigation.forEach((group) => {
+      if (group.items.some((item) => item.href === pathname)) {
+        setOpenGroups((prev) => ({ ...prev, [group.id]: true }));
+      }
+    });
+  }, [pathname]);
+
+  const toggleGroup = (groupId: string) => {
+    setOpenGroups((prev) => ({
+      ...prev,
+      [groupId]: !prev[groupId],
+    }));
+  };
 
   return (
     <>
@@ -169,54 +193,103 @@ export function Sidebar() {
           </div>
         </div>
 
-        {/* Navigation Items (Scrollable) */}
-        <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
-          {navigation.map((group, gIdx) => (
-            <div key={gIdx} className="space-y-1">
-              <h3 className="px-3 text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider">
-                {group.groupName}
-              </h3>
-              <div className="space-y-1 pt-1">
-                {group.items.map((item) => {
-                  const isActive = pathname === item.href;
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setMobileOpen(false)}
-                      className={`
-                        group flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all min-h-[44px]
-                        ${isActive 
-                          ? "bg-indigo-50 text-indigo-900 font-semibold dark:bg-indigo-950/40 dark:text-indigo-200 border border-indigo-200/80 dark:border-indigo-800" 
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                        }
-                      `}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`p-1 rounded-md transition-colors ${isActive ? "text-indigo-600 dark:text-indigo-400" : item.accentColor}`}>
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <span>{item.name}</span>
-                      </div>
-                      {item.badge && (
-                        <Badge 
-                          variant="secondary" 
+        {/* Navigation Items (Scrollable Dropdowns) */}
+        <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
+          {/* WORKSPACE Header Block (Matching User Screenshot) */}
+          <div className="space-y-1.5 mb-2">
+            <h3 className="px-3 text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">
+              WORKSPACE
+            </h3>
+            {isAdmin ? (
+              <Link
+                href="/"
+                onClick={() => setMobileOpen(false)}
+                className={`
+                  flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-semibold transition-all min-h-[48px] border shadow-2xs
+                  ${pathname === "/" 
+                    ? "bg-slate-50/90 text-slate-900 border-slate-200/90 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 ring-1 ring-slate-200/80" 
+                    : "bg-white text-slate-700 border-slate-200/60 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300"
+                  }
+                `}
+              >
+                <LayoutGrid className="w-5 h-5 text-slate-600 dark:text-slate-300 shrink-0" />
+                <span className="text-slate-900 dark:text-slate-100">Dashboard</span>
+              </Link>
+            ) : (
+              <Link
+                href="/pos"
+                onClick={() => setMobileOpen(false)}
+                className={`
+                  flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-semibold transition-all min-h-[48px] border shadow-2xs
+                  ${pathname === "/pos" 
+                    ? "bg-indigo-50/80 text-indigo-900 border-indigo-200/90 dark:bg-indigo-950/50 dark:text-indigo-200 ring-1 ring-indigo-200/80" 
+                    : "bg-white text-slate-700 border-slate-200/60 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300"
+                  }
+                `}
+              >
+                <ShoppingCart className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <span className="text-slate-900 dark:text-slate-100">POS Terminal</span>
+              </Link>
+            )}
+          </div>
+
+          {navigation.map((group) => {
+            const isOpen = !!openGroups[group.id];
+            return (
+              <div key={group.id} className="space-y-1">
+                {/* Collapsible Header */}
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.id)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold text-slate-400 hover:text-slate-800 tracking-wider uppercase transition-colors cursor-pointer select-none"
+                >
+                  <span>{group.groupName}</span>
+                  {isOpen ? (
+                    <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  )}
+                </button>
+
+                {/* Collapsible Dropdown Items */}
+                {isOpen && (
+                  <div className="space-y-0.5 pt-0.5 pl-1 transition-all">
+                    {group.items.map((item) => {
+                      const isActive = pathname === item.href;
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setMobileOpen(false)}
                           className={`
-                            text-[10px] px-1.5 py-0 h-4 font-semibold
-                            ${item.badge === "Live" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" : ""}
-                            ${item.badge === "Urgent" ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300" : ""}
+                            group flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all min-h-[40px]
+                            ${isActive 
+                              ? "bg-slate-100 text-indigo-600 font-bold dark:bg-slate-800 dark:text-indigo-400" 
+                              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-100"
+                            }
                           `}
                         >
-                          {item.badge}
-                        </Badge>
-                      )}
-                    </Link>
-                  );
-                })}
+                          <div className="flex items-center gap-3">
+                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 group-hover:text-slate-600"}`} />
+                            <span>{item.name}</span>
+                          </div>
+                          {item.badge && (
+                            <Badge 
+                              variant="secondary" 
+                              className="text-[10px] px-1.5 py-0 h-4 font-semibold bg-emerald-100 text-emerald-800"
+                            >
+                              {item.badge}
+                            </Badge>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         {/* Sidebar Footer: Active User & Role Profile */}

@@ -428,3 +428,87 @@ model VendorContact {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @default(now()) @updatedAt
 }
+
+// =============================================================================
+// 8. EXTENSION MODELS FOR 100% FEATURE PARITY (CATEGORIES, PURCHASES, TABLES, ETC.)
+// =============================================================================
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @db.Text
+  slug      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model Discount {
+  id        String   @id @default(uuid())
+  name      String   @db.Text
+  type      String   @default("PERCENT") // PERCENT, FIXED
+  amount    Float    @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model DiningTable {
+  id        String   @id @default(uuid())
+  number    String   @db.Text
+  capacity  Int      @default(4)
+  status    String   @default("AVAILABLE") // AVAILABLE, OCCUPIED, RESERVED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String   @db.Text
+  phone     String?
+  email     String?
+  points    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model PurchaseCategory {
+  id        String     @id @default(uuid())
+  name      String     @db.Text
+  purchases Purchase[]
+  createdAt DateTime   @default(now())
+}
+
+model Purchase {
+  id                 String            @id @default(uuid())
+  purchaseCategoryId String?
+  category           PurchaseCategory? @relation(fields: [purchaseCategoryId], references: [id])
+  itemName           String            @db.Text
+  quantity           Float             @default(1)
+  unitPrice          Float             @default(0)
+  totalPrice         Float             @default(0)
+  supplierName       String?           @db.Text
+  purchaseDate       DateTime          @default(now())
+  notes              String?           @db.Text
+  createdAt          DateTime          @default(now())
+}
+
+model PaymentMethod {
+  id        String   @id @default(uuid())
+  name      String   @db.Text
+  code      String   @db.Text
+  type      String   @default("CASH") // CASH, QRIS, CARD, EWALLET
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model DailyRecap {
+  id            String   @id @default(uuid())
+  date          DateTime @default(now())
+  totalSales    Float    @default(0)
+  totalExpenses Float    @default(0)
+  cashExpected  Float    @default(0)
+  cashActual    Float    @default(0)
+  discrepancy   Float    @default(0)
+  notes         String?  @db.Text
+  createdById   String?
+  createdAt     DateTime @default(now())
+}
+

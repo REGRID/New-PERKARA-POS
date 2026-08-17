@@ -482,3 +482,312 @@ export async function authenticateUser(data: { username: string; password?: stri
   };
 }
 
+// =============================================================================
+// 7. EXTENDED MODULE ACTIONS FOR 100% FEATURE PARITY
+// =============================================================================
+
+// Categories
+export async function getCategories() {
+  try {
+    const catModel = db.category || db.Category;
+    return catModel ? await catModel.findMany({ orderBy: { name: "asc" } }) : [];
+  } catch (err) {
+    console.error("Error fetching categories:", err);
+    return [];
+  }
+}
+
+export async function saveCategory(data: { id?: string; name: string }) {
+  try {
+    const catModel = db.category || db.Category;
+    if (data.id) {
+      return await catModel.update({ where: { id: data.id }, data: { name: data.name } });
+    }
+    return await catModel.create({ data: { name: data.name } });
+  } catch (err) {
+    console.error("Error saving category:", err);
+    throw err;
+  }
+}
+
+export async function deleteCategory(id: string) {
+  try {
+    const catModel = db.category || db.Category;
+    return await catModel.delete({ where: { id } });
+  } catch (err) {
+    console.error("Error deleting category:", err);
+    throw err;
+  }
+}
+
+// Purchases (Stok Masuk)
+export async function getPurchases() {
+  try {
+    const purModel = db.purchase || db.Purchase;
+    return purModel ? await purModel.findMany({ orderBy: { purchaseDate: "desc" } }) : [];
+  } catch (err) {
+    console.error("Error fetching purchases:", err);
+    return [];
+  }
+}
+
+export async function savePurchase(data: {
+  itemName: string;
+  quantity: number;
+  unitPrice: number;
+  supplierName?: string;
+  notes?: string;
+}) {
+  try {
+    const purModel = db.purchase || db.Purchase;
+    const ingredientModel = db.ingredient || db.Ingredient;
+    const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
+
+    const qty = Number(data.quantity) || 1;
+    const price = Number(data.unitPrice) || 0;
+    const totalPrice = qty * price;
+
+    // 1. Record in Purchase log
+    const newPurchase = await purModel.create({
+      data: {
+        itemName: data.itemName,
+        quantity: qty,
+        unitPrice: price,
+        totalPrice: totalPrice,
+        supplierName: data.supplierName || "-",
+        notes: data.notes || "",
+      },
+    });
+
+    // 2. Auto-sync to Raw Materials Inventory (Ingredient)
+    if (ingredientModel) {
+      const matched = await ingredientModel.findFirst({
+        where: { name: { contains: data.itemName } },
+      });
+
+      if (matched) {
+        await ingredientModel.update({
+          where: { id: matched.id },
+          data: {
+            floorQuantity: { increment: qty },
+            hargaBeli: price > 0 ? price : matched.hargaBeli,
+          },
+        });
+      } else {
+        await ingredientModel.create({
+          data: {
+            name: data.itemName,
+            category: "Bahan Baku",
+            buyUnit: "pcs",
+            unit: "pcs",
+            conversionRatio: 1,
+            floorQuantity: qty,
+            hargaBeli: price,
+          },
+        });
+      }
+    }
+
+    // 3. Auto-sync to Cash Flow & OPEX Expenses (CashTransaction)
+    if (cashTxModel && totalPrice > 0) {
+      await cashTxModel.create({
+        data: {
+          type: "CASH_OUT",
+          amount: totalPrice,
+          note: `Pengadaan: ${data.itemName} (${qty} x Rp ${price.toLocaleString("id-ID")})`,
+          employeeName: "Sistem Pengadaan",
+        },
+      });
+    }
+
+    return newPurchase;
+  } catch (err) {
+    console.error("Error saving purchase:", err);
+    throw err;
+  }
+}
+
+// Discounts
+export async function getDiscounts() {
+  try {
+    const discModel = db.discount || db.Discount;
+    return discModel ? await discModel.findMany({ orderBy: { name: "asc" } }) : [];
+  } catch (err) {
+    console.error("Error fetching discounts:", err);
+    return [];
+  }
+}
+
+export async function saveDiscount(data: { id?: string; name: string; type?: string; amount: number }) {
+  try {
+    const discModel = db.discount || db.Discount;
+    if (data.id) {
+      return await discModel.update({
+        where: { id: data.id },
+        data: { name: data.name, type: data.type || "PERCENT", amount: Number(data.amount) },
+      });
+    }
+    return await discModel.create({
+      data: { name: data.name, type: data.type || "PERCENT", amount: Number(data.amount) },
+    });
+  } catch (err) {
+    console.error("Error saving discount:", err);
+    throw err;
+  }
+}
+
+// Dining Tables
+export async function getDiningTables() {
+  try {
+    const tableModel = db.diningTable || db.DiningTable;
+    return tableModel ? await tableModel.findMany({ orderBy: { number: "asc" } }) : [];
+  } catch (err) {
+    console.error("Error fetching tables:", err);
+    return [];
+  }
+}
+
+export async function saveDiningTable(data: { id?: string; number: string; capacity: number; status?: string }) {
+  try {
+    const tableModel = db.diningTable || db.DiningTable;
+    if (data.id) {
+      return await tableModel.update({
+        where: { id: data.id },
+        data: { number: data.number, capacity: Number(data.capacity), status: data.status || "AVAILABLE" },
+      });
+    }
+    return await tableModel.create({
+      data: { number: data.number, capacity: Number(data.capacity), status: data.status || "AVAILABLE" },
+    });
+  } catch (err) {
+    console.error("Error saving table:", err);
+    throw err;
+  }
+}
+
+// Customers
+export async function getCustomers() {
+  try {
+    const custModel = db.customer || db.Customer;
+    return custModel ? await custModel.findMany({ orderBy: { name: "asc" } }) : [];
+  } catch (err) {
+    console.error("Error fetching customers:", err);
+    return [];
+  }
+}
+
+export async function saveCustomer(data: { id?: string; name: string; phone?: string; email?: string }) {
+  try {
+    const custModel = db.customer || db.Customer;
+    if (data.id) {
+      return await custModel.update({
+        where: { id: data.id },
+        data: { name: data.name, phone: data.phone || "", email: data.email || "" },
+      });
+    }
+    return await custModel.create({
+      data: { name: data.name, phone: data.phone || "", email: data.email || "" },
+    });
+  } catch (err) {
+    console.error("Error saving customer:", err);
+    throw err;
+  }
+}
+
+// Expenses (Beban Operational)
+export async function getExpenses() {
+  try {
+    const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
+    return cashTxModel ? await cashTxModel.findMany({ where: { type: "CASH_OUT" }, orderBy: { timestamp: "desc" } }) : [];
+  } catch (err) {
+    console.error("Error fetching expenses:", err);
+    return [];
+  }
+}
+
+export async function saveExpense(data: { amount: number; note?: string; employeeName?: string }) {
+  try {
+    const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
+    return await cashTxModel.create({
+      data: {
+        type: "CASH_OUT",
+        amount: Number(data.amount) || 0,
+        note: data.note || "Beban Operasional",
+        employeeName: data.employeeName || "Staf Outlet",
+      },
+    });
+  } catch (err) {
+    console.error("Error saving expense:", err);
+    throw err;
+  }
+}
+
+// Orders History
+export async function getOrdersHistory() {
+  try {
+    const orderModel = db.order || db.Order;
+    return orderModel ? await orderModel.findMany({
+      include: { items: true },
+      orderBy: { createdAt: "desc" },
+    }) : [];
+  } catch (err) {
+    console.error("Error fetching orders history:", err);
+    return [];
+  }
+}
+
+// Payment Methods
+export async function getPaymentMethods() {
+  try {
+    const pmModel = db.paymentMethod || db.PaymentMethod;
+    return pmModel ? await pmModel.findMany({ orderBy: { name: "asc" } }) : [];
+  } catch (err) {
+    console.error("Error fetching payment methods:", err);
+    return [];
+  }
+}
+
+export async function savePaymentMethod(data: { id?: string; name: string; code: string; type?: string }) {
+  try {
+    const pmModel = db.paymentMethod || db.PaymentMethod;
+    if (data.id) {
+      return await pmModel.update({
+        where: { id: data.id },
+        data: { name: data.name, code: data.code, type: data.type || "CASH" },
+      });
+    }
+    return await pmModel.create({
+      data: { name: data.name, code: data.code, type: data.type || "CASH" },
+    });
+  } catch (err) {
+    console.error("Error saving payment method:", err);
+    throw err;
+  }
+}
+
+// System Settings
+export async function getSystemSettings() {
+  try {
+    const setModel = db.systemSetting || db.SystemSetting;
+    return setModel ? await setModel.findMany() : [];
+  } catch (err) {
+    console.error("Error fetching system settings:", err);
+    return [];
+  }
+}
+
+export async function saveSystemSetting(key: string, value: string) {
+  try {
+    const setModel = db.systemSetting || db.SystemSetting;
+    return await setModel.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value },
+    });
+  } catch (err) {
+    console.error("Error saving system setting:", err);
+    throw err;
+  }
+}
+
+

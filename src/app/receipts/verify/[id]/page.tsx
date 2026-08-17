@@ -55,11 +55,44 @@ export default function VerifyReceiptPage() {
     setItems(items.map(item => item.id === id ? { ...item, isStockItem: !item.isStockItem } : item));
   };
 
-  const handleApprove = () => {
-    setIsApproved(true);
-    setTimeout(() => {
-      router.push("/");
-    }, 1500);
+  const handleApprove = async () => {
+    try {
+      setIsApproved(true);
+
+      for (const item of items) {
+        if (item.isStockItem) {
+          // Stock item: Sync to Purchases + Raw Materials + Cash Flow
+          await fetch("/api/data?type=save_purchase", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              itemName: item.name,
+              quantity: item.qty,
+              unitPrice: item.price,
+              supplierName: "Toko Bahan Kopi Bersama",
+              notes: "Hasil Verifikasi Scan Nota AI",
+            }),
+          });
+        } else {
+          // Non-stock item: Sync to Expenses (OPEX) + Cash Flow
+          await fetch("/api/data?type=save_expense", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              amount: item.subtotal,
+              note: `${item.name} (${item.category})`,
+              employeeName: "Scan Nota AI",
+            }),
+          });
+        }
+      }
+
+      setTimeout(() => {
+        router.push("/purchases");
+      }, 1200);
+    } catch (err) {
+      console.error("Error approving receipt items:", err);
+    }
   };
 
   const grandTotal = items.reduce((sum, item) => sum + item.subtotal, 0);
