@@ -18,6 +18,7 @@ interface AuthContextType {
   loading: boolean;
   login: (user: UserSession) => void;
   logout: () => void;
+  switchRole: (targetRole: UserRole) => void;
   isAdmin: boolean;
 }
 
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   login: () => {},
   logout: () => {},
+  switchRole: () => {},
   isAdmin: false,
 });
 
@@ -69,10 +71,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("perkara_pos_user_session");
   };
 
+  const switchRole = (targetRole: UserRole) => {
+    const baseUser = user || DEFAULT_ADMIN;
+    const updated: UserSession = {
+      ...baseUser,
+      role: targetRole,
+      name: targetRole === "admin" ? "Owner / Manager (Admin)" : "Kasir Outlet (Karyawan)",
+    };
+    setUser(updated);
+    localStorage.setItem("perkara_pos_user_session", JSON.stringify(updated));
+  };
+
   const isAdmin = user?.role === "admin";
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, switchRole, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

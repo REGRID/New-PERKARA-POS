@@ -16,7 +16,7 @@ const AppShellContext = React.createContext(false);
 
 export function AppShell({ children }: AppShellProps) {
   const isAlreadyInShell = React.useContext(AppShellContext);
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin, switchRole } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -89,9 +89,31 @@ export function AppShell({ children }: AppShellProps) {
     if (!loading && !user && pathname !== "/login" && !pathname.startsWith("/qr-menu")) {
       router.push("/login");
     }
-  }, [user, loading, pathname, router]);
 
-  if (pathname === "/login" || pathname.startsWith("/qr-menu")) {
+    // Role-based Access Control: Restrict Cashier from Admin Pages
+    if (!loading && user && !isAdmin) {
+      const adminOnlyPages = [
+        "/",
+        "/products",
+        "/categories",
+        "/discounts",
+        "/inventory/recipes",
+        "/inventory/addons",
+        "/purchases",
+        "/receipts/upload",
+        "/reports/daily-recaps",
+        "/employees",
+        "/payment-methods",
+        "/settings",
+        "/expenses"
+      ];
+      if (adminOnlyPages.includes(pathname)) {
+        router.push("/pos");
+      }
+    }
+  }, [user, loading, pathname, router, isAdmin]);
+
+  if (pathname === "/login" || pathname.startsWith("/qr-menu") || pathname === "/pos") {
     return <>{children}</>;
   }
 
@@ -119,6 +141,21 @@ export function AppShell({ children }: AppShellProps) {
             </h1>
 
             <div className="flex items-center gap-2 relative">
+              {/* Dev Instant Role Switcher Button */}
+              <button
+                type="button"
+                onClick={() => switchRole(isAdmin ? "karyawan" : "admin")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border shadow-2xs cursor-pointer flex items-center gap-1.5 ${
+                  isAdmin 
+                    ? "bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100" 
+                    : "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
+                }`}
+                title="Klik untuk switch Mode Admin <-> Mode Kasir (Uji Coba)"
+              >
+                <span className={`w-2 h-2 rounded-full animate-ping ${isAdmin ? "bg-indigo-600" : "bg-amber-600"}`} />
+                <span>{isAdmin ? "👑 Mode: ADMIN (Klik -> KASIR)" : "🧑‍🍳 Mode: KASIR (Klik -> ADMIN)"}</span>
+              </button>
+
               {/* Search Button */}
               <button
                 type="button"

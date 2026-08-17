@@ -90,13 +90,26 @@ export default function CustomersPage() {
                 <div>
                   <h4 className="font-bold text-slate-900">{c.name}</h4>
                   <div className="flex items-center gap-3 text-slate-500 text-[11px] mt-0.5">
-                    {c.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-slate-400" />{c.phone}</span>}
+                    {c.phone && (
+                      <a 
+                        href={`https://wa.me/${c.phone.replace(/\D/g, "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-emerald-600 font-semibold hover:underline"
+                        title="Buka Chat WhatsApp"
+                      >
+                        <Phone className="w-3 h-3 text-emerald-600" />
+                        <span>{c.phone}</span>
+                      </a>
+                    )}
                     {c.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-slate-400" />{c.email}</span>}
                   </div>
                 </div>
-                <span className="font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded text-[10px]">
-                  {c.points || 0} Poin
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded text-[10px]">
+                    {c.points || 0} Poin
+                  </span>
+                </div>
               </div>
             ))
           ) : (

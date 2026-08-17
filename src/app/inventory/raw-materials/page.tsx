@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AppShell } from "@/components/layout/app-shell";
+import { useAuth } from "@/lib/auth-context";
 
 const formatRupiahDisplay = (val: number | string) => {
   if (val === "" || val === null || val === undefined) return "";
@@ -36,6 +37,7 @@ const parseRupiahInput = (val: string) => {
 };
 
 export default function RawMaterialsPage() {
+  const { user, isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryTab, setSelectedCategoryTab] = useState("Semua");
   const [activeSubMode, setActiveSubMode] = useState<"bar" | "warehouse">("bar");
@@ -44,8 +46,37 @@ export default function RawMaterialsPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Admin Edit Modal
+  // WhatsApp & Category State
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [categoriesList, setCategoriesList] = useState<string[]>(["Semua", "Bahan Baku", "Kemasan", "Operasional", "Powder", "Syrup"]);
+
+  // Admin Edit Modal State
   const [selectedAdminEditItem, setSelectedAdminEditItem] = useState<any>(null);
+
+  const handleSendStockWa = () => {
+    const todayStr = new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+    let message = `*📊 LAPORAN STOK FISIK OUTLET*\nTanggal: ${todayStr}\n\n`;
+    
+    materials.forEach((m, idx) => {
+      const isPercent = m.isPercentageMode || m.unit === "%";
+      const unit = isPercent ? "%" : (m.buyUnit || m.unit || "Pcs");
+      message += `${idx + 1}. *${m.name}*: ${m.floorQuantity || 0} ${unit}\n`;
+    });
+
+    message += `\n_Dikirim otomatis dari Perkara POS Superapp_`;
+    const encoded = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encoded}`, "_blank");
+  };
+
+  const handleAddCategory = () => {
+    if (!newCategoryName.trim()) return;
+    if (!categoriesList.includes(newCategoryName.trim())) {
+      setCategoriesList([...categoriesList, newCategoryName.trim()]);
+    }
+    setNewCategoryName("");
+    setIsCategoryModalOpen(false);
+  };
   const [adminEditForm, setAdminEditForm] = useState({
     name: "",
     category: "Bahan Baku",
@@ -259,7 +290,7 @@ export default function RawMaterialsPage() {
             <div>
               <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Kelola Stok & Refill Gudang</h1>
               <p className="text-xs text-slate-500 font-medium">
-                Mode Admin: Kelola Stok Berjalan, Stok Gudang Utama, Konversi HPP & Restock
+                {isAdmin ? "Mode Admin: Kelola Stok Berjalan, Stok Gudang Utama, Konversi HPP & Restock" : "Mode Kasir: Input & Verifikasi Stok Fisik Outlet"}
               </p>
             </div>
           </div>
@@ -268,27 +299,33 @@ export default function RawMaterialsPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
+              onClick={handleSendStockWa}
               className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-semibold text-xs px-3.5 py-2 min-h-[40px] rounded-xl gap-1.5 shadow-2xs cursor-pointer"
             >
               <Send className="w-4 h-4 text-emerald-600" />
               <span>Kirim Stok WA</span>
             </Button>
 
-            <Button
-              variant="outline"
-              className="border-amber-500 text-amber-700 hover:bg-amber-50 font-semibold text-xs px-3.5 py-2 min-h-[40px] rounded-xl gap-1.5 shadow-2xs cursor-pointer"
-            >
-              <Tag className="w-4 h-4 text-amber-600" />
-              <span>Kelola Kategori</span>
-            </Button>
+            {isAdmin && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCategoryModalOpen(true)}
+                  className="border-amber-500 text-amber-700 hover:bg-amber-50 font-semibold text-xs px-3.5 py-2 min-h-[40px] rounded-xl gap-1.5 shadow-2xs cursor-pointer"
+                >
+                  <Tag className="w-4 h-4 text-amber-600" />
+                  <span>Kelola Kategori</span>
+                </Button>
 
-            <Button
-              onClick={() => setIsAddModalOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-4 py-2 min-h-[40px] rounded-xl gap-1.5 shadow-xs cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Tambah Bahan Baru</span>
-            </Button>
+                <Button
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-4 py-2 min-h-[40px] rounded-xl gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Tambah Bahan Baru</span>
+                </Button>
+              </>
+            )}
 
             <Button
               variant="outline"
@@ -444,11 +481,11 @@ export default function RawMaterialsPage() {
                         return (
                           <div key={item.id} className="grid grid-cols-12 px-6 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
                             
-                            {/* Col 1: Name, Harga Beli, & HPP Cost per Unit */}
+                             {/* Col 1: Name & Satuan Beli (Harga Beli hidden for cashier) */}
                             <div className="col-span-6 space-y-0.5">
                               <h4 className="font-extrabold text-slate-900 text-sm">{item.name}</h4>
                               <p className="text-slate-500 font-medium text-xs">
-                                Rp {hargaBeli.toLocaleString("id-ID")} / {item.buyUnit || "Pcs"}
+                                {isAdmin ? `Rp ${hargaBeli.toLocaleString("id-ID")} / ${item.buyUnit || "Pcs"}` : `Kemasan Beli: ${item.buyUnit || "Pcs"}`}
                               </p>
                             </div>
 
@@ -480,7 +517,7 @@ export default function RawMaterialsPage() {
                               </span>
                             </div>
 
-                            {/* Col 3: Admin Options (Restock + Edit Pencil) */}
+                            {/* Col 3: Admin / Cashier Options (Restock + Edit Pencil for Admin) */}
                             <div className="col-span-3 flex items-center justify-end gap-2">
                               <Button
                                 size="sm"
@@ -491,13 +528,15 @@ export default function RawMaterialsPage() {
                                 Restock
                               </Button>
 
-                              <button
-                                onClick={() => handleOpenAdminEdit(item)}
-                                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                                title="Edit Detail Bahan & Konversi HPP"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </button>
+                              {isAdmin && (
+                                <button
+                                  onClick={() => handleOpenAdminEdit(item)}
+                                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                  title="Edit Detail Bahan & Konversi HPP"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                              )}
                             </div>
 
                           </div>
@@ -779,6 +818,45 @@ export default function RawMaterialsPage() {
                   </Button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Dialog Kelola Kategori */}
+        {isCategoryModalOpen && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-3xl border shadow-2xl p-6 space-y-4">
+              <h3 className="font-bold text-sm text-slate-900">Kelola Kategori Bahan Baku</h3>
+              
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700 block">Daftar Kategori Aktif:</label>
+                <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 border rounded-xl">
+                  {categoriesList.map((c) => (
+                    <Badge key={c} variant="secondary" className="text-xs font-semibold px-2 py-0.5">
+                      {c}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700 block">Tambah Kategori Baru:</label>
+                <Input
+                  placeholder="misal: Packaging / Saus / Topik"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="min-h-[38px] text-xs font-semibold"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-2">
+                <Button variant="outline" onClick={() => setIsCategoryModalOpen(false)} className="text-xs rounded-xl">
+                  Batal
+                </Button>
+                <Button onClick={handleAddCategory} className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl px-4">
+                  Tambah Kategori
+                </Button>
+              </div>
             </div>
           </div>
         )}

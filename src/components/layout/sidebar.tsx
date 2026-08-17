@@ -58,7 +58,7 @@ export function Sidebar() {
     router.push("/login");
   };
 
-  const navigation: NavGroup[] = [
+  const rawNavigation: NavGroup[] = [
     {
       id: "OPERATIONS",
       groupName: "OPERATIONS",
@@ -109,6 +109,16 @@ export function Sidebar() {
       ]
     }
   ];
+
+  // Cashier Role Restriction: Only allowed operational pages for non-admin
+  const navigation = isAdmin 
+    ? rawNavigation 
+    : rawNavigation.map((group) => ({
+        ...group,
+        items: group.items.filter((item) => 
+          ["/pos", "/orders", "/tables", "/customers", "/attendance", "/reports/cash-flow", "/inventory/raw-materials"].includes(item.href) || item.href.startsWith("/qr-menu")
+        ),
+      })).filter((group) => group.items.length > 0);
 
   // Hidden navs state from localStorage (updated via Settings)
   const [hiddenNavs, setHiddenNavs] = useState<string[]>([]);

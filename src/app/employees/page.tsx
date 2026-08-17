@@ -9,7 +9,11 @@ import {
   DollarSign, 
   Trash2, 
   UserCheck, 
-  Printer
+  Printer,
+  Pencil,
+  Key,
+  Shield,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,9 +26,12 @@ export default function EmployeesPage() {
   const [attendances, setAttendances] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: "",
+    role: "cashier",
+    pin: "1234",
     employmentType: "FULL_TIME",
     flatSalaryAmount: 3000000,
     dailyRate: 100000,
@@ -50,23 +57,44 @@ export default function EmployeesPage() {
     fetchData();
   }, []);
 
-  const handleAddEmployee = async (e: React.FormEvent) => {
+  const handleOpenEdit = (emp: any) => {
+    setEditingId(emp.id);
+    setForm({
+      name: emp.name || "",
+      role: emp.role || "cashier",
+      pin: emp.pin || "1234",
+      employmentType: emp.employmentType || "FULL_TIME",
+      flatSalaryAmount: Number(emp.flatSalaryAmount || 3000000),
+      dailyRate: Number(emp.dailyRate || 100000),
+    });
+    setShowAddForm(true);
+  };
+
+  const handleResetForm = () => {
+    setEditingId(null);
+    setForm({
+      name: "",
+      role: "cashier",
+      pin: "1234",
+      employmentType: "FULL_TIME",
+      flatSalaryAmount: 3000000,
+      dailyRate: 100000,
+    });
+    setShowAddForm(false);
+  };
+
+  const handleSaveEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
     try {
+      const payload = editingId ? { id: editingId, ...form } : form;
       const res = await fetch("/api/data?type=save_employee", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
-        setForm({
-          name: "",
-          employmentType: "FULL_TIME",
-          flatSalaryAmount: 3000000,
-          dailyRate: 100000,
-        });
-        setShowAddForm(false);
+        handleResetForm();
         await fetchData();
       }
     } catch (e) {
@@ -75,7 +103,7 @@ export default function EmployeesPage() {
   };
 
   const handleDeleteEmployee = async (id: string) => {
-    if (!confirm("Hapus data karyawan ini?")) return;
+    if (!confirm("Hapus data karyawan ini dari database?")) return;
     try {
       await fetch("/api/data?type=delete_employee", {
         method: "POST",
@@ -100,16 +128,23 @@ export default function EmployeesPage() {
             <div>
               <h2 className="text-xl font-bold text-slate-900 tracking-tight">Employee & HR Management</h2>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Kelola data staf, jadwal shift kerja, dan perincian penggajian karyawan.
+                Kelola data staf, PIN otorisasi kasir, jadwal shift kerja, dan penggajian karyawan.
               </p>
             </div>
 
             <Button
-              onClick={() => setShowAddForm(!showAddForm)}
+              onClick={() => {
+                if (showAddForm) {
+                  handleResetForm();
+                } else {
+                  handleResetForm();
+                  setShowAddForm(true);
+                }
+              }}
               className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs px-4 py-2.5 rounded-xl min-h-[42px] gap-2 shadow-xs shrink-0 cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              <span>Tambah Karyawan Baru</span>
+              {showAddForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              <span>{showAddForm ? "Tutup Form" : "Tambah Karyawan Baru"}</span>
             </Button>
           </div>
 
@@ -164,20 +199,64 @@ export default function EmployeesPage() {
             </button>
           </div>
 
-          {/* Inline Add Employee Form */}
+          {/* Inline Add / Edit Employee Form */}
           {showAddForm && (
-            <form onSubmit={handleAddEmployee} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-              <h4 className="font-bold text-xs text-slate-800">Form Pendaftaran Karyawan Baru</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <form onSubmit={handleSaveEmployee} className="bg-slate-50 p-4 md:p-5 rounded-2xl border border-slate-200 space-y-4 shadow-2xs">
+              <div className="flex items-center justify-between border-b pb-2">
+                <h4 className="font-bold text-xs text-slate-900">
+                  {editingId ? "✏️ Edit Data Karyawan" : "➕ Form Pendaftaran Karyawan Baru"}
+                </h4>
+                <Button type="button" variant="ghost" size="sm" onClick={handleResetForm} className="h-7 text-xs text-slate-500">
+                  Batal
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">Nama Lengkap *</label>
+                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">Nama Lengkap Karyawan *</label>
                   <Input
-                    placeholder="Nama Karyawan..."
+                    placeholder="misal: Budi Santoso"
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="bg-white min-h-[38px] text-xs"
+                    className="bg-white min-h-[38px] text-xs font-semibold"
                     required
                   />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">Role / Jabatan</label>
+                  <select
+                    value={form.role}
+                    onChange={(e) => setForm({ ...form, role: e.target.value })}
+                    className="bg-white min-h-[38px] w-full text-xs font-semibold rounded-xl border border-slate-200 px-3 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  >
+                    <option value="cashier">Kasir / Front Desk</option>
+                    <option value="barista">Barista Utama</option>
+                    <option value="kitchen">Dapur / Chef</option>
+                    <option value="admin">Supervisor / Admin</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">PIN Otorisasi Kasir (4 Digit)</label>
+                  <Input
+                    placeholder="1234"
+                    value={form.pin}
+                    onChange={(e) => setForm({ ...form, pin: e.target.value })}
+                    className="bg-white min-h-[38px] text-xs font-semibold tracking-wider"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">Status Kerja</label>
+                  <select
+                    value={form.employmentType}
+                    onChange={(e) => setForm({ ...form, employmentType: e.target.value })}
+                    className="bg-white min-h-[38px] w-full text-xs font-semibold rounded-xl border border-slate-200 px-3 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  >
+                    <option value="FULL_TIME">FULL TIME</option>
+                    <option value="PART_TIME">PART TIME / SHIFT</option>
+                  </select>
                 </div>
 
                 <div>
@@ -186,24 +265,29 @@ export default function EmployeesPage() {
                     type="number"
                     value={form.flatSalaryAmount}
                     onChange={(e) => setForm({ ...form, flatSalaryAmount: Number(e.target.value) })}
-                    className="bg-white min-h-[38px] text-xs"
+                    className="bg-white min-h-[38px] text-xs font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">Tarif Harian (Daily Rate Rp)</label>
+                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">Tarif Daily Rate (Rp)</label>
                   <Input
                     type="number"
                     value={form.dailyRate}
                     onChange={(e) => setForm({ ...form, dailyRate: Number(e.target.value) })}
-                    className="bg-white min-h-[38px] text-xs"
+                    className="bg-white min-h-[38px] text-xs font-semibold"
                   />
                 </div>
               </div>
 
-              <Button type="submit" className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold px-4 min-h-[38px] rounded-xl">
-                Simpan Karyawan
-              </Button>
+              <div className="flex gap-2 justify-end pt-1">
+                <Button type="button" variant="outline" onClick={handleResetForm} className="text-xs rounded-xl min-h-[38px]">
+                  Batal
+                </Button>
+                <Button type="submit" className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold px-5 min-h-[38px] rounded-xl">
+                  {editingId ? "Update Karyawan" : "Simpan Karyawan"}
+                </Button>
+              </div>
             </form>
           )}
 
@@ -211,7 +295,8 @@ export default function EmployeesPage() {
           {activeTab === "employees" && (
             <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
               <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-                <div className="col-span-6">NAMA & STAF</div>
+                <div className="col-span-4">NAMA & STAF</div>
+                <div className="col-span-2 text-center">ROLE & PIN</div>
                 <div className="col-span-2 text-center">TIPE KERJA</div>
                 <div className="col-span-3 text-right">GAJI POKOK</div>
                 <div className="col-span-1 text-right">AKSI</div>
@@ -221,14 +306,23 @@ export default function EmployeesPage() {
                 {employees.length > 0 ? (
                   employees.map((emp) => (
                     <div key={emp.id} className="grid grid-cols-12 px-6 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
-                      <div className="col-span-6 font-bold text-slate-900 flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
+                      <div className="col-span-4 font-bold text-slate-900 flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-stone-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
                           {emp.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <span className="text-slate-900 font-bold">{emp.name}</span>
-                          <span className="block text-[10px] text-slate-400 font-normal">Karyawan Outlet</span>
+                          <span className="text-slate-900 font-bold text-sm block">{emp.name}</span>
+                          <span className="text-[10px] text-slate-500 font-medium">Staf Outlet Active</span>
                         </div>
+                      </div>
+
+                      <div className="col-span-2 text-center space-y-1">
+                        <Badge className="text-[10px] px-2 py-0.5 font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
+                          {emp.role ? emp.role.toUpperCase() : "KASIR"}
+                        </Badge>
+                        <span className="block text-[10px] font-mono text-slate-500">
+                          PIN: {emp.pin || "1234"}
+                        </span>
                       </div>
 
                       <div className="col-span-2 text-center">
@@ -241,8 +335,19 @@ export default function EmployeesPage() {
                         Rp {Number(emp.flatSalaryAmount || 3000000).toLocaleString("id-ID")}
                       </div>
 
-                      <div className="col-span-1 text-right">
-                        <button onClick={() => handleDeleteEmployee(emp.id)} className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg transition-colors cursor-pointer">
+                      <div className="col-span-1 flex items-center justify-end gap-1">
+                        <button 
+                          onClick={() => handleOpenEdit(emp)} 
+                          className="text-slate-500 hover:text-indigo-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+                          title="Edit Data Karyawan"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteEmployee(emp.id)} 
+                          className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+                          title="Hapus Karyawan"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>

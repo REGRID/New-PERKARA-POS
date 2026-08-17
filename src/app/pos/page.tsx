@@ -20,7 +20,13 @@ import {
   Layers,
   Store,
   LayoutDashboard,
-  RefreshCw
+  RefreshCw,
+  Maximize,
+  Minimize,
+  LogOut,
+  Clock,
+  FileText,
+  Wallet
 } from "lucide-react";
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -30,12 +36,25 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 
 import { bluetoothPrinter } from "@/lib/bluetooth-printer";
+import { useAuth } from "@/lib/auth-context";
 
 export default function POSTerminalPage() {
+  const { user, logout, isAdmin, switchRole } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+      }
+    }
+  };
   
   // Cart State
   const [cart, setCart] = useState<any[]>([]);
@@ -83,21 +102,62 @@ export default function POSTerminalPage() {
     return <CupSoda className="w-5 h-5 text-sky-700 dark:text-sky-300" />;
   };
 
-  const addToCart = (product: any) => {
-    const existingIndex = cart.findIndex(c => c.productId === product.id);
-    if (existingIndex > -1) {
-      const updated = [...cart];
-      updated[existingIndex].qty += 1;
-      setCart(updated);
+  // Product Customization Modal State
+  const [selectedCustomProduct, setSelectedCustomProduct] = useState<any>(null);
+  const [customSugar, setCustomSugar] = useState("Normal Sugar (100%)");
+  const [customIce, setCustomIce] = useState("Normal Ice");
+  const [selectedAddons, setSelectedAddons] = useState<any[]>([]);
+  const [customNotes, setCustomNotes] = useState("");
+  const [voidError, setVoidError] = useState("");
+
+  const availableAddonsList = [
+    { name: "Extra Espresso Shot", price: 5000 },
+    { name: "Boba Pearl", price: 4000 },
+    { name: "Cream Cheese Top", price: 6000 },
+    { name: "Whipped Cream", price: 5000 },
+  ];
+
+  const handleOpenCustomization = (product: any) => {
+    setSelectedCustomProduct(product);
+    setCustomSugar("Normal Sugar (100%)");
+    setCustomIce("Normal Ice");
+    setSelectedAddons([]);
+    setCustomNotes("");
+  };
+
+  const handleConfirmAddToCart = () => {
+    if (!selectedCustomProduct) return;
+    const variantName = `${customSugar}, ${customIce}`;
+
+    setCart([...cart, {
+      productId: selectedCustomProduct.id,
+      name: selectedCustomProduct.name,
+      price: selectedCustomProduct.price,
+      qty: 1,
+      variantName,
+      addons: selectedAddons,
+      notes: customNotes,
+    }]);
+
+    setSelectedCustomProduct(null);
+  };
+
+  const toggleAddonSelection = (addon: any) => {
+    if (selectedAddons.some((a) => a.name === addon.name)) {
+      setSelectedAddons(selectedAddons.filter((a) => a.name !== addon.name));
     } else {
-      setCart([...cart, {
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        qty: 1,
-        variantName: "Regular",
-        addons: []
-      }]);
+      setSelectedAddons([...selectedAddons, addon]);
+    }
+  };
+
+  const handleConfirmVoidCart = () => {
+    if (supervisorPin === "9999" || supervisorPin === (user?.pin || "9999")) {
+      setCart([]);
+      setIsVoidModalOpen(false);
+      setSupervisorPin("");
+      setVoidError("");
+    } else {
+      setVoidError("PIN Supervisor salah! (Default PIN: 9999)");
     }
   };
 
@@ -195,33 +255,90 @@ export default function POSTerminalPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       
-      {/* POS Top Header Bar */}
-      <header className="bg-card border-b p-3 flex items-center justify-between gap-2 shadow-xs">
+      {/* POS Dedicated Full Screen Header Bar */}
+      <header className="bg-slate-900 text-white p-3 flex items-center justify-between gap-2 shadow-md shrink-0">
         <div className="flex items-center gap-3">
-          <Link href="/">
-            <Button size="icon" variant="outline" className="min-h-[44px] min-w-[44px] gap-2 border-slate-200 dark:border-slate-800">
-              <LayoutDashboard className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            </Button>
-          </Link>
+          {isAdmin ? (
+            <Link href="/">
+              <Button size="icon" variant="outline" className="min-h-[40px] min-w-[40px] border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700">
+                <LayoutDashboard className="w-4 h-4 text-indigo-400" />
+              </Button>
+            </Link>
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center font-bold text-white text-base">
+              POS
+            </div>
+          )}
+
           <div>
-            <h1 className="text-base font-bold flex items-center gap-2 text-foreground">
-              <span>Terminal Kasir POS (Live Database)</span>
-              <Badge className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 text-[10px] font-semibold">
-                Database Ready
+            <h1 className="text-sm md:text-base font-extrabold flex items-center gap-2 text-white">
+              <span>POS Terminal</span>
+              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] font-bold">
+                Live Terminal
               </Badge>
             </h1>
-            <p className="text-xs text-muted-foreground">Kasir: Budi Santoso | Terhubung ke MySQL 3306</p>
+            <p className="text-[11px] text-slate-400 font-medium">
+              Petugas: <strong className="text-slate-200">{user?.name || "Kasir Outlet"}</strong> ({isAdmin ? "ADMIN" : "KASIR"})
+            </p>
           </div>
         </div>
 
+        {/* Quick Actions & Fullscreen Toggle Button */}
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={fetchMenus} className="min-h-[38px] text-xs gap-1.5 font-medium">
-            <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
-            <span>Sync Menu</span>
+          {/* Dev Instant Role Switcher Toggle */}
+          <Button
+            size="sm"
+            onClick={() => switchRole(isAdmin ? "karyawan" : "admin")}
+            className={`min-h-[38px] text-xs font-bold gap-1.5 px-3 rounded-xl cursor-pointer ${
+              isAdmin 
+                ? "bg-amber-500 hover:bg-amber-600 text-slate-950" 
+                : "bg-indigo-600 hover:bg-indigo-700 text-white"
+            }`}
+            title="Klik untuk switch Mode Admin <-> Mode Kasir secara instan"
+          >
+            <span>{isAdmin ? "👑 Switch -> KASIR" : "🧑‍🍳 Switch -> ADMIN"}</span>
           </Button>
-          <Badge variant="outline" className="px-2.5 py-1 text-xs font-semibold bg-indigo-50/60 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200">
-            Omnichannel Ready
-          </Badge>
+          <Link href="/orders">
+            <Button size="sm" variant="outline" className="min-h-[38px] text-xs gap-1.5 border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700">
+              <FileText className="w-3.5 h-3.5 text-sky-400" />
+              <span className="hidden sm:inline">Transaksi</span>
+            </Button>
+          </Link>
+
+          <Link href="/reports/cash-flow">
+            <Button size="sm" variant="outline" className="min-h-[38px] text-xs gap-1.5 border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700">
+              <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Kas Laci</span>
+            </Button>
+          </Link>
+
+          <Link href="/attendance">
+            <Button size="sm" variant="outline" className="min-h-[38px] text-xs gap-1.5 border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700">
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Absen</span>
+            </Button>
+          </Link>
+
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={fetchMenus} 
+            className="min-h-[38px] text-xs gap-1.5 border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            <span className="hidden md:inline">Sync</span>
+          </Button>
+
+          {/* Fullscreen Mode Button */}
+          <Button
+            size="sm"
+            onClick={toggleFullscreen}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white min-h-[38px] text-xs font-bold gap-1.5 px-3 rounded-xl cursor-pointer"
+            title="Layar Penuh (Full Screen)"
+          >
+            {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+            <span className="hidden md:inline">{isFullscreen ? "Keluar Fullscreen" : "Full Screen"}</span>
+          </Button>
         </div>
       </header>
 
@@ -268,7 +385,7 @@ export default function POSTerminalPage() {
               .map((product) => (
                 <Card 
                   key={product.id}
-                  onClick={() => addToCart(product)}
+                  onClick={() => handleOpenCustomization(product)}
                   className="hover:border-indigo-400 cursor-pointer transition-all flex flex-col justify-between p-3.5 min-h-[145px] shadow-xs hover:shadow-sm bg-card"
                 >
                   <div>
@@ -454,34 +571,140 @@ export default function POSTerminalPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Product Customization & Add-Ons Dialog */}
+      <Dialog open={!!selectedCustomProduct} onOpenChange={() => setSelectedCustomProduct(null)}>
+        <DialogContent className="sm:max-w-md">
+          {selectedCustomProduct && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-base font-bold text-slate-900">
+                  Kustomisasi Menu: {selectedCustomProduct.name}
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  Pilih opsi takaran (Sugar/Ice), Add-on topping, dan catatan barista.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2 text-xs">
+                {/* Sugar Level */}
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700 block">Level Gula / Sweetness:</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {["Normal Sugar (100%)", "Less Sugar (70%)", "No Sugar (0%)"].map((s) => (
+                      <Button
+                        key={s}
+                        type="button"
+                        variant={customSugar === s ? "default" : "outline"}
+                        onClick={() => setCustomSugar(s)}
+                        className={`min-h-[38px] text-[11px] font-semibold ${
+                          customSugar === s ? "bg-indigo-600 hover:bg-indigo-700 text-white" : ""
+                        }`}
+                      >
+                        {s.split(" ")[0]}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Ice Level */}
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700 block">Level Es Batu / Ice:</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {["Normal Ice", "Less Ice", "No Ice"].map((i) => (
+                      <Button
+                        key={i}
+                        type="button"
+                        variant={customIce === i ? "default" : "outline"}
+                        onClick={() => setCustomIce(i)}
+                        className={`min-h-[38px] text-[11px] font-semibold ${
+                          customIce === i ? "bg-indigo-600 hover:bg-indigo-700 text-white" : ""
+                        }`}
+                      >
+                        {i}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Add-On Toppings */}
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700 block">Ekstra Add-On / Topping:</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {availableAddonsList.map((addon) => {
+                      const isSelected = selectedAddons.some((a) => a.name === addon.name);
+                      return (
+                        <button
+                          key={addon.name}
+                          type="button"
+                          onClick={() => toggleAddonSelection(addon)}
+                          className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-colors cursor-pointer ${
+                            isSelected ? "border-emerald-500 bg-emerald-50 text-emerald-900 font-bold" : "bg-white hover:bg-slate-50 text-slate-700"
+                          }`}
+                        >
+                          <span>{addon.name}</span>
+                          <span className="text-[11px] text-emerald-600 font-semibold">+Rp {addon.price.toLocaleString("id-ID")}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Catatan Barista */}
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 block">Catatan Khusus Barista:</label>
+                  <Input
+                    placeholder="misal: Pisahkan es / Tanpa tutup"
+                    value={customNotes}
+                    onChange={(e) => setCustomNotes(e.target.value)}
+                    className="min-h-[38px] text-xs"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button variant="outline" className="min-h-[40px] text-xs" onClick={() => setSelectedCustomProduct(null)}>
+                  Batal
+                </Button>
+                <Button className="min-h-[40px] bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold" onClick={handleConfirmAddToCart}>
+                  + Tambah ke Keranjang
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Void Order PIN Supervisor Modal */}
       <Dialog open={isVoidModalOpen} onOpenChange={setIsVoidModalOpen}>
         <DialogContent className="sm:max-w-xs text-center">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-destructive">PIN Supervisor (Void)</DialogTitle>
-            <DialogDescription className="text-xs">Pembatalan pesanan wajib otorisasi PIN</DialogDescription>
+            <DialogDescription className="text-xs">Pembatalan pesanan wajib otorisasi PIN (Default: 9999)</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 py-2">
             <Input 
               type="password"
-              placeholder="PIN Supervisor..."
+              placeholder="PIN Supervisor (9999)..."
               value={supervisorPin}
               onChange={(e) => setSupervisorPin(e.target.value)}
               className="min-h-[44px] text-center text-lg tracking-widest"
             />
+            {voidError && (
+              <p className="text-xs font-semibold text-rose-600">{voidError}</p>
+            )}
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" className="min-h-[44px] w-full" onClick={() => setIsVoidModalOpen(false)}>
+            <Button variant="outline" className="min-h-[44px] w-full text-xs" onClick={() => { setIsVoidModalOpen(false); setVoidError(""); }}>
               Batal
             </Button>
             <Button 
               variant="destructive"
-              className="min-h-[44px] w-full font-semibold" 
-              onClick={() => { setCart([]); setIsVoidModalOpen(false); setSupervisorPin(""); }}
+              className="min-h-[44px] w-full text-xs font-semibold" 
+              onClick={handleConfirmVoidCart}
             >
-              Batalkan
+              Batalkan Pesanan
             </Button>
           </DialogFooter>
         </DialogContent>
