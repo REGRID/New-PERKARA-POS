@@ -74,7 +74,7 @@ export default function PurchasesPage() {
               className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs px-4 py-2.5 rounded-xl min-h-[42px] gap-2 shadow-xs shrink-0 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Record Purchase</span>
+              <span>Record Purchase</span>
             </Button>
           </div>
 

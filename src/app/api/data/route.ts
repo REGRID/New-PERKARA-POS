@@ -3,6 +3,10 @@ import {
   getDashboardData, 
   getIngredients, 
   getEmployees, 
+  saveEmployee,
+  deleteEmployee,
+  getEmployeeAttendances,
+  saveAttendanceRecord,
   getMenusWithRecipes, 
   createIngredient, 
   updateIngredientStock,
@@ -38,6 +42,7 @@ export async function GET(request: Request) {
   try {
     if (type === "ingredients") return NextResponse.json(await getIngredients());
     if (type === "employees") return NextResponse.json(await getEmployees());
+    if (type === "attendances") return NextResponse.json(await getEmployeeAttendances());
     if (type === "menus" || type === "menus_with_recipes") return NextResponse.json(await getMenusWithRecipes());
     if (type === "categories") return NextResponse.json(await getCategories());
     if (type === "purchases") return NextResponse.json(await getPurchases());
@@ -72,7 +77,10 @@ export async function POST(request: Request) {
     if (type === "save_menu_settings") return NextResponse.json(await saveMenuSettings(body));
     if (type === "checkout") return NextResponse.json(await processOrderCheckout(body));
     
-    // New Extended Modules POST Handlers
+    // Extended Modules POST Handlers
+    if (type === "save_employee") return NextResponse.json(await saveEmployee(body));
+    if (type === "delete_employee") return NextResponse.json(await deleteEmployee(body.id));
+    if (type === "save_attendance") return NextResponse.json(await saveAttendanceRecord(body));
     if (type === "save_category") return NextResponse.json(await saveCategory(body));
     if (type === "delete_category") return NextResponse.json(await deleteCategory(body.id));
     if (type === "save_purchase") return NextResponse.json(await savePurchase(body));

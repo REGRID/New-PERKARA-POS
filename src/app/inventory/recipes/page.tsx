@@ -188,8 +188,14 @@ export default function RecipesAndMenuSettingsPage() {
           </div>
         </div>
 
-        {/* Menu Cards Grid */}
-        <div className="space-y-4">
+        {/* Menu Cards Outer Container */}
+        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
+          <div className="border-b pb-3 flex items-center justify-between">
+            <h3 className="font-extrabold text-base text-slate-900">Daftar Menu & Komposisi Resep (BOM)</h3>
+            <span className="text-xs text-slate-500 font-medium">Total: {menus.length} Menu</span>
+          </div>
+
+          <div className="space-y-4">
           {menus.map((menu) => {
             const hpp = calculateMenuHpp(menu.recipeItems);
             const margin = (menu.price || 0) - hpp;
@@ -251,27 +257,38 @@ export default function RecipesAndMenuSettingsPage() {
                     </p>
                   ) : (
                     <div className="divide-y divide-border text-xs">
-                      {recipes.map((r: any, idx: number) => {
-                        const ing = allIngredients.find((i) => i.id === r.ingredientId) || r.ingredient;
-                        return (
-                          <div key={idx} className="py-2 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Check className="w-3.5 h-3.5 text-emerald-600" />
-                              <span className="font-semibold text-foreground">{ing?.name || "Bahan Baku"}</span>
-                              <span className="text-[11px] text-muted-foreground">({ing?.category || "Bahan"})</span>
+                        {recipes.map((r: any, idx: number) => {
+                          const ing = allIngredients.find((i) => i.id === r.ingredientId) || r.ingredient;
+                          const conversion = Number(ing?.conversionRatio || 1);
+                          const hargaBeli = Number(ing?.hargaBeli || 0);
+                          const unitCost = Number(ing?.costPerUseUnit) || (conversion > 0 ? hargaBeli / conversion : 0);
+                          const ingHpp = Number(r.quantityUsed || 0) * unitCost;
+
+                          return (
+                            <div key={idx} className="py-2 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="font-semibold text-foreground">{ing?.name || "Bahan Baku"}</span>
+                                <span className="text-[11px] text-muted-foreground">({ing?.category || "Bahan"})</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                  HPP: Rp {Math.round(ingHpp).toLocaleString("id-ID")}
+                                </span>
+                                <span className="font-mono bg-muted/60 px-2.5 py-0.5 rounded text-foreground font-bold">
+                                  {Number(r.quantityUsed)} {ing?.unit || "ml"} / porsi
+                                </span>
+                              </div>
                             </div>
-                            <span className="font-mono bg-muted/60 px-2.5 py-0.5 rounded text-foreground font-bold">
-                              {Number(r.quantityUsed)} {ing?.unit || "gram"} / porsi
-                            </span>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
                     </div>
                   )}
                 </CardContent>
               </Card>
             );
           })}
+          </div>
         </div>
 
         {/* Modal Setting / Edit Menu */}
@@ -317,10 +334,13 @@ export default function RecipesAndMenuSettingsPage() {
                 <div>
                   <label className="text-xs font-semibold text-foreground block mb-1">Harga Jual (Rp) *</label>
                   <Input 
-                    type="number"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                    className="min-h-[42px]"
+                    type="text"
+                    value={formData.price ? formData.price.toLocaleString("id-ID") : ""}
+                    onChange={(e) => {
+                      const clean = e.target.value.replace(/\D/g, "");
+                      setFormData({ ...formData, price: Number(clean) || 0 });
+                    }}
+                    className="min-h-[42px] font-bold"
                   />
                 </div>
                 <div className="flex items-center gap-2 pt-6">

@@ -48,7 +48,13 @@ export default function OrdersPage() {
             <div className="col-span-2 text-center">Cetak</div>
           </div>
           <div className="divide-y">
-            {orders.length > 0 ? (
+            {loading ? (
+              <div className="p-6 space-y-3">
+                <div className="h-4 bg-slate-100 rounded animate-pulse w-full" />
+                <div className="h-4 bg-slate-100 rounded animate-pulse w-full" />
+                <div className="h-4 bg-slate-100 rounded animate-pulse w-full" />
+              </div>
+            ) : orders.length > 0 ? (
               orders.map((o) => (
                 <div key={o.id} className="grid grid-cols-12 px-4 py-3 items-center hover:bg-slate-50">
                   <div className="col-span-3 font-bold text-slate-900">

@@ -79,7 +79,12 @@ export default function CustomersPage() {
         </form>
 
         <div className="bg-white rounded-xl border divide-y shadow-2xs text-xs">
-          {customers.length > 0 ? (
+          {loading ? (
+            <div className="p-6 space-y-3">
+              <div className="h-4 bg-slate-100 rounded animate-pulse w-full" />
+              <div className="h-4 bg-slate-100 rounded animate-pulse w-full" />
+            </div>
+          ) : customers.length > 0 ? (
             customers.map((c) => (
               <div key={c.id} className="p-3 flex items-center justify-between hover:bg-slate-50">
                 <div>

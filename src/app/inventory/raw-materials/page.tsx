@@ -1,72 +1,79 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import { 
+  Store, 
+  Send, 
   Tag, 
   Plus, 
+  RefreshCw, 
   Search, 
-  RefreshCw,
+  Pencil, 
+  Boxes, 
+  Warehouse, 
   SlidersHorizontal,
-  Pencil,
   Trash2,
-  Lock,
-  ShieldCheck,
-  UserCheck,
-  AlertCircle,
-  CheckCircle2
+  Calculator,
+  Percent
 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AppShell } from "@/components/layout/app-shell";
-import { useAuth } from "@/lib/auth-context";
+
+const formatRupiahDisplay = (val: number | string) => {
+  if (val === "" || val === null || val === undefined) return "";
+  if (val === 0 || val === "0") return "";
+  const num = typeof val === "number" ? val : Number(val.toString().replace(/\D/g, ""));
+  if (isNaN(num) || num === 0) return "";
+  return num.toLocaleString("id-ID");
+};
+
+const parseRupiahInput = (val: string) => {
+  const clean = val.replace(/\D/g, "");
+  if (clean === "") return "" as any;
+  return Number(clean);
+};
 
 export default function RawMaterialsPage() {
-  const { user, isAdmin } = useAuth();
-
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategoryTab, setSelectedCategoryTab] = useState("Semua");
+  const [activeSubMode, setActiveSubMode] = useState<"bar" | "warehouse">("bar");
   const [materials, setMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Warehouse edit modal (quick stock change)
-  const [selectedWarehouseItem, setSelectedWarehouseItem] = useState<any>(null);
-  const [warehouseQtyInput, setWarehouseQtyInput] = useState<number>(0);
-
-  // Admin Granular Edit Modal State
+  // Admin Edit Modal
   const [selectedAdminEditItem, setSelectedAdminEditItem] = useState<any>(null);
   const [adminEditForm, setAdminEditForm] = useState({
     name: "",
     category: "Bahan Baku",
-    buyUnit: "Karton",
-    unit: "gram",
+    buyUnit: "Pcs",
+    unit: "ml",
     conversionRatio: 1000,
-    hargaBeli: 50000,
+    hargaBeli: 100000,
     minStockAlert: 10,
     floorQuantity: 0,
     warehouseQuantity: 0,
-    hasWarehouseStock: true,
+    isPercentageMode: false,
   });
 
-  // Locked notice dialog for Karyawan
-  const [showLockedDialog, setShowLockedDialog] = useState(false);
+  // Restock Modal
+  const [restockItem, setRestockItem] = useState<any>(null);
+  const [restockQty, setRestockQty] = useState<number>(1);
 
-  // Form State for new item
+  // Form State for New Item
   const [formData, setFormData] = useState({
     name: "",
     category: "Bahan Baku",
-    unit: "kg",
-    buyUnit: "Karton",
-    conversionRatio: 1,
+    buyUnit: "Pcs",
+    unit: "ml",
+    conversionRatio: 1000,
     floorQuantity: 1,
-    warehouseQuantity: 10,
-    hasWarehouseStock: true,
-    minStockAlert: 5,
-    hargaBeli: 50000,
+    warehouseQuantity: 0,
+    hargaBeli: 100000,
+    isPercentageMode: false,
   });
 
   const fetchIngredients = async () => {
@@ -88,17 +95,14 @@ export default function RawMaterialsPage() {
     fetchIngredients();
   }, []);
 
-  // Update Floor Quantity (+ / -) with instant optimistic UI & DB persist
+  // Update Floor Quantity (+ / -)
   const handleFloorStockChange = async (id: string, delta: number) => {
     const item = materials.find((m) => m.id === id);
     if (!item) return;
 
     const newQty = Math.max(0, (Number(item.floorQuantity) || 0) + delta);
-
-    // Optimistic UI update
     setMaterials(materials.map((m) => m.id === id ? { ...m, floorQuantity: newQty } : m));
 
-    // Save to Database
     try {
       await fetch("/api/data?type=update_stock", {
         method: "POST",
@@ -106,11 +110,11 @@ export default function RawMaterialsPage() {
         body: JSON.stringify({ id, floorQuantity: newQty }),
       });
     } catch (err) {
-      console.error("Failed to persist floor stock change:", err);
+      console.error("Failed to update floor stock:", err);
     }
   };
 
-  // Direct input change for floor stock
+  // Direct Input for Floor Stock
   const handleFloorStockDirectInput = async (id: string, value: string) => {
     const numVal = Math.max(0, Number(value) || 0);
     setMaterials(materials.map((m) => m.id === id ? { ...m, floorQuantity: numVal } : m));
@@ -122,63 +126,44 @@ export default function RawMaterialsPage() {
         body: JSON.stringify({ id, floorQuantity: numVal }),
       });
     } catch (err) {
-      console.error("Failed to persist floor stock direct input:", err);
+      console.error("Failed to update floor stock input:", err);
     }
   };
 
-  // Save Warehouse Stock change
-  const handleSaveWarehouseStock = async () => {
-    if (!selectedWarehouseItem) return;
-    const id = selectedWarehouseItem.id;
-    const newQty = Math.max(0, Number(warehouseQtyInput) || 0);
-
-    setMaterials(materials.map((m) => m.id === id ? { ...m, warehouseQuantity: newQty } : m));
-    setSelectedWarehouseItem(null);
+  // Handle Restock Action
+  const handleConfirmRestock = async () => {
+    if (!restockItem) return;
+    const newFloorQty = (Number(restockItem.floorQuantity) || 0) + restockQty;
+    setMaterials(materials.map((m) => m.id === restockItem.id ? { ...m, floorQuantity: newFloorQty } : m));
+    setRestockItem(null);
 
     try {
       await fetch("/api/data?type=update_stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, warehouseQuantity: newQty }),
+        body: JSON.stringify({ id: restockItem.id, floorQuantity: newFloorQty }),
       });
     } catch (err) {
-      console.error("Failed to persist warehouse stock change:", err);
+      console.error("Failed to restock:", err);
     }
   };
 
-  // Open Admin Edit Modal
-  const handleOpenAdminEdit = (item: any) => {
-    if (!isAdmin) {
-      setShowLockedDialog(true);
-      return;
-    }
-
-    setSelectedAdminEditItem(item);
-    setAdminEditForm({
-      name: item.name || "",
-      category: item.category || "Bahan Baku",
-      buyUnit: item.buyUnit || "Karton",
-      unit: item.unit || "gram",
-      conversionRatio: Number(item.conversionRatio) || 1,
-      hargaBeli: Number(item.hargaBeli) || 0,
-      minStockAlert: Number(item.minStockAlert) || 10,
-      floorQuantity: Number(item.floorQuantity) || 0,
-      warehouseQuantity: Number(item.warehouseQuantity) || 0,
-      hasWarehouseStock: item.hasWarehouseStock !== false,
-    });
-  };
-
-  // Save Admin Granular Edits (Name, Units, Prices, Conversion, etc.)
+  // Save Admin Granular Edits
   const handleSaveAdminEdit = async () => {
     if (!selectedAdminEditItem || !adminEditForm.name) return;
     try {
       setSubmitting(true);
+      const conversion = Number(adminEditForm.conversionRatio) || 1;
+      const hargaBeli = Number(adminEditForm.hargaBeli) || 0;
+      const costPerUseUnit = conversion > 0 ? hargaBeli / conversion : 0;
+
       const res = await fetch("/api/data?type=update_ingredient_detail", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: selectedAdminEditItem.id,
           ...adminEditForm,
+          costPerUseUnit,
         }),
       });
 
@@ -187,45 +172,28 @@ export default function RawMaterialsPage() {
         await fetchIngredients();
       }
     } catch (err) {
-      console.error("Error updating ingredient detail:", err);
+      console.error("Error updating ingredient:", err);
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Delete Ingredient (Admin Only)
-  const handleDeleteIngredient = async () => {
-    if (!selectedAdminEditItem || !isAdmin) return;
-    if (!confirm(`Apakah Anda yakin ingin menghapus bahan baku "${selectedAdminEditItem.name}"?`)) return;
-
-    try {
-      setSubmitting(true);
-      const res = await fetch("/api/data?type=delete_ingredient", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: selectedAdminEditItem.id }),
-      });
-
-      if (res.ok) {
-        setSelectedAdminEditItem(null);
-        await fetchIngredients();
-      }
-    } catch (err) {
-      console.error("Error deleting ingredient:", err);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Add new item
+  // Add New Ingredient
   const handleAddMaterial = async () => {
     if (!formData.name) return;
     try {
       setSubmitting(true);
+      const conversion = Number(formData.conversionRatio) || 1;
+      const hargaBeli = Number(formData.hargaBeli) || 0;
+      const costPerUseUnit = conversion > 0 ? hargaBeli / conversion : 0;
+
       const res = await fetch("/api/data?type=ingredient", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          costPerUseUnit,
+        }),
       });
 
       if (res.ok) {
@@ -233,14 +201,13 @@ export default function RawMaterialsPage() {
         setFormData({
           name: "",
           category: "Bahan Baku",
-          unit: "kg",
-          buyUnit: "Karton",
-          conversionRatio: 1,
+          buyUnit: "Pcs",
+          unit: "ml",
+          conversionRatio: 1000,
           floorQuantity: 1,
-          warehouseQuantity: 10,
-          hasWarehouseStock: true,
-          minStockAlert: 5,
-          hargaBeli: 50000,
+          warehouseQuantity: 0,
+          hargaBeli: 100000,
+          isPercentageMode: false,
         });
         await fetchIngredients();
       }
@@ -251,511 +218,570 @@ export default function RawMaterialsPage() {
     }
   };
 
-  // Group items by category
-  const filtered = materials.filter((m) =>
-    m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (m.category && m.category.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // Open Edit Modal
+  const handleOpenAdminEdit = (item: any) => {
+    setSelectedAdminEditItem(item);
+    setAdminEditForm({
+      name: item.name || "",
+      category: item.category || "Bahan Baku",
+      buyUnit: item.buyUnit || "Pcs",
+      unit: item.unit || "ml",
+      conversionRatio: Number(item.conversionRatio) || 1000,
+      hargaBeli: Number(item.hargaBeli) || 100000,
+      minStockAlert: Number(item.minStockAlert) || 10,
+      floorQuantity: Number(item.floorQuantity) || 0,
+      warehouseQuantity: Number(item.warehouseQuantity) || 0,
+      isPercentageMode: item.isPercentageMode || (item.unit === "%"),
+    });
+  };
 
-  const categories = Array.from(new Set(filtered.map((m) => m.category || "Bahan Baku")));
+  // Filter items
+  const filtered = materials.filter((m) => {
+    const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (m.category && m.category.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    if (selectedCategoryTab === "Semua") return matchesSearch;
+    return matchesSearch && (m.category || "Bahan Baku") === selectedCategoryTab;
+  });
+
+  const categories = Array.from(new Set(materials.map((m) => m.category || "Bahan Baku")));
 
   return (
     <AppShell>
-      <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto text-slate-900 space-y-6">
         
-        {/* Top Header Bar with Active Role Indicator */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-4 rounded-2xl border shadow-xs">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-foreground">Daftar Stok Bahan & Kemasan</h1>
-              {isAdmin ? (
-                <Badge className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs px-2 py-0.5 gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Akses Admin (Full Edit)</span>
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 font-medium text-xs px-2 py-0.5 gap-1">
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>Akses Karyawan</span>
-                </Badge>
-              )}
+        {/* 1. Header Bar */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shrink-0">
+              <Store className="w-5 h-5" />
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {isAdmin 
-                ? "Admin dapat mengubah detail nama item, satuan, rasio konversi, & harga beli" 
-                : "Pengoperasian stok toko & gudang utama secara real-time"}
+            <div>
+              <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Kelola Stok & Refill Gudang</h1>
+              <p className="text-xs text-slate-500 font-medium">
+                Mode Admin: Kelola Stok Berjalan, Stok Gudang Utama, Konversi HPP & Restock
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons Top Right */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-semibold text-xs px-3.5 py-2 min-h-[40px] rounded-xl gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <Send className="w-4 h-4 text-emerald-600" />
+              <span>Kirim Stok WA</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="border-amber-500 text-amber-700 hover:bg-amber-50 font-semibold text-xs px-3.5 py-2 min-h-[40px] rounded-xl gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <Tag className="w-4 h-4 text-amber-600" />
+              <span>Kelola Kategori</span>
+            </Button>
+
+            <Button
+              onClick={() => setIsAddModalOpen(true)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-4 py-2 min-h-[40px] rounded-xl gap-1.5 shadow-xs cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Tambah Bahan Baru</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={fetchIngredients}
+              className="p-2.5 min-h-[40px] rounded-xl border-slate-200 hover:bg-slate-50 text-slate-600 cursor-pointer"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+        </div>
+
+        {/* 2. Sub Header Mode Selector Tabs */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveSubMode("bar")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeSubMode === "bar"
+                ? "bg-[#0f172a] text-white shadow-2xs"
+                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            <Store className="w-4 h-4" />
+            <span>Stok Toko & Bar</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubMode("warehouse")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeSubMode === "warehouse"
+                ? "bg-[#0f172a] text-white shadow-2xs"
+                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            <span>Pengaturan Gudang</span>
+            <Badge className="bg-slate-100 text-slate-600 text-[10px] px-2 py-0 border-none font-bold">
+              Tanpa Gudang
+            </Badge>
+          </button>
+        </div>
+
+        {/* 3. Top 3 Summary Stat Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Total SKU Bahan Baku</span>
+              <div className="text-2xl font-extrabold text-slate-900">{materials.length} SKU</div>
+            </div>
+            <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center">
+              <Boxes className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Stok Berjalan (Bar)</span>
+              <div className="text-2xl font-extrabold text-slate-900">
+                {materials.filter((m) => (m.floorQuantity || 0) > 0).length} SKU Ready
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center">
+              <Store className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Status Outlet</span>
+              <div className="text-xl font-extrabold text-slate-900">Tanpa Gudang Physical</div>
+            </div>
+            <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center">
+              <Warehouse className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Category Filter Pills & Search Input Row (Card Box Container) */}
+        <div className="bg-white p-3.5 md:p-4 rounded-3xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {["Semua", "Bahan Baku", "Kemasan", "Operasional", "Powder", "Syrup"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setSelectedCategoryTab(tab)}
+                className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  selectedCategoryTab === tab
+                    ? "bg-[#0f172a] text-white shadow-2xs"
+                    : "bg-slate-100/70 text-slate-600 border border-slate-200/60 hover:bg-slate-100"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative min-w-[260px]">
+            <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+            <Input
+              placeholder="Cari nama bahan baku..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-slate-50/70 pl-9 min-h-[40px] text-xs rounded-xl border-slate-200/80"
+            />
+          </div>
+        </div>
+
+        {/* 5. Daftar Stok Bahan & Kemasan Main Outer Container */}
+        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
+          <div className="border-b pb-4">
+            <div className="flex items-center gap-2">
+              <h3 className="font-extrabold text-base text-slate-900">Daftar Stok Bahan & Kemasan</h3>
+              <Badge className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 border-none">
+                Mode Tanpa Gudang (Langsung Stok Bar)
+              </Badge>
+            </div>
+            <p className="text-xs text-slate-500 font-medium mt-1">
+              Semua bahan baku dikelola langsung di Stok Bar tanpa melalui proses refill gudang.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={fetchIngredients} className="min-h-[40px] text-xs font-medium gap-1.5">
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span>Refresh</span>
-            </Button>
+          {/* Table Container */}
+          <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
+            <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
+              <div className="col-span-6">BAHAN & KEMASAN</div>
+              <div className="col-span-3 text-center">STOK BAR (TOKO)</div>
+              <div className="col-span-3 text-right">OPSI ADMIN</div>
+            </div>
 
-            <Button 
-              size="sm" 
-              onClick={() => {
-                if (!isAdmin) {
-                  setShowLockedDialog(true);
-                  return;
-                }
-                setIsAddModalOpen(true);
-              }}
-              className={`min-h-[40px] text-xs font-semibold gap-1.5 shadow-xs text-white ${
-                isAdmin ? "bg-blue-600 hover:bg-blue-700" : "bg-slate-700 hover:bg-slate-800"
-              }`}
-            >
-              {isAdmin ? <Plus className="w-4 h-4" /> : <Lock className="w-3.5 h-3.5 text-amber-300" />}
-              <span>Tambah Bahan</span>
-            </Button>
-          </div>
-        </div>
+            {/* Group Items by Category */}
+            <div className="divide-y divide-slate-100">
+              {categories.map((catName) => {
+                const catItems = filtered.filter((m) => (m.category || "Bahan Baku") === catName);
+                if (catItems.length === 0) return null;
 
-        {/* Search Bar */}
-        <div className="relative max-w-md">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-muted-foreground" />
-          <Input 
-            placeholder="Cari nama bahan baku, sirup, creamer, kemasan..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="min-h-[40px] pl-9 bg-card"
-          />
-        </div>
+                return (
+                  <div key={catName} className="space-y-0">
+                    <div className="bg-slate-50/90 px-6 py-3 flex items-center gap-2 border-y border-slate-200/80">
+                      <Tag className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="font-extrabold text-xs uppercase tracking-wider text-slate-900">
+                        {catName}
+                      </span>
+                      <Badge className="bg-white text-slate-600 text-[10px] font-bold px-2 py-0.5 border border-slate-200">
+                        {catItems.length} Item
+                      </Badge>
+                    </div>
 
-        {/* Stock List Table */}
-        <div className="bg-card rounded-2xl border shadow-xs overflow-hidden">
-          
-          {/* Table Header Bar */}
-          <div className="grid grid-cols-12 px-6 py-4 border-b text-xs font-bold text-slate-700 dark:text-slate-300 bg-muted/20">
-            <div className="col-span-6 md:col-span-5">Bahan & Kemasan</div>
-            <div className="col-span-4 md:col-span-4 text-center md:text-left">Stok Bar (Toko)</div>
-            <div className="col-span-2 md:col-span-3 text-right">Stok Gudang Utama & Akses</div>
-          </div>
+                    <div className="divide-y divide-slate-100">
+                      {catItems.map((item) => {
+                        const hargaBeli = Number(item.hargaBeli || 100000);
+                        const conversion = Number(item.conversionRatio || 1000);
+                        const costPerUnit = Number(item.costPerUseUnit) || (conversion > 0 ? hargaBeli / conversion : 0);
+                        const isPercent = item.isPercentageMode || item.unit === "%";
 
-          {/* Group by Category */}
-          <div className="divide-y">
-            {categories.map((catName) => {
-              const catItems = filtered.filter((m) => (m.category || "Bahan Baku") === catName);
+                        return (
+                          <div key={item.id} className="grid grid-cols-12 px-6 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
+                            
+                            {/* Col 1: Name, Harga Beli, & HPP Cost per Unit */}
+                            <div className="col-span-6 space-y-0.5">
+                              <h4 className="font-extrabold text-slate-900 text-sm">{item.name}</h4>
+                              <p className="text-slate-500 font-medium text-xs">
+                                Rp {hargaBeli.toLocaleString("id-ID")} / {item.buyUnit || "Pcs"}
+                              </p>
+                            </div>
 
-              return (
-                <div key={catName} className="space-y-0">
-                  
-                  {/* Category Banner Header */}
-                  <div className="bg-muted/40 px-6 py-3 flex items-center gap-2 border-y first:border-t-0">
-                    <Tag className="w-4 h-4 text-orange-500" />
-                    <span className="font-bold text-xs uppercase tracking-wider text-foreground">
-                      {catName}
-                    </span>
-                    <Badge variant="outline" className="text-[10px] font-semibold px-2 py-0 h-4 bg-card border-border text-muted-foreground">
-                      {catItems.length} item
-                    </Badge>
-                  </div>
-
-                  {/* Category Items Rows */}
-                  <div className="divide-y divide-border/60">
-                    {catItems.map((item) => {
-                      const hasWarehouse = item.hasWarehouseStock !== false && item.hasWarehouseStock !== 0;
-
-                      return (
-                        <div 
-                          key={item.id} 
-                          className="grid grid-cols-12 items-center px-6 py-3.5 hover:bg-muted/20 transition-colors"
-                        >
-                          {/* Col 1: Bahan & Kemasan Name, Subtitle, & Admin Edit Button */}
-                          <div className="col-span-6 md:col-span-5 pr-2">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-sm text-foreground leading-snug">{item.name}</h4>
-                              
-                              {/* Edit Detail Button (Pencil) */}
+                            {/* Col 2: Stock Bar Controls [-] [input] [+] Unit */}
+                            <div className="col-span-3 flex items-center justify-center gap-1.5">
                               <button
-                                type="button"
-                                title={isAdmin ? "Edit Detail Bahan (Khusus Admin)" : "Detail Terkunci untuk Karyawan"}
-                                onClick={() => handleOpenAdminEdit(item)}
-                                className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
-                                  isAdmin 
-                                    ? "bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-950/50 dark:border-indigo-800 dark:text-indigo-300"
-                                    : "bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:border-slate-700"
-                                }`}
+                                onClick={() => handleFloorStockChange(item.id, -1)}
+                                className="w-7 h-7 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
                               >
-                                {isAdmin ? <Pencil className="w-3.5 h-3.5" /> : <Lock className="w-3 h-3 text-slate-400" />}
+                                -
+                              </button>
+
+                              <input
+                                type="number"
+                                value={item.floorQuantity ?? 0}
+                                onChange={(e) => handleFloorStockDirectInput(item.id, e.target.value)}
+                                className="w-14 h-7 rounded-lg border border-slate-200 bg-white text-center font-extrabold text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              />
+
+                              <button
+                                onClick={() => handleFloorStockChange(item.id, 1)}
+                                className="w-7 h-7 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
+                              >
+                                +
+                              </button>
+
+                              <span className="text-xs text-slate-600 font-semibold min-w-[36px]">
+                                {isPercent ? "%" : (item.buyUnit || item.unit || "Pcs")}
+                              </span>
+                            </div>
+
+                            {/* Col 3: Admin Options (Restock + Edit Pencil) */}
+                            <div className="col-span-3 flex items-center justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => { setRestockItem(item); setRestockQty(1); }}
+                                className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-semibold rounded-xl min-h-[34px] px-3 cursor-pointer"
+                              >
+                                Restock
+                              </Button>
+
+                              <button
+                                onClick={() => handleOpenAdminEdit(item)}
+                                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                title="Edit Detail Bahan & Konversi HPP"
+                              >
+                                <Pencil className="w-4 h-4" />
                               </button>
                             </div>
 
-                            <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
-                              <span>Satuan Pakai: <strong className="text-foreground">{item.unit || "gram"}</strong></span>
-                              {item.buyUnit && (
-                                <span>&bull; Beli: <strong className="text-foreground">{item.buyUnit}</strong></span>
-                              )}
-                            </p>
                           </div>
-
-                          {/* Col 2: Stok Bar (Toko) with [-] [input] [+] Unit */}
-                          <div className="col-span-4 md:col-span-4 flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleFloorStockChange(item.id, -1)}
-                              className="w-7 h-7 rounded-md border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer shadow-2xs"
-                            >
-                              -
-                            </button>
-
-                            <input
-                              type="number"
-                              value={item.floorQuantity ?? 0}
-                              onChange={(e) => handleFloorStockDirectInput(item.id, e.target.value)}
-                              className="w-12 h-7 rounded-md border border-slate-300 dark:border-slate-700 bg-card text-center font-bold text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            />
-
-                            <button
-                              type="button"
-                              onClick={() => handleFloorStockChange(item.id, 1)}
-                              className="w-7 h-7 rounded-md border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer shadow-2xs"
-                            >
-                              +
-                            </button>
-
-                            <span className="text-xs text-muted-foreground font-semibold min-w-8">
-                              {item.unit || "pcs"}
-                            </span>
-                          </div>
-
-                          {/* Col 3: Stok Gudang Utama & Admin Edit */}
-                          <div className="col-span-2 md:col-span-3 flex items-center justify-end gap-2">
-                            {hasWarehouse ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedWarehouseItem(item);
-                                  setWarehouseQtyInput(item.warehouseQuantity || 0);
-                                }}
-                                className="inline-flex items-center justify-center px-3 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-card hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold text-foreground shadow-2xs transition-colors cursor-pointer"
-                              >
-                                {Number(item.warehouseQuantity || 0)} {item.unit || "Pack"}
-                              </button>
-                            ) : (
-                              <span className="text-xs text-muted-foreground italic">
-                                Tanpa Gudang
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-
         </div>
 
-        {/* Dialog Edit Admin (Setiap Detail Bahan Baku: Nama, Satuan Beli, Satuan Pakai, Rasio Konversi, Harga) */}
-        <Dialog open={!!selectedAdminEditItem} onOpenChange={() => setSelectedAdminEditItem(null)}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-indigo-600" />
-                <DialogTitle className="text-base font-bold">Edit Detail Bahan Baku (Role Admin)</DialogTitle>
-              </div>
-              <DialogDescription className="text-xs">
-                Ubah nama item, satuan beli/pakai, harga beli, dan rasio konversi HPP.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3 py-2 text-xs">
-              
-              {/* Nama Item */}
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Nama Item Bahan Baku *</label>
-                <Input 
-                  placeholder="misal: Creamer Premium / Susu UHT"
-                  value={adminEditForm.name}
-                  onChange={(e) => setAdminEditForm({ ...adminEditForm, name: e.target.value })}
-                  className="min-h-[42px] font-bold text-sm"
-                />
-              </div>
-
-              {/* Kategori & Satuan Beli */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-foreground block mb-1">Kategori Item</label>
-                  <select
-                    value={adminEditForm.category}
-                    onChange={(e) => setAdminEditForm({ ...adminEditForm, category: e.target.value })}
-                    className="w-full min-h-[42px] rounded-lg border bg-card px-3 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  >
-                    <option value="Bahan Baku">Bahan Baku</option>
-                    <option value="Kemasan">Kemasan</option>
-                    <option value="Powder">Powder</option>
-                    <option value="Syrup">Syrup</option>
-                    <option value="Operasional">Operasional</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-semibold text-foreground block mb-1">Satuan Beli (Buy Unit)</label>
-                  <Input 
-                    placeholder="misal: Karton / Dus / Pack / Kg"
-                    value={adminEditForm.buyUnit}
-                    onChange={(e) => setAdminEditForm({ ...adminEditForm, buyUnit: e.target.value })}
-                    className="min-h-[42px]"
-                  />
-                </div>
-              </div>
-
-              {/* Satuan Pakai & Rasio Konversi */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-foreground block mb-1">Satuan Pakai (Unit)</label>
-                  <Input 
-                    placeholder="misal: gram / ml / pcs"
-                    value={adminEditForm.unit}
-                    onChange={(e) => setAdminEditForm({ ...adminEditForm, unit: e.target.value })}
-                    className="min-h-[42px]"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-foreground block mb-1">Rasio Konversi (1 BuyUnit = X Unit)</label>
-                  <Input 
-                    type="number"
-                    value={adminEditForm.conversionRatio}
-                    onChange={(e) => setAdminEditForm({ ...adminEditForm, conversionRatio: Number(e.target.value) })}
-                    className="min-h-[42px]"
-                  />
-                </div>
-              </div>
-
-              {/* Harga Beli & Min Alert */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-foreground block mb-1">Harga Beli per Satuan Beli (Rp)</label>
-                  <Input 
-                    type="number"
-                    value={adminEditForm.hargaBeli}
-                    onChange={(e) => setAdminEditForm({ ...adminEditForm, hargaBeli: Number(e.target.value) })}
-                    className="min-h-[42px]"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-foreground block mb-1">Batas Minimum Alert Stok</label>
-                  <Input 
-                    type="number"
-                    value={adminEditForm.minStockAlert}
-                    onChange={(e) => setAdminEditForm({ ...adminEditForm, minStockAlert: Number(e.target.value) })}
-                    className="min-h-[42px]"
-                  />
-                </div>
-              </div>
-
-              {/* Stok Toko & Gudang */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label className="font-semibold text-foreground block mb-1">Stok Bar (Toko)</label>
-                  <Input 
-                    type="number"
-                    value={adminEditForm.floorQuantity}
-                    onChange={(e) => setAdminEditForm({ ...adminEditForm, floorQuantity: Number(e.target.value) })}
-                    className="min-h-[42px]"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-foreground block mb-1">Stok Gudang Utama</label>
-                  <Input 
-                    type="number"
-                    value={adminEditForm.warehouseQuantity}
-                    onChange={(e) => setAdminEditForm({ ...adminEditForm, warehouseQuantity: Number(e.target.value) })}
-                    className="min-h-[42px]"
-                  />
-                </div>
-              </div>
-
-            </div>
-
-            <DialogFooter className="flex-col sm:flex-row gap-2 justify-between border-t pt-3">
-              <Button 
-                type="button"
-                variant="destructive" 
-                size="sm" 
-                onClick={handleDeleteIngredient}
-                disabled={submitting}
-                className="gap-1 text-xs"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Hapus Item</span>
-              </Button>
-
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setSelectedAdminEditItem(null)}>
+        {/* Modal Dialog Restock */}
+        {restockItem && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-3xl border shadow-2xl p-6 space-y-4">
+              <h3 className="font-bold text-sm text-slate-900">Restock Stok Bar: {restockItem.name}</h3>
+              <p className="text-xs text-slate-500">
+                Masukkan jumlah penambahan ({restockItem.buyUnit || restockItem.unit}):
+              </p>
+              <Input
+                type="number"
+                value={restockQty}
+                onChange={(e) => setRestockQty(Number(e.target.value))}
+                className="min-h-[42px] text-center text-base font-bold"
+              />
+              <div className="flex gap-2 justify-end pt-2">
+                <Button variant="outline" onClick={() => setRestockItem(null)} className="text-xs rounded-xl">
                   Batal
                 </Button>
-                <Button 
-                  size="sm"
-                  disabled={submitting}
-                  onClick={handleSaveAdminEdit}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
-                >
-                  {submitting ? "Menyimpan..." : "Simpan Perubahan Admin"}
+                <Button onClick={handleConfirmRestock} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl px-4">
+                  Tambah Stok
                 </Button>
               </div>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Modal Notice jika Karyawan mencoba edit detail */}
-        <Dialog open={showLockedDialog} onOpenChange={setShowLockedDialog}>
-          <DialogContent className="sm:max-w-xs">
-            <DialogHeader className="text-center">
-              <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 mx-auto flex items-center justify-center mb-2 border border-amber-300">
-                <Lock className="w-6 h-6" />
-              </div>
-              <DialogTitle className="text-base font-bold">Fitur Terkunci (Role Admin)</DialogTitle>
-              <DialogDescription className="text-xs pt-1 text-slate-600 dark:text-slate-400">
-                Mengubah nama bahan baku, satuan beli/pakai, dan harga HPP membutuhkan wewenang **Role Admin**.
-              </DialogDescription>
-            </DialogHeader>
-
-            <DialogFooter className="pt-2">
-              <Button 
-                size="sm"
-                className="w-full bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-medium"
-                onClick={() => setShowLockedDialog(false)}
-              >
-                Saya Mengerti
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Modal Edit Stok Gudang Quick */}
-        <Dialog open={!!selectedWarehouseItem} onOpenChange={() => setSelectedWarehouseItem(null)}>
-          <DialogContent className="sm:max-w-xs">
-            <DialogHeader>
-              <DialogTitle className="text-base font-bold">Edit Stok Gudang Utama</DialogTitle>
-              <DialogDescription className="text-xs">
-                {selectedWarehouseItem?.name} ({selectedWarehouseItem?.unit})
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="py-2">
-              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Jumlah Stok Gudang:</label>
-              <Input 
-                type="number"
-                value={warehouseQtyInput}
-                onChange={(e) => setWarehouseQtyInput(Number(e.target.value))}
-                className="min-h-[44px] text-base font-bold text-center"
-              />
             </div>
+          </div>
+        )}
 
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" className="min-h-[40px]" onClick={() => setSelectedWarehouseItem(null)}>
-                Batal
-              </Button>
-              <Button className="min-h-[40px] bg-indigo-600 hover:bg-indigo-700 text-white font-semibold" onClick={handleSaveWarehouseStock}>
-                Simpan
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* Modal Dialog Edit Admin Detail & Konversi HPP */}
+        {selectedAdminEditItem && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-3xl border shadow-2xl p-6 space-y-4">
+              <h3 className="font-bold text-sm text-slate-900">Edit Detail Bahan & Konversi HPP: {selectedAdminEditItem.name}</h3>
+              
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Nama Bahan Baku *</label>
+                  <Input
+                    value={adminEditForm.name}
+                    onChange={(e) => setAdminEditForm({ ...adminEditForm, name: e.target.value })}
+                    className="min-h-[38px] font-bold"
+                  />
+                </div>
 
-        {/* Modal Tambah Bahan Baku Baru (Admin Only) */}
-        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Tambah Bahan Baku / Kemasan Baru</DialogTitle>
-              <DialogDescription>Masukkan nama bahan, kategori, dan stok awal.</DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-3 py-2 text-sm">
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">Nama Bahan *</label>
-                <Input 
-                  placeholder="misal: Susu UHT / Creamer / Es Batu" 
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="min-h-[44px]"
-                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Kategori</label>
+                    <select
+                      value={adminEditForm.category}
+                      onChange={(e) => setAdminEditForm({ ...adminEditForm, category: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 min-h-[38px] text-xs font-semibold"
+                    >
+                      <option value="Bahan Baku">Bahan Baku</option>
+                      <option value="Kemasan">Kemasan</option>
+                      <option value="Powder">Powder</option>
+                      <option value="Syrup">Syrup</option>
+                      <option value="Operasional">Operasional</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Satuan Beli / Kemasan</label>
+                    <select
+                      value={adminEditForm.buyUnit}
+                      onChange={(e) => setAdminEditForm({ ...adminEditForm, buyUnit: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 min-h-[38px] text-xs font-semibold"
+                    >
+                      <option value="Pcs">Pcs / Botol</option>
+                      <option value="Botol">Botol (Sirup / Saus)</option>
+                      <option value="Pack">Pack / Slop (Cup / Sedotan)</option>
+                      <option value="Sak">Sak (Bubuk Curah 25kg)</option>
+                      <option value="Karton">Karton / Dus (Grosir)</option>
+                      <option value="Kg">Kg (Berat)</option>
+                      <option value="Liter">Liter (Volume)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Harga Beli per Satuan Beli (Rp)</label>
+                    <Input
+                      type="text"
+                      placeholder="e.g. 1.000.000"
+                      value={formatRupiahDisplay(adminEditForm.hargaBeli)}
+                      onChange={(e) => setAdminEditForm({ ...adminEditForm, hargaBeli: parseRupiahInput(e.target.value) })}
+                      className="min-h-[38px] font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Isi Netto per Satuan Beli</label>
+                    <Input
+                      type="number"
+                      placeholder="misal: 1000 untuk 1L Sirup"
+                      value={adminEditForm.conversionRatio || ""}
+                      onChange={(e) => setAdminEditForm({ ...adminEditForm, conversionRatio: e.target.value === "" ? ("" as any) : Number(e.target.value) })}
+                      className="min-h-[38px]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Satuan Takaran Resep / HPP</label>
+                  <Input
+                    placeholder="misal: ml / gram / pcs / cup"
+                    value={adminEditForm.unit}
+                    onChange={(e) => setAdminEditForm({ ...adminEditForm, unit: e.target.value })}
+                    className="min-h-[38px]"
+                  />
+                </div>
+
+                {/* HPP Live Badge Preview */}
+                <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-semibold text-emerald-800">
+                  <div className="flex items-center gap-1.5">
+                    <Calculator className="w-4 h-4 text-emerald-600" />
+                    <span>HPP Dasar Terhitung:</span>
+                  </div>
+                  <strong className="text-sm font-extrabold text-emerald-700">
+                    Rp {adminEditForm.conversionRatio > 0 
+                      ? Math.round(adminEditForm.hargaBeli / adminEditForm.conversionRatio).toLocaleString("id-ID")
+                      : 0} / {adminEditForm.unit || "unit"}
+                  </strong>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1 border-t">
+                  <input
+                    type="checkbox"
+                    id="editIsPercentageMode"
+                    checked={adminEditForm.isPercentageMode}
+                    onChange={(e) => setAdminEditForm({ ...adminEditForm, isPercentageMode: e.target.checked })}
+                    className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="editIsPercentageMode" className="text-xs font-medium text-slate-800 cursor-pointer">
+                    Tampilkan Stok dalam Satuan Persentase (%) <span className="text-slate-400">(Khusus bahan curah besar seperti Creamer 25kg)</span>
+                  </label>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex gap-2 justify-end pt-2">
+                <Button variant="outline" onClick={() => setSelectedAdminEditItem(null)} className="text-xs rounded-xl">
+                  Batal
+                </Button>
+                <Button onClick={handleSaveAdminEdit} disabled={submitting} className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold rounded-xl px-4">
+                  {submitting ? "Menyimpan..." : "Simpan Perubahan HPP"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Dialog Tambah Bahan Baru */}
+        {isAddModalOpen && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-3xl border shadow-2xl p-6 space-y-4">
+              <h3 className="font-bold text-sm text-slate-900">Tambah Bahan Baku & Konversi HPP</h3>
+              <form onSubmit={(e) => { e.preventDefault(); handleAddMaterial(); }} className="space-y-3 text-xs">
                 <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">Kategori *</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full min-h-[44px] rounded-lg border bg-card px-3 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  >
-                    <option value="Bahan Baku">Bahan Baku</option>
-                    <option value="Kemasan">Kemasan</option>
-                    <option value="Powder">Powder</option>
-                    <option value="Syrup">Syrup</option>
-                    <option value="Operasional">Operasional</option>
-                  </select>
+                  <label className="font-semibold text-slate-700 block mb-1">Nama Bahan Baku *</label>
+                  <Input
+                    placeholder="misal: Sirup Hazelnut / Creamer / Susu UHT"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="min-h-[38px] font-bold"
+                    required
+                  />
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Kategori *</label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 min-h-[38px] text-xs font-semibold"
+                    >
+                      <option value="Bahan Baku">Bahan Baku</option>
+                      <option value="Kemasan">Kemasan</option>
+                      <option value="Powder">Powder</option>
+                      <option value="Syrup">Syrup</option>
+                      <option value="Operasional">Operasional</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Satuan Beli / Kemasan</label>
+                    <select
+                      value={formData.buyUnit}
+                      onChange={(e) => setFormData({ ...formData, buyUnit: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 min-h-[38px] text-xs font-semibold"
+                    >
+                      <option value="Pcs">Pcs / Botol</option>
+                      <option value="Botol">Botol (Sirup / Saus)</option>
+                      <option value="Pack">Pack / Slop (Cup / Sedotan)</option>
+                      <option value="Sak">Sak (Bubuk Curah 25kg)</option>
+                      <option value="Karton">Karton / Dus (Grosir)</option>
+                      <option value="Kg">Kg (Berat)</option>
+                      <option value="Liter">Liter (Volume)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Harga Beli per Satuan (Rp)</label>
+                    <Input
+                      type="text"
+                      placeholder="e.g. 1.000.000"
+                      value={formatRupiahDisplay(formData.hargaBeli)}
+                      onChange={(e) => setFormData({ ...formData, hargaBeli: parseRupiahInput(e.target.value) })}
+                      className="min-h-[38px] font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Isi Netto per Satuan Beli</label>
+                    <Input
+                      type="number"
+                      placeholder="1000 untuk 1L Sirup"
+                      value={formData.conversionRatio || ""}
+                      onChange={(e) => setFormData({ ...formData, conversionRatio: e.target.value === "" ? ("" as any) : Number(e.target.value) })}
+                      className="min-h-[38px]"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">Satuan Pakai (Unit) *</label>
-                  <Input 
-                    placeholder="kg / Karton / Pack / galon / % / pcs" 
+                  <label className="font-semibold text-slate-700 block mb-1">Satuan Takaran Resep / HPP *</label>
+                  <Input
+                    placeholder="ml / gram / pcs / cup"
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="min-h-[44px]"
+                    className="min-h-[38px]"
+                    required
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">Stok Awal Bar (Toko)</label>
-                  <Input 
-                    type="number"
-                    value={formData.floorQuantity}
-                    onChange={(e) => setFormData({ ...formData, floorQuantity: Number(e.target.value) })}
-                    className="min-h-[44px]"
-                  />
+                {/* HPP Live Badge Preview */}
+                <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-semibold text-emerald-800">
+                  <div className="flex items-center gap-1.5">
+                    <Calculator className="w-4 h-4 text-emerald-600" />
+                    <span>HPP Dasar Terhitung:</span>
+                  </div>
+                  <strong className="text-sm font-extrabold text-emerald-700">
+                    Rp {formData.conversionRatio > 0 
+                      ? Math.round(formData.hargaBeli / formData.conversionRatio).toLocaleString("id-ID")
+                      : 0} / {formData.unit || "unit"}
+                  </strong>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">Stok Gudang Utama</label>
-                  <Input 
-                    type="number"
-                    value={formData.warehouseQuantity}
-                    onChange={(e) => setFormData({ ...formData, warehouseQuantity: Number(e.target.value) })}
-                    className="min-h-[44px]"
-                  />
-                </div>
-              </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="hasWarehouseStock"
-                  checked={formData.hasWarehouseStock}
-                  onChange={(e) => setFormData({ ...formData, hasWarehouseStock: e.target.checked })}
-                  className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
-                />
-                <label htmlFor="hasWarehouseStock" className="text-xs font-medium text-foreground cursor-pointer">
-                  Item ini memiliki persediaan di Gudang Utama
-                </label>
-              </div>
+                <div className="flex items-center gap-2 pt-1 border-t">
+                  <input
+                    type="checkbox"
+                    id="addIsPercentageMode"
+                    checked={formData.isPercentageMode}
+                    onChange={(e) => setFormData({ ...formData, isPercentageMode: e.target.checked })}
+                    className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="addIsPercentageMode" className="text-xs font-medium text-slate-800 cursor-pointer">
+                    Tampilkan Stok dalam Satuan Persentase (%) <span className="text-slate-400">(Khusus Creamer 25kg sak)</span>
+                  </label>
+                </div>
+
+                <div className="flex gap-2 justify-end pt-2">
+                  <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)} className="text-xs rounded-xl">
+                    Batal
+                  </Button>
+                  <Button type="submit" disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl px-4">
+                    {submitting ? "Menyimpan..." : "Simpan Bahan"}
+                  </Button>
+                </div>
+              </form>
             </div>
-
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" className="min-h-[44px]" onClick={() => setIsAddModalOpen(false)}>
-                Batal
-              </Button>
-              <Button 
-                disabled={submitting}
-                className="min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white font-semibold" 
-                onClick={handleAddMaterial}
-              >
-                {submitting ? "Menyimpan..." : "Simpan Bahan"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </div>
+        )}
 
       </div>
     </AppShell>

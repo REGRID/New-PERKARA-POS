@@ -27,7 +27,8 @@ import {
   FileText,
   CreditCard,
   Settings as SettingsIcon,
-  TrendingUp
+  TrendingUp,
+  Wallet
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -94,7 +95,7 @@ export function Sidebar() {
       id: "REPORTS",
       groupName: "REPORTS",
       items: [
-        { name: "Cash Flow", href: "/reports/cash-flow", icon: TrendingUp },
+        { name: "Kas Shift & Laci", href: "/reports/cash-flow", icon: Wallet },
         { name: "Daily Recaps", href: "/reports/daily-recaps", icon: ClipboardList },
       ]
     },
@@ -102,15 +103,59 @@ export function Sidebar() {
       id: "SYSTEM",
       groupName: "SYSTEM",
       items: [
+        { name: "Employees", href: "/employees", icon: Users },
         { name: "Payment Methods", href: "/payment-methods", icon: CreditCard },
         { name: "Settings", href: "/settings", icon: SettingsIcon },
       ]
     }
   ];
 
-  // Open groups state (all default open or expand the active route's group)
+  // Hidden navs state from localStorage (updated via Settings)
+  const [hiddenNavs, setHiddenNavs] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadHidden = () => {
+      try {
+        const saved = localStorage.getItem("perkara_pos_hidden_navs");
+        if (saved) {
+          setHiddenNavs(JSON.parse(saved));
+        } else {
+          setHiddenNavs([]);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    loadHidden();
+    window.addEventListener("storage", loadHidden);
+    window.addEventListener("nav_visibility_changed", loadHidden);
+    return () => {
+      window.removeEventListener("storage", loadHidden);
+      window.removeEventListener("nav_visibility_changed", loadHidden);
+    };
+  }, []);
+
+  const [workspaceOpen, setWorkspaceOpen] = useState(true);
+
+  // Open groups state (persisted in sessionStorage so user toggles are strictly respected across navigation)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = { OPERATIONS: true, CATALOG: false, INVENTORY: false, REPORTS: false, SYSTEM: false };
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("perkara_pos_sidebar_open_groups");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          navigation.forEach((group) => {
+            if (group.items.some((item) => item.href === pathname)) {
+              parsed[group.id] = true;
+            }
+          });
+          return parsed;
+        }
+      } catch (e) {}
+    }
+
+    const initial: Record<string, boolean> = { OPERATIONS: false, CATALOG: false, INVENTORY: false, REPORTS: false, SYSTEM: false };
     navigation.forEach((group) => {
       if (group.items.some((item) => item.href === pathname)) {
         initial[group.id] = true;
@@ -119,11 +164,25 @@ export function Sidebar() {
     return initial;
   });
 
-  // Keep group expanded if pathname changes
+  // Save to sessionStorage when openGroups state changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("perkara_pos_sidebar_open_groups", JSON.stringify(openGroups));
+      } catch (e) {}
+    }
+  }, [openGroups]);
+
+  // Ensure group containing active pathname is expanded on page change without reopening closed groups
   useEffect(() => {
     navigation.forEach((group) => {
       if (group.items.some((item) => item.href === pathname)) {
-        setOpenGroups((prev) => ({ ...prev, [group.id]: true }));
+        setOpenGroups((prev) => {
+          if (prev[group.id]) return prev;
+          const next = { ...prev, [group.id]: true };
+          try { sessionStorage.setItem("perkara_pos_sidebar_open_groups", JSON.stringify(next)); } catch (e) {}
+          return next;
+        });
       }
     });
   }, [pathname]);
@@ -195,45 +254,60 @@ export function Sidebar() {
 
         {/* Navigation Items (Scrollable Dropdowns) */}
         <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
-          {/* WORKSPACE Header Block (Matching User Screenshot) */}
+          {/* WORKSPACE Header Block (At Top of Sidebar, Collapsible Dropdown) */}
           <div className="space-y-1.5 mb-2">
-            <h3 className="px-3 text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">
-              WORKSPACE
-            </h3>
-            {isAdmin ? (
-              <Link
-                href="/"
-                onClick={() => setMobileOpen(false)}
-                className={`
-                  flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-semibold transition-all min-h-[48px] border shadow-2xs
-                  ${pathname === "/" 
-                    ? "bg-slate-50/90 text-slate-900 border-slate-200/90 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 ring-1 ring-slate-200/80" 
-                    : "bg-white text-slate-700 border-slate-200/60 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300"
-                  }
-                `}
-              >
-                <LayoutGrid className="w-5 h-5 text-slate-600 dark:text-slate-300 shrink-0" />
-                <span className="text-slate-900 dark:text-slate-100">Dashboard</span>
-              </Link>
-            ) : (
-              <Link
-                href="/pos"
-                onClick={() => setMobileOpen(false)}
-                className={`
-                  flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-semibold transition-all min-h-[48px] border shadow-2xs
-                  ${pathname === "/pos" 
-                    ? "bg-indigo-50/80 text-indigo-900 border-indigo-200/90 dark:bg-indigo-950/50 dark:text-indigo-200 ring-1 ring-indigo-200/80" 
-                    : "bg-white text-slate-700 border-slate-200/60 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300"
-                  }
-                `}
-              >
-                <ShoppingCart className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                <span className="text-slate-900 dark:text-slate-100">POS Terminal</span>
-              </Link>
+            <button
+              type="button"
+              onClick={() => setWorkspaceOpen(!workspaceOpen)}
+              className="w-full flex items-center justify-between px-3 text-[11px] font-extrabold text-slate-400 hover:text-slate-800 uppercase tracking-widest cursor-pointer select-none"
+            >
+              <span>WORKSPACE</span>
+              {workspaceOpen ? (
+                <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              )}
+            </button>
+
+            {workspaceOpen && (
+              isAdmin ? (
+                <Link
+                  href="/"
+                  onClick={() => setMobileOpen(false)}
+                  className={`
+                    flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-semibold transition-all min-h-[48px] border shadow-2xs mt-1
+                    ${pathname === "/" 
+                      ? "bg-slate-50/90 text-slate-900 border-slate-200/90 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 ring-1 ring-slate-200/80" 
+                      : "bg-white text-slate-700 border-slate-200/60 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300"
+                    }
+                  `}
+                >
+                  <LayoutGrid className="w-5 h-5 text-slate-600 dark:text-slate-300 shrink-0" />
+                  <span className="text-slate-900 dark:text-slate-100">Dashboard</span>
+                </Link>
+              ) : (
+                <Link
+                  href="/pos"
+                  onClick={() => setMobileOpen(false)}
+                  className={`
+                    flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-semibold transition-all min-h-[48px] border shadow-2xs mt-1
+                    ${pathname === "/pos" 
+                      ? "bg-indigo-50/80 text-indigo-900 border-indigo-200/90 dark:bg-indigo-950/50 dark:text-indigo-200 ring-1 ring-indigo-200/80" 
+                      : "bg-white text-slate-700 border-slate-200/60 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300"
+                    }
+                  `}
+                >
+                  <ShoppingCart className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <span className="text-slate-900 dark:text-slate-100">POS Terminal</span>
+                </Link>
+              )
             )}
           </div>
 
           {navigation.map((group) => {
+            const visibleItems = group.items.filter((item) => !hiddenNavs.includes(item.href));
+            if (visibleItems.length === 0) return null;
+
             const isOpen = !!openGroups[group.id];
             return (
               <div key={group.id} className="space-y-1">
@@ -254,7 +328,7 @@ export function Sidebar() {
                 {/* Collapsible Dropdown Items */}
                 {isOpen && (
                   <div className="space-y-0.5 pt-0.5 pl-1 transition-all">
-                    {group.items.map((item) => {
+                    {visibleItems.map((item) => {
                       const isActive = pathname === item.href;
                       const Icon = item.icon;
                       return (

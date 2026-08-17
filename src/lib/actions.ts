@@ -790,4 +790,93 @@ export async function saveSystemSetting(key: string, value: string) {
   }
 }
 
+// =============================================================================
+// EMPLOYEES & ATTENDANCE MANAGEMENT
+// =============================================================================
+
+export async function saveEmployee(data: {
+  id?: string;
+  name: string;
+  pin?: string;
+  role?: string;
+  employmentType?: string;
+  flatSalaryAmount?: number;
+  dailyRate?: number;
+}) {
+  try {
+    const empModel = db.employee || db.Employee;
+    if (data.id) {
+      return await empModel.update({
+        where: { id: data.id },
+        data: {
+          name: data.name,
+          pin: data.pin || "1234",
+          role: data.role || "cashier",
+          employmentType: data.employmentType || "FULL_TIME",
+          flatSalaryAmount: data.flatSalaryAmount || 0,
+          dailyRate: data.dailyRate || 0,
+        },
+      });
+    }
+    return await empModel.create({
+      data: {
+        name: data.name,
+        pin: data.pin || "1234",
+        role: data.role || "cashier",
+        employmentType: data.employmentType || "FULL_TIME",
+        flatSalaryAmount: data.flatSalaryAmount || 0,
+        dailyRate: data.dailyRate || 0,
+      },
+    });
+  } catch (err) {
+    console.error("Error saving employee:", err);
+    throw err;
+  }
+}
+
+export async function deleteEmployee(id: string) {
+  try {
+    const empModel = db.employee || db.Employee;
+    return await empModel.delete({ where: { id } });
+  } catch (err) {
+    console.error("Error deleting employee:", err);
+    throw err;
+  }
+}
+
+export async function getEmployeeAttendances() {
+  try {
+    const attModel = db.attendance || db.Attendance;
+    return attModel
+      ? await attModel.findMany({
+          include: { employee: true },
+          orderBy: { clockIn: "desc" },
+        })
+      : [];
+  } catch (err) {
+    console.error("Error fetching attendances:", err);
+    return [];
+  }
+}
+
+export async function saveAttendanceRecord(data: {
+  employeeId: string;
+  status?: string;
+  notes?: string;
+}) {
+  try {
+    const attModel = db.attendance || db.Attendance;
+    return await attModel.create({
+      data: {
+        employeeId: data.employeeId,
+        status: data.status || "ON_TIME",
+        notes: data.notes || "Absensi manual admin",
+      },
+    });
+  } catch (err) {
+    console.error("Error saving attendance record:", err);
+    throw err;
+  }
+}
+
 

@@ -81,7 +81,12 @@ export default function TablesPage() {
         </form>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {tables.length > 0 ? (
+          {loading ? (
+            <div className="col-span-full p-6 space-y-3">
+              <div className="h-4 bg-slate-100 rounded animate-pulse w-full" />
+              <div className="h-4 bg-slate-100 rounded animate-pulse w-full" />
+            </div>
+          ) : tables.length > 0 ? (
             tables.map((t) => (
               <div key={t.id} className="bg-white p-3 rounded-xl border space-y-1 shadow-2xs">
                 <div className="flex items-center justify-between">
