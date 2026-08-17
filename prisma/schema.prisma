@@ -1,0 +1,430 @@
+// Prisma Schema for Local MySQL (Laragon perkara_pos_local)
+// 100% Backward Compatible & Shopee Open Platform API Future-Proof
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// =============================================================================
+// 1. OUTLET & EMPLOYEES
+// =============================================================================
+model Outlet {
+  id                      String                   @id @default(uuid())
+  name                    String                   @db.Text
+  address                 String?                  @db.Text
+  phone                   String?
+  isActive                Boolean                  @default(true)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @default(now()) @updatedAt
+  employees               Employee[]
+  ingredients             Ingredient[]
+  menus                   Menu[]
+  orders                  Order[]
+  shifts                  ShiftLog[]
+  receipts                Receipt[]
+  omnichannelIntegrations OmnichannelIntegration[]
+}
+
+model Employee {
+  id                   String       @id @default(uuid())
+  outletId             String?
+  outlet               Outlet?      @relation(fields: [outletId], references: [id])
+  name                 String       @db.Text
+  username             String?      @db.Text
+  password             String?      @db.Text
+  pin                  String?      // 4-6 Digit PIN untuk absensi & shift kasir
+  role                 String       @default("cashier")
+  employmentType       String       @default("FULL_TIME")
+  eligibleForIncentive Boolean      @default(false)
+  isScheduled          Boolean      @default(true)
+  isFlatSalary         Boolean      @default(false)
+  flatSalaryAmount     Float        @default(0)
+  dailyRate            Float        @default(0)
+  partTimeRate         Float        @default(0)
+  incentiveRate        Float        @default(0)
+  createdAt            DateTime     @default(now())
+  attendances          Attendance[]
+  shifts               ShiftLog[]
+}
+
+// =============================================================================
+// 2. INVENTORY & DUAL-LAYER RAW MATERIALS (URGENT #1)
+// =============================================================================
+model Ingredient {
+  id                String          @id @default(uuid())
+  outletId          String?
+  outlet            Outlet?         @relation(fields: [outletId], references: [id])
+  sku               String?
+  name              String          @db.Text
+  category          String          @default("Bahan Baku")
+  buyUnit           String          @default("Kg")      // Satuan Beli (Kg, Karton, Dus, Botol, Pack)
+  unit              String          @default("gram")    // Satuan Pakai (gram, ml, pcs)
+  conversionRatio   Float           @default(1000)      // 1 buyUnit = X unit
+  floorQuantity     Float           @default(0)         // Stok Bar / Toko
+  warehouseQuantity Float           @default(0)         // Stok Gudang
+  hasWarehouseStock Boolean         @default(false)
+  minStockAlert     Float           @default(100)       // Batas Minimum Alert
+  hargaBeli         Float           @default(0)         // Harga Beli per buyUnit
+  ukuranKemasan     Float           @default(1)
+  costPerUseUnit    Float           @default(0)         // Moving Average HPP per satuan pakai
+  isPackaging       Boolean         @default(false)     // True jika Cup/Plastik/Sedotan
+  refillPresetQty   Float           @default(0)
+  refillPresetLabel String?         @db.Text
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @default(now()) @updatedAt
+  recipeItems       RecipeItem[]
+  addonRecipes      AddonRecipe[]
+  stockMovements    StockMovement[]
+  spillageLogs      SpillageLog[]
+}
+
+// =============================================================================
+// 3. MENU, VARIANTS, RECIPES & ADDON STOCKS
+// =============================================================================
+model Menu {
+  id          String        @id @default(uuid())
+  outletId    String?
+  outlet      Outlet?       @relation(fields: [outletId], references: [id])
+  sku         String?
+  name        String        @db.Text
+  category    String        @db.Text
+  iconName    String?       @db.Text
+  price       Float
+  baseHpp     Float         @default(0)
+  margin      Float         @default(0)
+  ops         String?       @db.Text
+  isActive    Boolean       @default(true)
+  externalId  String?       // Shopee Item ID / GoFood Item ID mapping
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @default(now()) @updatedAt
+  recipeItems RecipeItem[]
+  orderItems  OrderItem[]
+}
+
+model RecipeItem {
+  id           String     @id @default(uuid())
+  menuId       String
+  menu         Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  quantityUsed Float      @default(1) // Takaran bahan dalam Ingredient.unit
+  createdAt    DateTime   @default(now())
+}
+
+model AddonCategory {
+  id            String      @id @default(uuid())
+  name          String      @db.Text
+  isRequired    Boolean     @default(false)
+  allowMultiple Boolean     @default(true)
+  items         AddonItem[]
+}
+
+model AddonItem {
+  id              String        @id @default(uuid())
+  addonCategoryId String
+  category        AddonCategory @relation(fields: [addonCategoryId], references: [id], onDelete: Cascade)
+  name            String        @db.Text
+  price           Float         @default(0)
+  externalId      String?       // Shopee Add-on ID mapping
+  recipes         AddonRecipe[]
+}
+
+model AddonRecipe {
+  id           String     @id @default(uuid())
+  addonItemId  String
+  addonItem    AddonItem  @relation(fields: [addonItemId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  quantityUsed Float      @default(1) // Takaran potong stok dalam Ingredient.unit
+}
+
+// =============================================================================
+// 4. PERKARA-NOTA AI PHOTO RECEIPT & DYNAMIC OPEX ENGINE
+// =============================================================================
+model CustomCategory {
+  id           String        @id @default(uuid())
+  name         String        @db.Text
+  isStockItem  Boolean       @default(false) // True = Tambah Stok, False = Beban OPEX
+  receiptItems ReceiptItem[]
+}
+
+model Receipt {
+  id          String        @id @default(uuid())
+  outletId    String?
+  outlet      Outlet?       @relation(fields: [outletId], references: [id])
+  imageUrl    String        @db.Text
+  vendorName  String?       @db.Text
+  receiptDate DateTime      @default(now())
+  totalAmount Float         @default(0)
+  status      String        @default("PENDING") // PENDING, VERIFIED, REJECTED
+  createdAt   DateTime      @default(now())
+  items       ReceiptItem[]
+  opexRecords OpexRecord[]
+}
+
+model ReceiptItem {
+  id               String          @id @default(uuid())
+  receiptId        String
+  receipt          Receipt         @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  itemName         String          @db.Text
+  quantity         Float           @default(1)
+  unitPrice        Float           @default(0)
+  totalPrice       Float           @default(0)
+  customCategoryId String?
+  category         CustomCategory? @relation(fields: [customCategoryId], references: [id])
+  isStockItem      Boolean         @default(false)
+  ingredientId     String?
+}
+
+model OpexProfile {
+  id        String   @id @default(uuid())
+  name      String   @db.Text
+  amount    Float
+  category  String   @db.Text
+  expenses  String?  @db.Text
+  outletId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model OpexRecord {
+  id          String   @id @default(uuid())
+  outletId    String?
+  category    String   @db.Text // Listrik, Wifi, Air, Sewa, Kebersihan, Kasbon, Gaji
+  amount      Float
+  expenseDate DateTime @default(now())
+  receiptId   String?
+  receipt     Receipt? @relation(fields: [receiptId], references: [id])
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+}
+
+// =============================================================================
+// 5. SHIFT KASIR, ABSENSI & AUDIT FRAUD
+// =============================================================================
+model Attendance {
+  id              String    @id @default(uuid())
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  clockIn         DateTime  @default(now())
+  clockOut        DateTime?
+  status          String    @default("ON_TIME") // ON_TIME, LATE, EARLY_LEAVE
+  lateMinutes     Int       @default(0)
+  overtimeMinutes Int       @default(0)
+  notes           String?   @db.Text
+}
+
+model ShiftSchedule {
+  id           String   @id @default(uuid())
+  title        String?  @db.Text
+  date         String?  @db.Text
+  startTime    String?  @db.Text
+  endTime      String?  @db.Text
+  status       String?  @db.Text
+  employeeName String?  @db.Text
+  shiftType    String?  @db.Text
+  note         String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+}
+
+model ShiftLog {
+  id              String            @id @default(uuid())
+  outletId        String?
+  outlet          Outlet?           @relation(fields: [outletId], references: [id])
+  employeeId      String?
+  employee        Employee?         @relation(fields: [employeeId], references: [id])
+  employeeName    String?           @db.Text
+  shiftCategory   String?           @db.Text
+  type            String?           @db.Text
+  startTime       DateTime          @default(now())
+  endTime         DateTime?
+  timestamp       DateTime?         @default(now())
+  startCash       Float             @default(0)
+  startingCash    Float?            @default(0)
+  endCash         Float             @default(0)
+  expectedCash    Float             @default(0)
+  cashExpected    Float?            @default(0)
+  cashVerified    Float?            @default(0)
+  cashDiscrepancy Float?            @default(0)
+  cashNote        String?           @db.Text
+  difference      Float             @default(0)
+  stockReport     String?           @db.Text
+  status          String            @default("OPEN") // OPEN, CLOSED
+  transactions    CashTransaction[]
+  orders          Order[]
+}
+
+model CashTransaction {
+  id           String    @id @default(uuid())
+  shiftLogId   String?
+  shiftLog     ShiftLog? @relation(fields: [shiftLogId], references: [id])
+  employeeName String    @db.Text
+  type         String    @db.Text // CASH_IN, CASH_OUT
+  amount       Float
+  note         String?   @db.Text
+  timestamp    DateTime  @default(now())
+}
+
+model SpillageLog {
+  id           String     @id @default(uuid())
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  quantity     Float
+  reason       String     @db.Text
+  reportedBy   String?    @db.Text
+  createdAt    DateTime   @default(now())
+}
+
+model CancellationAuditLog {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  approvedBy  String   @db.Text // Supervisor / Owner PIN approver
+  reason      String   @db.Text
+  amount      Float
+  createdAt   DateTime @default(now())
+}
+
+// =============================================================================
+// 6. ORDERS, PAYMENTS & 3-IN-1 OMNICHANNEL (SHOPEE FOOD, GOFOOD, GRABFOOD)
+// =============================================================================
+model Order {
+  id               String                 @id @default(uuid())
+  outletId         String?
+  outlet           Outlet?                @relation(fields: [outletId], references: [id])
+  shiftLogId       String?
+  shiftLog         ShiftLog?              @relation(fields: [shiftLogId], references: [id])
+  orderNumber      String                 @db.Text // Format: POS-XXXX atau SHOPEE-XXXX
+  employeeName     String?                @db.Text
+  channel          String                 @default("DINE_IN") // DINE_IN, TAKEAWAY, SHOPEE_FOOD, GOFOOD, GRABFOOD
+  externalOrderId  String?                // Shopee Order SN (e.g., 24081512345ABC)
+  externalPayload  String?                @db.LongText // Raw Shopee Webhook JSON payload for audit
+  customerName     String?                @db.Text
+  tableNumber      String?                @db.Text
+  subtotal         Float                  @default(0)
+  discount         Float                  @default(0)
+  totalAmount      Float                  @default(0)
+  totalHpp         Float                  @default(0)
+  totalProfit      Float                  @default(0)
+  cashPaid         Float?
+  cashChange       Float?
+  paymentMethod    String                 @default("CASH") // CASH, QRIS, EDC_CARD, SHOPEE_PAY, EWALLET
+  paymentStatus    String                 @default("PAID") // UNPAID, PAID, CANCELLED, REFUNDED
+  orderStatus      String                 @default("COMPLETED") // PENDING, PROCESSING, COMPLETED, CANCELLED
+  driverName       String?                @db.Text // Nama Driver Shopee / GoFood
+  driverPhone      String?                @db.Text
+  createdAt        DateTime               @default(now())
+  items            OrderItem[]
+  cancellationLogs CancellationAuditLog[]
+}
+
+model OrderItem {
+  id                 String            @id @default(uuid())
+  orderId            String
+  order              Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuId             String?
+  menu               Menu?             @relation(fields: [menuId], references: [id])
+  menuName           String            @db.Text
+  variantName        String?           @db.Text
+  price              Float
+  quantity           Int               @default(1)
+  subtotal           Float             @default(0)
+  cogsAmount         Float             @default(0)
+  hppPerUnit         Float?            @default(0)
+  totalHpp           Float?            @default(0)
+  notes              String?           @db.Text
+  externalItemId     String?           // Shopee item_id mapping
+  externalVariantId  String?           // Shopee model_id mapping
+  addons             OrderItemAddon[]
+}
+
+model OrderItemAddon {
+  id          String    @id @default(uuid())
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  addonName   String    @db.Text
+  price       Float     @default(0)
+}
+
+model StockMovement {
+  id            String     @id @default(uuid())
+  ingredientId  String
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  type          String     @db.Text // SALE, SHOPEE_SALE, GOFOOD_SALE, PURCHASE, OPNAME_ADJUSTMENT, SPILLAGE, TRANSFER
+  quantity      Float      @default(0) // Positif (masuk), Negatif (keluar)
+  balanceAfter  Float      @default(0)
+  fromSource    String?    @db.Text
+  toDestination String?    @db.Text
+  employeeName  String?    @db.Text
+  referenceId   String?    @db.Text // orderId atau receiptId
+  note          String?    @db.Text
+  timestamp     DateTime   @default(now())
+}
+
+// =============================================================================
+// 7. OMNICHANNEL INTEGRATION CREDENTIALS & WEBHOOK CONFIG
+// =============================================================================
+model OmnichannelIntegration {
+  id               String    @id @default(uuid())
+  outletId         String?
+  outlet           Outlet?   @relation(fields: [outletId], references: [id])
+  provider         String    // 'SHOPEE', 'GOFOOD', 'GRABFOOD'
+  partnerId        String?
+  partnerKey       String?
+  shopId           String?
+  accessToken      String?   @db.Text
+  refreshToken     String?   @db.Text
+  tokenExpiresAt   DateTime?
+  webhookSecret    String?
+  autoAcceptOrder  Boolean   @default(true)
+  autoPrintReceipt Boolean   @default(true)
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @default(now()) @updatedAt
+}
+
+// Legacy & Helpers
+model Asset {
+  id        String   @id @default(uuid())
+  name      String   @db.Text
+  harga     Float
+  tahun     Float
+  category  String   @db.Text
+  outletId  String?
+  createdAt DateTime @default(now())
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model UserSession {
+  id           String   @id @default(uuid())
+  employeeId   String
+  employeeName String   @db.Text
+  role         String   @db.Text
+  token        String   @db.Text
+  deviceId     String
+  ipAddress    String?  @db.Text
+  userAgent    String?  @db.Text
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+}
+
+model VendorContact {
+  id              String   @id @default(uuid())
+  name            String   @db.Text
+  phone           String?
+  category        String?  @db.Text
+  messageTemplate String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+}
