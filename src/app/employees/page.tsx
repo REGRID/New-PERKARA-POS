@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AppShell } from "@/components/layout/app-shell";
+import { AttendanceCalendarView } from "@/components/attendance-calendar-view";
 
 export default function EmployeesPage() {
   const [activeTab, setActiveTab] = useState<"employees" | "attendance" | "schedule" | "payroll">("employees");
@@ -28,10 +29,10 @@ export default function EmployeesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const DEFAULT_FALLBACK_EMPLOYEES = [
-    { id: "emp-1", name: "Budi Santoso", role: "cashier", pin: "1234", employmentType: "SHIFT", dailyRate: 75000 },
-    { id: "emp-2", name: "Siti Rahma", role: "barista", pin: "5678", employmentType: "SHIFT", dailyRate: 85000 },
-    { id: "emp-3", name: "Reza Pratama", role: "kitchen", pin: "1122", employmentType: "SHIFT", dailyRate: 80000 },
-    { id: "emp-4", name: "Cheisa", role: "cashier", pin: "9900", employmentType: "SHIFT", dailyRate: 75000 },
+    { id: "emp-cheisa", name: "Cheisa", role: "BARISTA", pin: "5555", employmentType: "SHIFT", dailyRate: 35000 },
+    { id: "emp-galang", name: "Galang", role: "BARISTA", pin: "3333", employmentType: "SHIFT", dailyRate: 50000 },
+    { id: "emp-reza", name: "Reza", role: "BARISTA", pin: "1111", employmentType: "SHIFT", dailyRate: 50000 },
+    { id: "emp-ummu", name: "Ummu", role: "BARISTA", pin: "2222", employmentType: "SHIFT", dailyRate: 50000 },
   ];
 
   const [form, setForm] = useState({
@@ -365,36 +366,10 @@ export default function EmployeesPage() {
             </div>
           )}
 
-          {/* TAB 2: ABSENSI & LOG KEHADIRAN */}
+          {/* TAB 2: ABSENSI & KALENDER KEHADIRAN SHIFT */}
           {activeTab === "attendance" && (
-            <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs space-y-4 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-sm text-slate-900">Log Kehadiran Shift Staf</h3>
-                <span className="text-xs text-slate-400 font-medium">Total: {attendances.length} Log Shift</span>
-              </div>
-
-              <div className="divide-y divide-slate-100 border rounded-xl overflow-hidden">
-                {attendances.length > 0 ? (
-                  attendances.map((att) => (
-                    <div key={att.id} className="p-3 flex items-center justify-between text-xs hover:bg-slate-50">
-                      <div className="flex items-center gap-3">
-                        <UserCheck className="w-4 h-4 text-emerald-600" />
-                        <div>
-                          <span className="font-bold text-slate-900">{att.employee?.name || "Karyawan"}</span>
-                          <span className="block text-[10px] text-slate-400">{new Date(att.clockIn).toLocaleString("id-ID")}</span>
-                        </div>
-                      </div>
-                      <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                        {att.status || "HADIR SHIFT"}
-                      </Badge>
-                    </div>
-                  ))
-                ) : (
-                  <div className="p-8 text-center text-xs text-slate-400 font-medium">
-                    Belum ada riwayat absensi shift tercatat hari ini.
-                  </div>
-                )}
-              </div>
+            <div className="pt-2">
+              <AttendanceCalendarView />
             </div>
           )}
 

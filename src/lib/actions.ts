@@ -393,10 +393,10 @@ export async function saveMenuSettings(data: {
 }
 
 const DEFAULT_SEED_EMPLOYEES = [
-  { id: "emp-1", name: "Budi Santoso", role: "cashier", pin: "1234", employmentType: "SHIFT", dailyRate: 75000, flatSalaryAmount: 0 },
-  { id: "emp-2", name: "Siti Rahma", role: "barista", pin: "5678", employmentType: "SHIFT", dailyRate: 85000, flatSalaryAmount: 0 },
-  { id: "emp-3", name: "Reza Pratama", role: "kitchen", pin: "1122", employmentType: "SHIFT", dailyRate: 80000, flatSalaryAmount: 0 },
-  { id: "emp-4", name: "Cheisa", role: "cashier", pin: "9900", employmentType: "SHIFT", dailyRate: 75000, flatSalaryAmount: 0 },
+  { id: "emp-cheisa", name: "Cheisa", role: "BARISTA", pin: "5555", employmentType: "SHIFT", dailyRate: 35000, flatSalaryAmount: 0 },
+  { id: "emp-galang", name: "Galang", role: "BARISTA", pin: "3333", employmentType: "SHIFT", dailyRate: 50000, flatSalaryAmount: 0 },
+  { id: "emp-reza", name: "Reza", role: "BARISTA", pin: "1111", employmentType: "SHIFT", dailyRate: 50000, flatSalaryAmount: 0 },
+  { id: "emp-ummu", name: "Ummu", role: "BARISTA", pin: "2222", employmentType: "SHIFT", dailyRate: 50000, flatSalaryAmount: 0 },
 ];
 
 export async function getEmployees() {
