@@ -392,6 +392,141 @@ export async function saveMenuSettings(data: {
   }
 }
 
+export async function deleteMenu(id: string) {
+  try {
+    const menuModel = db.menu || db.Menu;
+    const recipeModel = db.recipeItem || db.RecipeItem;
+    if (recipeModel) {
+      await recipeModel.deleteMany({ where: { menuId: id } });
+    }
+    return await menuModel.delete({ where: { id } });
+  } catch (error) {
+    console.error("Error deleting menu:", error);
+    throw error;
+  }
+}
+
+// Add-ons Management
+export async function getAddonCategories() {
+  try {
+    const catModel = db.addonCategory || db.AddonCategory;
+    if (!catModel) return [];
+    return await catModel.findMany({
+      include: {
+        items: {
+          include: {
+            recipes: {
+              include: { ingredient: true },
+            },
+          },
+        },
+      },
+      orderBy: { name: "asc" },
+    });
+  } catch (err) {
+    console.error("Error fetching addon categories:", err);
+    return [];
+  }
+}
+
+export async function saveAddonCategory(data: { id?: string; name: string; isRequired?: boolean; allowMultiple?: boolean }) {
+  try {
+    const catModel = db.addonCategory || db.AddonCategory;
+    if (data.id) {
+      return await catModel.update({
+        where: { id: data.id },
+        data: {
+          name: data.name,
+          isRequired: Boolean(data.isRequired),
+          allowMultiple: data.allowMultiple !== undefined ? Boolean(data.allowMultiple) : true,
+        },
+      });
+    }
+    return await catModel.create({
+      data: {
+        name: data.name,
+        isRequired: Boolean(data.isRequired),
+        allowMultiple: data.allowMultiple !== undefined ? Boolean(data.allowMultiple) : true,
+      },
+    });
+  } catch (err) {
+    console.error("Error saving addon category:", err);
+    throw err;
+  }
+}
+
+export async function deleteAddonCategory(id: string) {
+  try {
+    const catModel = db.addonCategory || db.AddonCategory;
+    return await catModel.delete({ where: { id } });
+  } catch (err) {
+    console.error("Error deleting addon category:", err);
+    throw err;
+  }
+}
+
+export async function saveAddonItem(data: {
+  id?: string;
+  addonCategoryId: string;
+  name: string;
+  price: number;
+  ingredientId?: string;
+  quantityUsed?: number;
+}) {
+  try {
+    const itemModel = db.addonItem || db.AddonItem;
+    const recipeModel = db.addonRecipe || db.AddonRecipe;
+
+    let itemId = data.id;
+    if (itemId) {
+      await itemModel.update({
+        where: { id: itemId },
+        data: {
+          name: data.name,
+          price: Number(data.price) || 0,
+        },
+      });
+      if (recipeModel) {
+        await recipeModel.deleteMany({ where: { addonItemId: itemId } });
+      }
+    } else {
+      const newItem = await itemModel.create({
+        data: {
+          addonCategoryId: data.addonCategoryId,
+          name: data.name,
+          price: Number(data.price) || 0,
+        },
+      });
+      itemId = newItem.id;
+    }
+
+    if (recipeModel && data.ingredientId && Number(data.quantityUsed) > 0) {
+      await recipeModel.create({
+        data: {
+          addonItemId: itemId,
+          ingredientId: data.ingredientId,
+          quantityUsed: Number(data.quantityUsed),
+        },
+      });
+    }
+
+    return { success: true, itemId };
+  } catch (err) {
+    console.error("Error saving addon item:", err);
+    throw err;
+  }
+}
+
+export async function deleteAddonItem(id: string) {
+  try {
+    const itemModel = db.addonItem || db.AddonItem;
+    return await itemModel.delete({ where: { id } });
+  } catch (err) {
+    console.error("Error deleting addon item:", err);
+    throw err;
+  }
+}
+
 const DEFAULT_SEED_EMPLOYEES = [
   { id: "emp-cheisa", name: "Cheisa", role: "BARISTA", pin: "5555", employmentType: "SHIFT", dailyRate: 35000, flatSalaryAmount: 0 },
   { id: "emp-galang", name: "Galang", role: "BARISTA", pin: "3333", employmentType: "SHIFT", dailyRate: 50000, flatSalaryAmount: 0 },
@@ -844,6 +979,16 @@ export async function savePurchase(data: {
   }
 }
 
+export async function deletePurchase(id: string) {
+  try {
+    const purModel = db.purchase || db.Purchase;
+    return await purModel.delete({ where: { id } });
+  } catch (err) {
+    console.error("Error deleting purchase:", err);
+    throw err;
+  }
+}
+
 // Discounts
 export async function getDiscounts() {
   try {
@@ -855,20 +1000,40 @@ export async function getDiscounts() {
   }
 }
 
-export async function saveDiscount(data: { id?: string; name: string; type?: string; amount: number }) {
+export async function saveDiscount(data: { id?: string; name: string; type?: string; amount: number; isActive?: boolean }) {
   try {
     const discModel = db.discount || db.Discount;
     if (data.id) {
       return await discModel.update({
         where: { id: data.id },
-        data: { name: data.name, type: data.type || "PERCENT", amount: Number(data.amount) },
+        data: { 
+          name: data.name, 
+          type: data.type || "PERCENT", 
+          amount: Number(data.amount),
+          ...(data.isActive !== undefined ? { isActive: Boolean(data.isActive) } : {})
+        },
       });
     }
     return await discModel.create({
-      data: { name: data.name, type: data.type || "PERCENT", amount: Number(data.amount) },
+      data: { 
+        name: data.name, 
+        type: data.type || "PERCENT", 
+        amount: Number(data.amount),
+        isActive: data.isActive !== undefined ? Boolean(data.isActive) : true
+      },
     });
   } catch (err) {
     console.error("Error saving discount:", err);
+    throw err;
+  }
+}
+
+export async function deleteDiscount(id: string) {
+  try {
+    const discModel = db.discount || db.Discount;
+    return await discModel.delete({ where: { id } });
+  } catch (err) {
+    console.error("Error deleting discount:", err);
     throw err;
   }
 }
@@ -902,6 +1067,16 @@ export async function saveDiningTable(data: { id?: string; number: string; capac
   }
 }
 
+export async function deleteDiningTable(id: string) {
+  try {
+    const tableModel = db.diningTable || db.DiningTable;
+    return await tableModel.delete({ where: { id } });
+  } catch (err) {
+    console.error("Error deleting dining table:", err);
+    throw err;
+  }
+}
+
 // Customers
 export async function getCustomers() {
   try {
@@ -913,20 +1088,40 @@ export async function getCustomers() {
   }
 }
 
-export async function saveCustomer(data: { id?: string; name: string; phone?: string; email?: string }) {
+export async function saveCustomer(data: { id?: string; name: string; phone?: string; email?: string; points?: number }) {
   try {
     const custModel = db.customer || db.Customer;
     if (data.id) {
       return await custModel.update({
         where: { id: data.id },
-        data: { name: data.name, phone: data.phone || "", email: data.email || "" },
+        data: { 
+          name: data.name, 
+          phone: data.phone || "", 
+          email: data.email || "",
+          ...(data.points !== undefined ? { points: Number(data.points) } : {})
+        },
       });
     }
     return await custModel.create({
-      data: { name: data.name, phone: data.phone || "", email: data.email || "" },
+      data: { 
+        name: data.name, 
+        phone: data.phone || "", 
+        email: data.email || "",
+        points: Number(data.points) || 0
+      },
     });
   } catch (err) {
     console.error("Error saving customer:", err);
+    throw err;
+  }
+}
+
+export async function deleteCustomer(id: string) {
+  try {
+    const custModel = db.customer || db.Customer;
+    return await custModel.delete({ where: { id } });
+  } catch (err) {
+    console.error("Error deleting customer:", err);
     throw err;
   }
 }
@@ -976,9 +1171,19 @@ export async function getExpenses() {
   }
 }
 
-export async function saveExpense(data: { amount: number; note?: string; employeeName?: string }) {
+export async function saveExpense(data: { id?: string; amount: number; note?: string; employeeName?: string }) {
   try {
     const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
+    if (data.id) {
+      return await cashTxModel.update({
+        where: { id: data.id },
+        data: {
+          amount: Number(data.amount) || 0,
+          note: data.note || "Beban Operasional",
+          employeeName: data.employeeName || "Staf Outlet",
+        },
+      });
+    }
     return await cashTxModel.create({
       data: {
         type: "CASH_OUT",
@@ -993,7 +1198,17 @@ export async function saveExpense(data: { amount: number; note?: string; employe
   }
 }
 
-// Orders History
+export async function deleteExpense(id: string) {
+  try {
+    const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
+    return await cashTxModel.delete({ where: { id } });
+  } catch (err) {
+    console.error("Error deleting expense:", err);
+    throw err;
+  }
+}
+
+// Orders History & Order Status
 export async function getOrdersHistory() {
   try {
     const orderModel = db.order || db.Order;
@@ -1007,12 +1222,42 @@ export async function getOrdersHistory() {
   }
 }
 
+export async function updateOrderStatus(data: { id: string; orderStatus?: string; paymentStatus?: string }) {
+  try {
+    const orderModel = db.order || db.Order;
+    return await orderModel.update({
+      where: { id: data.id },
+      data: {
+        ...(data.orderStatus ? { orderStatus: data.orderStatus } : {}),
+        ...(data.paymentStatus ? { paymentStatus: data.paymentStatus } : {}),
+      },
+    });
+  } catch (err) {
+    console.error("Error updating order status:", err);
+    throw err;
+  }
+}
+
+export async function deleteOrder(id: string) {
+  try {
+    const orderModel = db.order || db.Order;
+    const itemModel = db.orderItem || db.OrderItem;
+    if (itemModel) {
+      await itemModel.deleteMany({ where: { orderId: id } });
+    }
+    return await orderModel.delete({ where: { id } });
+  } catch (err) {
+    console.error("Error deleting order:", err);
+    throw err;
+  }
+}
+
 // Payment Methods
 const DEFAULT_SEED_PAYMENT_METHODS = [
-  { id: "pm-1", name: "Tunai / Cash", code: "CASH", type: "CASH" },
-  { id: "pm-2", name: "QRIS BCA / Mandiri", code: "QRIS", type: "E_WALLET" },
-  { id: "pm-3", name: "Mesin EDC Debit / Kredit", code: "EDC", type: "CARD" },
-  { id: "pm-4", name: "Transfer Bank BCA", code: "TRANSFER", type: "BANK_TRANSFER" },
+  { id: "pm-1", name: "Tunai / Cash", code: "CASH", type: "CASH", isActive: true },
+  { id: "pm-2", name: "QRIS BCA / Mandiri", code: "QRIS", type: "E_WALLET", isActive: true },
+  { id: "pm-3", name: "Mesin EDC Debit / Kredit", code: "EDC", type: "CARD", isActive: true },
+  { id: "pm-4", name: "Transfer Bank BCA", code: "TRANSFER", type: "BANK_TRANSFER", isActive: true },
 ];
 
 export async function getPaymentMethods() {
@@ -1053,20 +1298,40 @@ export async function getPaymentMethods() {
   }
 }
 
-export async function savePaymentMethod(data: { id?: string; name: string; code: string; type?: string }) {
+export async function savePaymentMethod(data: { id?: string; name: string; code: string; type?: string; isActive?: boolean }) {
   try {
     const pmModel = db.paymentMethod || db.PaymentMethod;
     if (data.id) {
       return await pmModel.update({
         where: { id: data.id },
-        data: { name: data.name, code: data.code, type: data.type || "CASH" },
+        data: { 
+          name: data.name, 
+          code: data.code, 
+          type: data.type || "CASH",
+          ...(data.isActive !== undefined ? { isActive: Boolean(data.isActive) } : {})
+        },
       });
     }
     return await pmModel.create({
-      data: { name: data.name, code: data.code, type: data.type || "CASH" },
+      data: { 
+        name: data.name, 
+        code: data.code, 
+        type: data.type || "CASH",
+        isActive: data.isActive !== undefined ? Boolean(data.isActive) : true
+      },
     });
   } catch (err) {
     console.error("Error saving payment method:", err);
+    throw err;
+  }
+}
+
+export async function deletePaymentMethod(id: string) {
+  try {
+    const pmModel = db.paymentMethod || db.PaymentMethod;
+    return await pmModel.delete({ where: { id } });
+  } catch (err) {
+    console.error("Error deleting payment method:", err);
     throw err;
   }
 }
@@ -1099,8 +1364,6 @@ export async function saveSystemSetting(key: string, value: string) {
 // =============================================================================
 // EMPLOYEES & ATTENDANCE MANAGEMENT (PER-SHIFT ONLY - NO FLAT MONTHLY SALARY)
 // =============================================================================
-
-
 
 export async function saveEmployee(data: {
   id?: string;
@@ -1169,12 +1432,23 @@ export async function getEmployeeAttendances() {
 }
 
 export async function saveAttendanceRecord(data: {
+  id?: string;
   employeeId: string;
   status?: string;
   notes?: string;
 }) {
   try {
     const attModel = db.attendance || db.Attendance;
+    if (data.id) {
+      return await attModel.update({
+        where: { id: data.id },
+        data: {
+          employeeId: data.employeeId,
+          status: data.status || "ON_TIME",
+          notes: data.notes || "Absensi manual admin",
+        },
+      });
+    }
     return await attModel.create({
       data: {
         employeeId: data.employeeId,
@@ -1184,6 +1458,16 @@ export async function saveAttendanceRecord(data: {
     });
   } catch (err) {
     console.error("Error saving attendance record:", err);
+    throw err;
+  }
+}
+
+export async function deleteAttendanceRecord(id: string) {
+  try {
+    const attModel = db.attendance || db.Attendance;
+    return await attModel.delete({ where: { id } });
+  } catch (err) {
+    console.error("Error deleting attendance record:", err);
     throw err;
   }
 }

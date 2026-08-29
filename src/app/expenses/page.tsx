@@ -1,16 +1,40 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, CreditCard, Sparkles, Search, Calendar } from "lucide-react";
+import { 
+  Plus, 
+  CreditCard, 
+  Sparkles, 
+  Search, 
+  Calendar, 
+  Pencil, 
+  Trash2, 
+  RefreshCw, 
+  DollarSign,
+  TrendingDown
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AppShell } from "@/components/layout/app-shell";
+import { useAuth } from "@/lib/auth-context";
 
 export default function ExpensesPage() {
+  const { isAdmin } = useAuth();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [form, setForm] = useState({ amount: 0, note: "", employeeName: "Staf Outlet" });
+  const [submitting, setSubmitting] = useState(false);
+
+  // Modals
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<any>(null);
+  const [form, setForm] = useState({
+    amount: 0,
+    note: "",
+    employeeName: "Staf Outlet",
+  });
 
   const DEFAULT_FALLBACK_EXPENSES = [
     { id: "exp-1", amount: 250000, note: "Tagihan Listrik & Air Outlet (Agustus)", employeeName: "Manajer Outlet", timestamp: new Date("2026-08-25"), isFromScan: false },
@@ -24,11 +48,7 @@ export default function ExpensesPage() {
       const res = await fetch("/api/data?type=expenses");
       if (res.ok) {
         const json = await res.json();
-        if (Array.isArray(json) && json.length > 0) {
-          setExpenses(json);
-        } else {
-          setExpenses(DEFAULT_FALLBACK_EXPENSES);
-        }
+        setExpenses(Array.isArray(json) && json.length > 0 ? json : DEFAULT_FALLBACK_EXPENSES);
       } else {
         setExpenses(DEFAULT_FALLBACK_EXPENSES);
       }
@@ -44,19 +64,58 @@ export default function ExpensesPage() {
     fetchExpenses();
   }, []);
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const openAddModal = () => {
+    setEditingExpense(null);
+    setForm({ amount: 0, note: "", employeeName: "Staf Outlet" });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (ex: any) => {
+    setEditingExpense(ex);
+    setForm({
+      amount: Number(ex.amount) || 0,
+      note: ex.note || "",
+      employeeName: ex.employeeName || "Staf Outlet",
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.amount || !form.note.trim()) return;
+
     try {
+      setSubmitting(true);
       const res = await fetch("/api/data?type=save_expense", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          id: editingExpense?.id || undefined,
+          ...form,
+          amount: Number(form.amount),
+        }),
       });
+
       if (res.ok) {
-        setForm({ amount: 0, note: "", employeeName: "Staf Outlet" });
+        setIsModalOpen(false);
         await fetchExpenses();
       }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string, note: string) => {
+    if (!confirm(`Hapus catatan kas keluar "${note}"?`)) return;
+    try {
+      const res = await fetch("/api/data?type=delete_expense", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) await fetchExpenses();
     } catch (e) {
       console.error(e);
     }
@@ -80,11 +139,16 @@ export default function ExpensesPage() {
         {/* Prominent Outer Card Container */}
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-2xs space-y-6">
           
-          {/* Card Header */}
+          {/* Card Header & Main Action */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Beban & Pengeluaran Operasional</h2>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Beban & Pengeluaran Kas (OPEX)</h2>
+                {isAdmin && (
+                  <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-bold">
+                    Admin Full Access
+                  </Badge>
+                )}
                 {scannedCount > 0 && (
                   <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                     <Sparkles className="w-3 h-3 text-emerald-600" />
@@ -95,6 +159,22 @@ export default function ExpensesPage() {
               <p className="text-xs text-slate-500 font-medium mt-1">
                 Catatan kas keluar harian (listrik, wifi, kasbon, kebersihan, & hasil scan nota toko).
               </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={fetchExpenses} className="text-xs gap-1.5 min-h-[40px] rounded-xl">
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+                <span>Refresh</span>
+              </Button>
+              {isAdmin && (
+                <Button
+                  onClick={openAddModal}
+                  className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs px-4 py-2.5 rounded-xl min-h-[40px] gap-2 shadow-xs shrink-0 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Catat Kas Keluar</span>
+                </Button>
+              )}
             </div>
           </div>
 
@@ -114,37 +194,12 @@ export default function ExpensesPage() {
             </div>
           </div>
 
-          {/* Input Form */}
-          <form onSubmit={handleAdd} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-            <div className="font-bold text-xs text-slate-800">Input Pengeluaran Kas Baru</div>
-            <div className="flex flex-col sm:flex-row gap-2 text-xs">
-              <Input 
-                placeholder="Keterangan Beban (Listrik, Wifi, Air, Sewa, Kebersihan) *" 
-                value={form.note}
-                onChange={(e) => setForm({ ...form, note: e.target.value })}
-                className="bg-white min-h-[40px] text-xs flex-1"
-                required
-              />
-              <Input 
-                type="number"
-                placeholder="Jumlah (Rp) *" 
-                value={form.amount || ""}
-                onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
-                className="bg-white min-h-[40px] text-xs sm:w-48"
-                required
-              />
-              <Button type="submit" size="sm" className="bg-stone-800 hover:bg-stone-900 text-white min-h-[40px] text-xs font-semibold px-4 cursor-pointer">
-                <Plus className="w-4 h-4 mr-1" /> Catat Kas Keluar
-              </Button>
-            </div>
-          </form>
-
           {/* Search Filter */}
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <Input
               type="text"
-              placeholder="Cari pengeluaran..."
+              placeholder="Cari keterangan pengeluaran atau nama pencatat..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 bg-slate-50 border-slate-200 text-xs font-medium min-h-[40px] rounded-xl"
@@ -158,8 +213,9 @@ export default function ExpensesPage() {
                 filteredExpenses.map((ex) => {
                   const isScan = ex.isFromScan || (ex.note && ex.note.includes("AI Nota"));
                   const dateStr = ex.timestamp ? new Date(ex.timestamp).toLocaleString("id-ID") : "-";
+
                   return (
-                    <div key={ex.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50/60 transition-colors">
+                    <div key={ex.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap font-bold text-slate-900">
                           <span>{ex.note || "Beban Operasional"}</span>
@@ -179,9 +235,31 @@ export default function ExpensesPage() {
                           <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-slate-400" /> {dateStr}</span>
                         </div>
                       </div>
-                      <span className="font-extrabold text-rose-600 text-sm shrink-0">
-                        - Rp {Number(ex.amount || 0).toLocaleString("id-ID")}
-                      </span>
+
+                      <div className="flex items-center gap-3">
+                        <span className="font-extrabold text-rose-600 text-sm">
+                          - Rp {Number(ex.amount || 0).toLocaleString("id-ID")}
+                        </span>
+
+                        {isAdmin && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => openEditModal(ex)}
+                              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Pengeluaran"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(ex.id, ex.note)}
+                              className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Hapus Pengeluaran"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })
@@ -196,6 +274,76 @@ export default function ExpensesPage() {
         </div>
 
       </div>
+
+      {/* Modal Add / Edit Expense */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900">
+              {editingExpense ? "Edit Pengeluaran Kas" : "Catat Pengeluaran Kas Baru"}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Beban operasional akan tercatat pada laporan arus kas dan laba bersih.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSave} className="space-y-3.5 py-2 text-xs">
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">Keterangan Pengeluaran *</label>
+              <Input
+                autoFocus
+                placeholder="cth: Tagihan Listrik & Internet"
+                value={form.note}
+                onChange={(e) => setForm({ ...form, note: e.target.value })}
+                className="text-xs font-medium min-h-[38px] rounded-xl"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Nominal (Rp) *</label>
+                <Input
+                  type="number"
+                  placeholder="50000"
+                  value={form.amount || ""}
+                  onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
+                  className="text-xs font-bold text-rose-600 min-h-[38px] rounded-xl"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Nama Pencatat / Kas</label>
+                <Input
+                  placeholder="Kasir / Admin"
+                  value={form.employeeName}
+                  onChange={(e) => setForm({ ...form, employeeName: e.target.value })}
+                  className="text-xs font-medium min-h-[38px] rounded-xl"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsModalOpen(false)}
+                className="text-xs rounded-xl min-h-[38px]"
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold rounded-xl min-h-[38px]"
+              >
+                {submitting ? "Menyimpan..." : "Simpan Pengeluaran"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
