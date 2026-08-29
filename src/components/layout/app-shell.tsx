@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useAuth } from "@/lib/auth-context";
-import { Search, Bell, X, CheckCircle2, Info, AlertTriangle, FileText, Package, ShoppingCart } from "lucide-react";
+import { Menu, Search, Bell, X, CheckCircle2, Info, AlertTriangle, FileText, Package, ShoppingCart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -20,9 +20,15 @@ export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
 
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotifPopover, setShowNotifPopover] = useState(false);
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [pathname]);
 
   // Demo Notification Activity Logs
   const [notifications, setNotifications] = useState([
@@ -125,37 +131,50 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <AppShellContext.Provider value={true}>
-      <div className="min-h-screen bg-[#f3f6f9] text-foreground flex flex-col lg:flex-row">
-        <Sidebar />
+      <div className="h-screen w-screen overflow-hidden bg-[#f3f6f9] text-foreground flex flex-col lg:flex-row select-none">
+        <Sidebar mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} />
 
-        <main className="flex-1 min-w-0 overflow-y-auto flex flex-col">
-          {/* Top Header Bar with Title, Search & Notification icons */}
-          <header className="bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-2xs">
-            <h1 className="text-base md:text-lg font-bold text-slate-900 tracking-tight">
-              {currentTitle}
-            </h1>
+        <main className="flex-1 h-full min-w-0 overflow-y-auto flex flex-col custom-scrollbar">
+          {/* Top Header Bar with Title, Hamburger Menu on Mobile, Search & Notification icons */}
+          <header className="bg-white border-b px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between sticky top-0 z-30 shadow-2xs">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              {/* Mobile Hamburger Drawer Button */}
+              <button
+                type="button"
+                onClick={() => setMobileSidebarOpen(true)}
+                className="lg:hidden p-2 rounded-xl hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer border border-slate-200/80 shrink-0"
+                title="Buka Menu"
+              >
+                <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
 
-            <div className="flex items-center gap-2 relative">
+              <h1 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 tracking-tight truncate max-w-[150px] sm:max-w-xs md:max-w-md">
+                {currentTitle}
+              </h1>
+            </div>
+
+            <div className="flex items-center gap-1.5 sm:gap-2 relative shrink-0">
               {/* Dev Instant Role Switcher Button */}
               <button
                 type="button"
                 onClick={() => switchRole(isAdmin ? "karyawan" : "admin")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border shadow-2xs cursor-pointer flex items-center gap-1.5 ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all border shadow-2xs cursor-pointer flex items-center gap-1.5 ${
                   isAdmin 
                     ? "bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100" 
                     : "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
                 }`}
                 title="Klik untuk switch Mode Admin <-> Mode Kasir (Uji Coba)"
               >
-                <span className={`w-2 h-2 rounded-full animate-ping ${isAdmin ? "bg-indigo-600" : "bg-amber-600"}`} />
-                <span>{isAdmin ? "👑 Mode: ADMIN (Klik -> KASIR)" : "🧑‍🍳 Mode: KASIR (Klik -> ADMIN)"}</span>
+                <span className={`w-2 h-2 rounded-full ${isAdmin ? "bg-indigo-600 animate-ping" : "bg-amber-600"}`} />
+                <span className="hidden sm:inline">{isAdmin ? "Mode: ADMIN (Klik -> KASIR)" : "Mode: KASIR (Klik -> ADMIN)"}</span>
+                <span className="sm:hidden">{isAdmin ? "ADMIN" : "KASIR"}</span>
               </button>
 
               {/* Search Button */}
               <button
                 type="button"
                 onClick={() => setShowSearchModal(true)}
-                className="w-9 h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
                 title="Cari Item / Produk"
               >
                 <Search className="w-4 h-4" />
@@ -165,12 +184,12 @@ export function AppShell({ children }: AppShellProps) {
               <button
                 type="button"
                 onClick={() => setShowNotifPopover(!showNotifPopover)}
-                className="w-9 h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors cursor-pointer relative"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors cursor-pointer relative"
                 title="Notifikasi & Log Perubahan"
               >
                 <Bell className="w-4 h-4" />
                 {notifications.length > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                  <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
                 )}
               </button>
 

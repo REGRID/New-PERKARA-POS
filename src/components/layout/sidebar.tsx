@@ -44,11 +44,19 @@ interface NavGroup {
   items: NavItem[];
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, isAdmin } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleClose = () => {
+    if (onMobileClose) onMobileClose();
+  };
 
   const handleLogout = () => {
     logout();
@@ -203,43 +211,22 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile / Small Tablet Top Header Bar */}
-      <div className="lg:hidden flex items-center justify-between p-3.5 bg-card border-b sticky top-0 z-40 shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-xs">
-            P
-          </div>
-          <div>
-            <h1 className="font-bold text-sm leading-tight text-foreground">PERKARA POS</h1>
-            <p className="text-[11px] text-muted-foreground">{user?.name || "Outlet Utama"}</p>
-          </div>
-        </div>
-        <Button 
-          variant="outline" 
-          size="icon" 
-          onClick={() => setMobileOpen(!mobileOpen)} 
-          className="min-h-[44px] min-w-[44px]"
-        >
-          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </Button>
-      </div>
-
       {/* Mobile Drawer Backdrop */}
       {mobileOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-xs transition-opacity" 
-          onClick={() => setMobileOpen(false)} 
+          className="fixed inset-0 bg-black/60 z-50 lg:hidden backdrop-blur-xs transition-opacity animate-in fade-in duration-200" 
+          onClick={handleClose} 
         />
       )}
 
       {/* Sidebar Container */}
       <aside className={`
-        fixed top-0 bottom-0 left-0 z-50 w-64 bg-card border-r flex flex-col justify-between transition-transform duration-200 ease-in-out
-        lg:translate-x-0 lg:static lg:z-auto
+        fixed top-0 bottom-0 left-0 z-50 w-72 max-w-[85vw] bg-card border-r flex flex-col justify-between transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none select-none
+        lg:translate-x-0 lg:static lg:h-screen lg:w-64 lg:shrink-0 lg:z-auto
         ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
       `}>
         {/* Sidebar Header / Branding */}
-        <div className="p-4 border-b">
+        <div className="p-4 border-b shrink-0 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-700 flex items-center justify-center text-white font-bold text-base shadow-sm">
               P
@@ -257,10 +244,20 @@ export function Sidebar() {
               </p>
             </div>
           </div>
+
+          {/* Close button inside mobile drawer */}
+          <button
+            type="button"
+            onClick={handleClose}
+            className="lg:hidden p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
+            title="Tutup Menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Navigation Items (Scrollable Dropdowns) */}
-        <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
+        {/* Navigation Items (Independent Scrollable Area) */}
+        <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto overflow-x-hidden custom-scrollbar">
           {/* WORKSPACE Header Block (At Top of Sidebar, Collapsible Dropdown) */}
           <div className="space-y-1.5 mb-2">
             <button
@@ -280,7 +277,7 @@ export function Sidebar() {
               isAdmin ? (
                 <Link
                   href="/"
-                  onClick={() => setMobileOpen(false)}
+                  onClick={handleClose}
                   className={`
                     flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-semibold transition-all min-h-[48px] border shadow-2xs mt-1
                     ${pathname === "/" 
@@ -295,7 +292,7 @@ export function Sidebar() {
               ) : (
                 <Link
                   href="/pos"
-                  onClick={() => setMobileOpen(false)}
+                  onClick={handleClose}
                   className={`
                     flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-semibold transition-all min-h-[48px] border shadow-2xs mt-1
                     ${pathname === "/pos" 
@@ -342,11 +339,11 @@ export function Sidebar() {
                         <Link
                           key={item.href}
                           href={item.href}
-                          onClick={() => setMobileOpen(false)}
+                          onClick={handleClose}
                           className={`
-                            group flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all min-h-[40px]
+                            group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all min-h-[42px]
                             ${isActive 
-                              ? "bg-slate-100 text-indigo-600 font-bold dark:bg-slate-800 dark:text-indigo-400" 
+                              ? "bg-indigo-50 text-indigo-700 font-bold border border-indigo-200/80 shadow-2xs dark:bg-slate-800 dark:text-indigo-400" 
                               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-100"
                             }
                           `}
@@ -374,7 +371,7 @@ export function Sidebar() {
         </nav>
 
         {/* Sidebar Footer: Active User & Role Profile */}
-        <div className="p-3 border-t bg-muted/20 space-y-2">
+        <div className="p-3 border-t bg-muted/20 space-y-2 shrink-0">
           <div className="p-2.5 rounded-lg bg-card border shadow-2xs space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-foreground truncate">{user?.name || "Pengguna POS"}</span>
@@ -394,7 +391,7 @@ export function Sidebar() {
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="w-full text-xs min-h-[36px] justify-between text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-900"
+              className="w-full text-xs min-h-[36px] justify-between text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-900 cursor-pointer"
             >
               <span>Keluar (Logout)</span>
               <LogOut className="w-3.5 h-3.5" />
@@ -413,4 +410,3 @@ export function Sidebar() {
     </>
   );
 }
-

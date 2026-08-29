@@ -168,11 +168,11 @@ export default function EmployeesPage() {
             </Button>
           </div>
 
-          {/* Sub Navigation Tabs */}
-          <div className="flex flex-wrap items-center gap-2 border-b pb-3">
+          {/* Sub Navigation Tabs (Horizontally scrollable on small mobile screens) */}
+          <div className="flex items-center gap-2 border-b pb-3 overflow-x-auto custom-scrollbar flex-nowrap sm:flex-wrap">
             <button
               onClick={() => setActiveTab("employees")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all gap-2 flex items-center cursor-pointer ${
+              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all gap-1.5 sm:gap-2 flex items-center cursor-pointer shrink-0 ${
                 activeTab === "employees"
                   ? "bg-stone-800 text-white shadow-2xs"
                   : "bg-slate-100/70 text-slate-600 hover:bg-slate-100"
@@ -184,7 +184,7 @@ export default function EmployeesPage() {
 
             <button
               onClick={() => setActiveTab("attendance")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all gap-2 flex items-center cursor-pointer ${
+              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all gap-1.5 sm:gap-2 flex items-center cursor-pointer shrink-0 ${
                 activeTab === "attendance"
                   ? "bg-stone-800 text-white shadow-2xs"
                   : "bg-slate-100/70 text-slate-600 hover:bg-slate-100"
@@ -196,7 +196,7 @@ export default function EmployeesPage() {
 
             <button
               onClick={() => setActiveTab("schedule")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all gap-2 flex items-center cursor-pointer ${
+              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all gap-1.5 sm:gap-2 flex items-center cursor-pointer shrink-0 ${
                 activeTab === "schedule"
                   ? "bg-stone-800 text-white shadow-2xs"
                   : "bg-slate-100/70 text-slate-600 hover:bg-slate-100"
@@ -208,7 +208,7 @@ export default function EmployeesPage() {
 
             <button
               onClick={() => setActiveTab("payroll")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all gap-2 flex items-center cursor-pointer ${
+              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all gap-1.5 sm:gap-2 flex items-center cursor-pointer shrink-0 ${
                 activeTab === "payroll"
                   ? "bg-stone-800 text-white shadow-2xs"
                   : "bg-slate-100/70 text-slate-600 hover:bg-slate-100"
@@ -291,77 +291,81 @@ export default function EmployeesPage() {
             </form>
           )}
 
-          {/* TAB 1: DATA KARYAWAN ROSTER */}
+          {/* TAB 1: DATA KARYAWAN ROSTER (Responsive Horizontal Scroll) */}
           {activeTab === "employees" && (
             <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
-              <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-                <div className="col-span-4">NAMA & STAF</div>
-                <div className="col-span-3 text-center">ROLE & PIN</div>
-                <div className="col-span-2 text-center">SISTEM GAJI</div>
-                <div className="col-span-2 text-right">UPAH PER SHIFT</div>
-                <div className="col-span-1 text-right">AKSI</div>
-              </div>
-
-              <div className="divide-y divide-slate-100">
-                {employees.length > 0 ? (
-                  employees.map((emp) => {
-                    const rate = Number(emp.dailyRate || emp.shiftRate || 75000);
-                    return (
-                      <div key={emp.id} className="grid grid-cols-12 px-6 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
-                        <div className="col-span-4 font-bold text-slate-900 flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-stone-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                            {emp.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <span className="text-slate-900 font-bold text-sm block">{emp.name}</span>
-                            <span className="text-[10px] text-slate-500 font-medium">Staf Outlet Shift</span>
-                          </div>
-                        </div>
-
-                        <div className="col-span-3 text-center space-y-1">
-                          <Badge className="text-[10px] px-2 py-0.5 font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
-                            {emp.role ? emp.role.toUpperCase() : "KASIR"}
-                          </Badge>
-                          <span className="block text-[10px] font-mono text-slate-500">
-                            PIN: {emp.pin || "1234"}
-                          </span>
-                        </div>
-
-                        <div className="col-span-2 text-center">
-                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                            PER SHIFT
-                          </span>
-                        </div>
-
-                        <div className="col-span-2 text-right font-extrabold text-emerald-700">
-                          Rp {rate.toLocaleString("id-ID")} <span className="text-[10px] font-normal text-slate-400">/ shift</span>
-                        </div>
-
-                        <div className="col-span-1 flex items-center justify-end gap-1">
-                          <button 
-                            onClick={() => handleOpenEdit(emp)} 
-                            className="text-slate-500 hover:text-indigo-600 p-1.5 rounded-lg transition-colors cursor-pointer"
-                            title="Edit Data Karyawan"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteEmployee(emp.id)} 
-                            className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg transition-colors cursor-pointer"
-                            title="Hapus Karyawan"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="p-12 text-center space-y-2">
-                    <Users className="w-8 h-8 text-slate-300 mx-auto" />
-                    <p className="text-xs text-slate-400 font-medium">Belum ada karyawan terdaftar.</p>
+              <div className="overflow-x-auto custom-scrollbar">
+                <div className="min-w-[620px]">
+                  <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
+                    <div className="col-span-4">NAMA & STAF</div>
+                    <div className="col-span-3 text-center">ROLE & PIN</div>
+                    <div className="col-span-2 text-center">SISTEM GAJI</div>
+                    <div className="col-span-2 text-right">UPAH PER SHIFT</div>
+                    <div className="col-span-1 text-right">AKSI</div>
                   </div>
-                )}
+
+                  <div className="divide-y divide-slate-100">
+                    {employees.length > 0 ? (
+                      employees.map((emp) => {
+                        const rate = Number(emp.dailyRate || emp.shiftRate || 75000);
+                        return (
+                          <div key={emp.id} className="grid grid-cols-12 px-6 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
+                            <div className="col-span-4 font-bold text-slate-900 flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-full bg-stone-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                                {emp.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <span className="text-slate-900 font-bold text-sm block">{emp.name}</span>
+                                <span className="text-[10px] text-slate-500 font-medium">Staf Outlet Shift</span>
+                              </div>
+                            </div>
+
+                            <div className="col-span-3 text-center space-y-1">
+                              <Badge className="text-[10px] px-2 py-0.5 font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
+                                {emp.role ? emp.role.toUpperCase() : "KASIR"}
+                              </Badge>
+                              <span className="block text-[10px] font-mono text-slate-500">
+                                PIN: {emp.pin || "1234"}
+                              </span>
+                            </div>
+
+                            <div className="col-span-2 text-center">
+                              <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                PER SHIFT
+                              </span>
+                            </div>
+
+                            <div className="col-span-2 text-right font-extrabold text-emerald-700">
+                              Rp {rate.toLocaleString("id-ID")} <span className="text-[10px] font-normal text-slate-400">/ shift</span>
+                            </div>
+
+                            <div className="col-span-1 flex items-center justify-end gap-1">
+                              <button 
+                                onClick={() => handleOpenEdit(emp)} 
+                                className="text-slate-500 hover:text-indigo-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+                                title="Edit Data Karyawan"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteEmployee(emp.id)} 
+                                className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+                                title="Hapus Karyawan"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="p-12 text-center space-y-2">
+                        <Users className="w-8 h-8 text-slate-300 mx-auto" />
+                        <p className="text-xs text-slate-400 font-medium">Belum ada karyawan terdaftar.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}

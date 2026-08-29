@@ -411,7 +411,7 @@ export function AttendanceCalendarView() {
             >
               {MONTH_NAMES.map((m, i) => (
                 <option key={m} value={i + 1}>
-                  {i + 1} - {m}
+                  {m}
                 </option>
               ))}
             </select>
@@ -457,10 +457,10 @@ export function AttendanceCalendarView() {
           </div>
         </CardHeader>
 
-        <CardContent className="p-4 sm:p-5 space-y-3">
+        <CardContent className="p-3 sm:p-5 space-y-3">
           
           {/* Legend Indicator */}
-          <div className="flex items-center gap-4 text-xs font-normal text-slate-600 bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 flex-wrap">
+          <div className="flex items-center gap-2.5 sm:gap-4 text-xs font-normal text-slate-600 bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 flex-wrap">
             <span className="font-bold text-slate-800 text-[11px]">Keterangan Badge:</span>
             <span className="flex items-center gap-1.5 text-[11px] font-medium">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-2xs" /> Kas Laci PAS (Sesuai)
@@ -473,104 +473,109 @@ export function AttendanceCalendarView() {
             </span>
           </div>
 
-          {/* Calendar Days Header (Days of week) */}
-          <div className="grid grid-cols-7 gap-1 text-center font-bold text-xs text-slate-600 bg-slate-100/70 py-2.5 rounded-xl border border-slate-200/80">
-            <span className="text-rose-600">Minggu</span>
-            <span>Senin</span>
-            <span>Selasa</span>
-            <span>Rabu</span>
-            <span>Kamis</span>
-            <span>Jumat</span>
-            <span className="text-emerald-700">Sabtu</span>
-          </div>
+          {/* Responsive Calendar Days Table Wrapper (Smooth horizontal scroll on HP) */}
+          <div className="overflow-x-auto custom-scrollbar pb-1">
+            <div className="min-w-[620px] space-y-2">
+              {/* Calendar Days Header (Days of week) */}
+              <div className="grid grid-cols-7 gap-1 text-center font-bold text-xs text-slate-600 bg-slate-100/70 py-2.5 rounded-xl border border-slate-200/80">
+                <span className="text-rose-600">Minggu</span>
+                <span>Senin</span>
+                <span>Selasa</span>
+                <span>Rabu</span>
+                <span>Kamis</span>
+                <span>Jumat</span>
+                <span className="text-emerald-700">Sabtu</span>
+              </div>
 
-          {/* Calendar Days Grid */}
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-            
-            {/* Offset empty placeholders */}
-            {Array.from({ length: firstDayIndex }).map((_, idx) => (
-              <div
-                key={`empty_${idx}`}
-                className="h-20 sm:h-24 bg-slate-50/40 rounded-2xl border border-dashed border-slate-200/50"
-              />
-            ))}
+              {/* Calendar Days Grid */}
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                
+                {/* Offset empty placeholders */}
+                {Array.from({ length: firstDayIndex }).map((_, idx) => (
+                  <div
+                    key={`empty_${idx}`}
+                    className="h-20 sm:h-24 bg-slate-50/40 rounded-2xl border border-dashed border-slate-200/50"
+                  />
+                ))}
 
-            {/* Month Day Cells */}
-            {Array.from({ length: daysInMonth }).map((_, idx) => {
-              const dayNum = idx + 1;
-              const dayLogs = logsByDay[dayNum] || [];
-              const isToday =
-                dayNum === new Date().getDate() &&
-                selectedMonth === new Date().getMonth() + 1 &&
-                selectedYear === new Date().getFullYear();
+                {/* Month Day Cells */}
+                {Array.from({ length: daysInMonth }).map((_, idx) => {
+                  const dayNum = idx + 1;
+                  const dayLogs = logsByDay[dayNum] || [];
+                  const isToday =
+                    dayNum === new Date().getDate() &&
+                    selectedMonth === new Date().getMonth() + 1 &&
+                    selectedYear === new Date().getFullYear();
 
-              const hasShifts = dayLogs.length > 0;
-              const uniqueEmpNames = Array.from(new Set(dayLogs.map((l) => l.employeeName)));
+                  const hasShifts = dayLogs.length > 0;
+                  const uniqueEmpNames = Array.from(new Set(dayLogs.map((l) => l.employeeName)));
 
-              return (
-                <div
-                  key={`day_${dayNum}`}
-                  onClick={() => {
-                    if (hasShifts) {
-                      setSelectedDayDetail({
-                        dayNum,
-                        dateStr: `${dayNum} ${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`,
-                        dayLogs,
-                      });
-                    }
-                  }}
-                  className={`h-22 sm:h-26 p-2 sm:p-2.5 rounded-2xl border flex flex-col justify-between transition-all select-none ${
-                    isToday
-                      ? "border-emerald-500 bg-emerald-50/40 ring-2 ring-emerald-400/30 shadow-2xs"
-                      : hasShifts
-                      ? "border-slate-200 bg-white hover:border-emerald-400 hover:shadow-md cursor-pointer group"
-                      : "border-slate-100 bg-slate-50/30 text-slate-400 cursor-default"
-                  }`}
-                >
-                  {/* Top row: Day Number + Log Count Badge */}
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`text-xs font-bold ${
+                  return (
+                    <div
+                      key={`day_${dayNum}`}
+                      onClick={() => {
+                        if (hasShifts) {
+                          setSelectedDayDetail({
+                            dayNum,
+                            dateStr: `${dayNum} ${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`,
+                            dayLogs,
+                          });
+                        }
+                      }}
+                      className={`h-22 sm:h-26 p-2 sm:p-2.5 rounded-2xl border flex flex-col justify-between transition-all select-none ${
                         isToday
-                          ? "h-5 w-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]"
-                          : "text-slate-800"
+                          ? "border-emerald-500 bg-emerald-50/40 ring-2 ring-emerald-400/30 shadow-2xs"
+                          : hasShifts
+                          ? "border-slate-200 bg-white hover:border-emerald-400 hover:shadow-md cursor-pointer group"
+                          : "border-slate-100 bg-slate-50/30 text-slate-400 cursor-default"
                       }`}
                     >
-                      {dayNum}
-                    </span>
+                      {/* Top row: Day Number + Log Count Badge */}
+                      <div className="flex items-center justify-between">
+                        <span
+                          className={`text-xs font-bold ${
+                            isToday
+                              ? "h-5 w-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]"
+                              : "text-slate-800"
+                          }`}
+                        >
+                          {dayNum}
+                        </span>
 
-                    {hasShifts && (
-                      <Badge
-                        variant="outline"
-                        className="text-[9px] font-extrabold py-0 px-1.5 rounded-full border-emerald-300 bg-emerald-100/80 text-emerald-900 shadow-2xs group-hover:bg-emerald-600 group-hover:text-white transition-colors"
-                      >
-                        {dayLogs.length} Log
-                      </Badge>
-                    )}
-                  </div>
+                        {hasShifts && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] font-extrabold py-0 px-1.5 rounded-full border-emerald-300 bg-emerald-100/80 text-emerald-900 shadow-2xs group-hover:bg-emerald-600 group-hover:text-white transition-colors"
+                          >
+                            {dayLogs.length} Log
+                          </Badge>
+                        )}
+                      </div>
 
-                  {/* Middle: Employees List / Chips */}
-                  <div className="my-auto">
-                    {hasShifts ? (
-                      <p className="text-[10px] font-semibold text-slate-700 line-clamp-2 leading-tight">
-                        {uniqueEmpNames.join(", ")}
-                      </p>
-                    ) : (
-                      <span className="text-[10px] text-slate-300">-</span>
-                    )}
-                  </div>
+                      {/* Middle: Employees List / Chips */}
+                      <div className="my-auto">
+                        {hasShifts ? (
+                          <p className="text-[10px] font-semibold text-slate-700 line-clamp-2 leading-tight">
+                            {uniqueEmpNames.join(", ")}
+                          </p>
+                        ) : (
+                          <span className="text-[10px] text-slate-300">-</span>
+                        )}
+                      </div>
 
-                  {/* Bottom: Click for detail prompt */}
-                  <div>
-                    {hasShifts && (
-                      <span className="text-[9px] font-bold text-emerald-600 group-hover:text-emerald-700 transition-colors block text-left">
-                        Klik utk detail &rarr;
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                      {/* Bottom: Click for detail prompt */}
+                      <div>
+                        {hasShifts && (
+                          <span className="text-[9px] font-bold text-emerald-600 group-hover:text-emerald-700 transition-colors block text-left">
+                            Klik utk detail &rarr;
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
