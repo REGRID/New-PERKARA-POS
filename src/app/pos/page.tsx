@@ -30,6 +30,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 
 import { bluetoothPrinter } from "@/lib/bluetooth-printer";
 import { useAuth } from "@/lib/auth-context";
+import { MandatoryShiftGate } from "@/components/mandatory-shift-gate";
 
 export default function POSTerminalPage() {
   const { user, isAdmin, switchRole } = useAuth();
@@ -38,6 +39,8 @@ export default function POSTerminalPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [activeShift, setActiveShift] = useState<any>(null);
+  const [checkingShift, setCheckingShift] = useState(true);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -46,6 +49,25 @@ export default function POSTerminalPage() {
       if (document.exitFullscreen) {
         document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
       }
+    }
+  };
+
+  const fetchActiveShift = async () => {
+    try {
+      setCheckingShift(true);
+      const res = await fetch(`/api/absen-kas?month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}&employee=ALL`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.activeShifts && data.activeShifts.length > 0) {
+          setActiveShift(data.activeShifts[0]);
+        } else {
+          setActiveShift(null);
+        }
+      }
+    } catch (err) {
+      console.error("Error checking active shift:", err);
+    } finally {
+      setCheckingShift(false);
     }
   };
   
@@ -86,6 +108,7 @@ export default function POSTerminalPage() {
 
   useEffect(() => {
     fetchMenus();
+    fetchActiveShift();
   }, []);
 
   const getProductIcon = (cat: string) => {
@@ -248,6 +271,71 @@ export default function POSTerminalPage() {
 
   const categories = ["Semua", ...Array.from(new Set(products.map(p => p.category || "Umum")))];
 
+  // Closing Shift Modal State
+  const [isCloseShiftOpen, setIsCloseShiftOpen] = useState(false);
+  const [closingCash, setClosingCash] = useState<number>(0);
+  const [closingCashDisplay, setClosingCashDisplay] = useState<string>("");
+  const [closingNote, setClosingNote] = useState<string>("");
+  const [isClosingShift, setIsClosingShift] = useState<boolean>(false);
+
+  const handleClosingCashChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawVal = e.target.value.replace(/\D/g, "");
+    if (!rawVal) {
+      setClosingCashDisplay("");
+      setClosingCash(0);
+      return;
+    }
+    const num = parseInt(rawVal, 10);
+    setClosingCash(num);
+    setClosingCashDisplay(num.toLocaleString("id-ID"));
+  };
+
+  const handleConfirmCloseShift = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeShift) return;
+
+    try {
+      setIsClosingShift(true);
+      const res = await fetch("/api/absen-kas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "shift-out",
+          employeeName: activeShift.employeeName || user?.name || "Kasir Outlet",
+          startingCash: activeShift.startingCash || activeShift.startCash || 0,
+          cashVerified: closingCash,
+          note: closingNote || "Closing shift kasir",
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      if (res.ok) {
+        setIsCloseShiftOpen(false);
+        setActiveShift(null);
+        setClosingCash(0);
+        setClosingCashDisplay("");
+        setClosingNote("");
+        await fetchActiveShift();
+      }
+    } catch (err) {
+      console.error("Error closing shift:", err);
+    } finally {
+      setIsClosingShift(false);
+    }
+  };
+
+  // Mandatory Shift Gate: Blocks Karyawan if no shift is active
+  if (!isAdmin && !activeShift && !checkingShift) {
+    return (
+      <MandatoryShiftGate
+        onShiftOpened={(newShift) => {
+          setActiveShift(newShift);
+          fetchActiveShift();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       
@@ -274,7 +362,7 @@ export default function POSTerminalPage() {
               </Badge>
             </h1>
             <p className="text-[11px] text-slate-400 font-medium">
-              Petugas: <strong className="text-slate-200">{user?.name || "Kasir Outlet"}</strong> ({isAdmin ? "ADMIN" : "KASIR"})
+              Petugas: <strong className="text-slate-200">{activeShift?.employeeName || user?.name || "Kasir Outlet"}</strong> ({isAdmin ? "ADMIN" : "KASIR SHIFT"})
             </p>
           </div>
         </div>
@@ -294,6 +382,19 @@ export default function POSTerminalPage() {
           >
             <span>{isAdmin ? "👑 Switch -> KASIR" : "🧑‍🍳 Switch -> ADMIN"}</span>
           </Button>
+
+          {activeShift && !isAdmin && (
+            <Button
+              size="sm"
+              onClick={() => setIsCloseShiftOpen(true)}
+              className="bg-rose-600 hover:bg-rose-700 text-white min-h-[38px] text-xs font-bold gap-1 px-3 rounded-xl cursor-pointer"
+              title="Tutup Shift Kerja Kasir"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Tutup Shift</span>
+            </Button>
+          )}
+
           <Link href="/orders">
             <Button size="sm" variant="outline" className="min-h-[38px] text-xs gap-1.5 border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700">
               <FileText className="w-3.5 h-3.5 text-sky-400" />
@@ -703,6 +804,79 @@ export default function POSTerminalPage() {
               Batalkan Pesanan
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Closing Shift Modal */}
+      <Dialog open={isCloseShiftOpen} onOpenChange={setIsCloseShiftOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900">
+              Closing / Tutup Shift Kasir
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Hitung uang fisik di laci kasir untuk mencatat serah terima kas shift.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleConfirmCloseShift} className="space-y-4 py-2 text-xs">
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 space-y-1">
+              <div className="flex justify-between text-slate-600">
+                <span>Petugas Shift:</span>
+                <span className="font-bold text-slate-900">{activeShift?.employeeName || user?.name || "Kasir"}</span>
+              </div>
+              <div className="flex justify-between text-slate-600">
+                <span>Modal Awal Kas:</span>
+                <span className="font-semibold text-slate-900">
+                  Rp {Number(activeShift?.startingCash || activeShift?.startCash || 0).toLocaleString("id-ID")}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                Uang Fisik Laci Kasir Saat Ini (Rp) *
+              </label>
+              <Input
+                type="text"
+                placeholder="Contoh: 1.250.000"
+                value={closingCashDisplay}
+                onChange={handleClosingCashChange}
+                className="text-xs font-bold text-slate-900 min-h-[40px] rounded-xl"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                Catatan Shift / Keterangan (Opsional)
+              </label>
+              <Input
+                placeholder="misal: Kas PAS, bon bensin Rp 20.000"
+                value={closingNote}
+                onChange={(e) => setClosingNote(e.target.value)}
+                className="text-xs font-medium min-h-[40px] rounded-xl"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsCloseShiftOpen(false)}
+                className="text-xs rounded-xl min-h-[38px]"
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                disabled={isClosingShift}
+                className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl min-h-[38px]"
+              >
+                {isClosingShift ? "Menutup Shift..." : "Konfirmasi Tutup Shift"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

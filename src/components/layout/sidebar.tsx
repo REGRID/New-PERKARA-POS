@@ -127,9 +127,10 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
 
   // Hidden navs state from localStorage (updated via Settings)
   const [hiddenNavs, setHiddenNavs] = useState<string[]>([]);
+  const [currentOutletName, setCurrentOutletName] = useState<string>(user?.outletName || "Outlet Utama");
 
   useEffect(() => {
-    const loadHidden = () => {
+    const loadSettings = () => {
       try {
         const saved = localStorage.getItem("perkara_pos_hidden_navs");
         if (saved) {
@@ -137,19 +138,27 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         } else {
           setHiddenNavs([]);
         }
+
+        const savedSettings = localStorage.getItem("perkara_pos_settings");
+        if (savedSettings) {
+          const parsed = JSON.parse(savedSettings);
+          if (parsed.outletName) setCurrentOutletName(parsed.outletName);
+        }
       } catch (e) {
         console.error(e);
       }
     };
 
-    loadHidden();
-    window.addEventListener("storage", loadHidden);
-    window.addEventListener("nav_visibility_changed", loadHidden);
+    loadSettings();
+    window.addEventListener("storage", loadSettings);
+    window.addEventListener("nav_visibility_changed", loadSettings);
+    window.addEventListener("settings_updated", loadSettings);
     return () => {
-      window.removeEventListener("storage", loadHidden);
-      window.removeEventListener("nav_visibility_changed", loadHidden);
+      window.removeEventListener("storage", loadSettings);
+      window.removeEventListener("nav_visibility_changed", loadSettings);
+      window.removeEventListener("settings_updated", loadSettings);
     };
-  }, []);
+  }, [user]);
 
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
 
@@ -240,7 +249,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
               </div>
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
                 <Store className="w-3 h-3 text-muted-foreground shrink-0" />
-                <span>{user?.outletName || "Outlet Utama"}</span>
+                <span>{currentOutletName}</span>
               </p>
             </div>
           </div>

@@ -7,8 +7,8 @@ import {
   Eye, 
   Save, 
   Check, 
-  ChevronDown,
-  ChevronUp,
+  ChevronDown, 
+  ChevronUp, 
   ShoppingCart, 
   FileText, 
   Grid, 
@@ -24,10 +24,16 @@ import {
   Camera, 
   TrendingUp, 
   CreditCard, 
-  Settings as SettingsIcon 
+  Settings as SettingsIcon,
+  Sparkles,
+  DollarSign,
+  Receipt,
+  CheckCircle2,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { AppShell } from "@/components/layout/app-shell";
 
 interface NavConfigGroup {
@@ -44,7 +50,12 @@ export default function SettingsPage() {
   const [address, setAddress] = useState("Jl. Boulevard Utama No. 8, Jakarta Selatan");
   const [phone, setPhone] = useState("0812-3456-7890");
   const [receiptFooter, setReceiptFooter] = useState("Terima Kasih Atas Kunjungan Anda!");
+  const [taxPercentage, setTaxPercentage] = useState<number>(0);
+  const [serviceCharge, setServiceCharge] = useState<number>(0);
+  
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // State for collapsible Visibilitas Menu box
   const [showVisConfig, setShowVisConfig] = useState(true);
@@ -92,6 +103,7 @@ export default function SettingsPage() {
       items: [
         { name: "Employees (Staf & HR)", href: "/employees", icon: Users },
         { name: "Payment Methods", href: "/payment-methods", icon: CreditCard },
+        { name: "Expenses (Kas Keluar)", href: "/expenses", icon: DollarSign },
         { name: "Settings", href: "/settings", icon: SettingsIcon },
       ]
     }
@@ -100,15 +112,67 @@ export default function SettingsPage() {
   // Hidden Nav Items state (hrefs array)
   const [hiddenHrefs, setHiddenHrefs] = useState<string[]>([]);
 
+  // 1. Load Settings from LocalStorage & DB API on Mount
   useEffect(() => {
-    try {
-      const savedHidden = localStorage.getItem("perkara_pos_hidden_navs");
-      if (savedHidden) {
-        setHiddenHrefs(JSON.parse(savedHidden));
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+
+        // A. Load from LocalStorage first for instant render
+        const localSettings = localStorage.getItem("perkara_pos_settings");
+        if (localSettings) {
+          try {
+            const parsed = JSON.parse(localSettings);
+            if (parsed.outletName) setOutletName(parsed.outletName);
+            if (parsed.address) setAddress(parsed.address);
+            if (parsed.phone) setPhone(parsed.phone);
+            if (parsed.receiptFooter) setReceiptFooter(parsed.receiptFooter);
+            if (parsed.taxPercentage !== undefined) setTaxPercentage(Number(parsed.taxPercentage));
+            if (parsed.serviceCharge !== undefined) setServiceCharge(Number(parsed.serviceCharge));
+          } catch (e) {}
+        }
+
+        const savedHidden = localStorage.getItem("perkara_pos_hidden_navs");
+        if (savedHidden) {
+          try {
+            setHiddenHrefs(JSON.parse(savedHidden));
+          } catch (e) {}
+        }
+
+        // B. Fetch from Database System Settings API
+        const res = await fetch("/api/data?type=settings");
+        if (res.ok) {
+          const dbSettings = await res.json();
+          if (Array.isArray(dbSettings) && dbSettings.length > 0) {
+            const settingsMap: Record<string, string> = {};
+            dbSettings.forEach((item: any) => {
+              if (item.key && item.value !== undefined) {
+                settingsMap[item.key] = item.value;
+              }
+            });
+
+            if (settingsMap.outletName) setOutletName(settingsMap.outletName);
+            if (settingsMap.address) setAddress(settingsMap.address);
+            if (settingsMap.phone) setPhone(settingsMap.phone);
+            if (settingsMap.receiptFooter) setReceiptFooter(settingsMap.receiptFooter);
+            if (settingsMap.taxPercentage !== undefined) setTaxPercentage(Number(settingsMap.taxPercentage));
+            if (settingsMap.serviceCharge !== undefined) setServiceCharge(Number(settingsMap.serviceCharge));
+            if (settingsMap.hiddenNavs) {
+              try {
+                const parsedNavs = JSON.parse(settingsMap.hiddenNavs);
+                if (Array.isArray(parsedNavs)) setHiddenHrefs(parsedNavs);
+              } catch (e) {}
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error loading settings:", e);
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      console.error(e);
-    }
+    };
+
+    loadSettings();
   }, []);
 
   const toggleNavVisibility = (href: string) => {
@@ -125,10 +189,49 @@ export default function SettingsPage() {
     window.dispatchEvent(new Event("nav_visibility_changed"));
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  // 2. Persist Settings (LocalStorage + Database SystemSetting Upsert)
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      setSaving(true);
+
+      const settingsPayload = {
+        outletName,
+        address,
+        phone,
+        receiptFooter,
+        taxPercentage,
+        serviceCharge,
+        hiddenNavs: JSON.stringify(hiddenHrefs),
+      };
+
+      // 1. Save to LocalStorage immediately
+      localStorage.setItem("perkara_pos_settings", JSON.stringify(settingsPayload));
+      localStorage.setItem("perkara_pos_hidden_navs", JSON.stringify(hiddenHrefs));
+
+      // 2. Sync to Database SystemSetting table
+      const keysToSave = Object.entries(settingsPayload);
+      await Promise.all(
+        keysToSave.map(([key, val]) =>
+          fetch("/api/data?type=save_setting", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key, value: String(val) }),
+          })
+        )
+      );
+
+      // 3. Dispatch global events so Header/Sidebar/POS update reactively
+      window.dispatchEvent(new Event("settings_updated"));
+      window.dispatchEvent(new Event("nav_visibility_changed"));
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      console.error("Failed to save settings:", err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -139,70 +242,117 @@ export default function SettingsPage() {
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-2xs space-y-6">
           
           {/* Header */}
-          <div className="border-b pb-4">
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">System & Navigation Settings</h2>
-            <p className="text-xs text-slate-500 font-medium mt-1">
-              Kelola profil outlet, tampilan struk, dan aktif/nonaktifkan menu navigasi sidebar sesuai kebutuhan.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">System & App Settings</h2>
+                <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-bold">
+                  Persistent Storage
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                Kelola profil outlet, tampilan struk kasir, dan atur visibilitas menu navigasi sidebar.
+              </p>
+            </div>
+
+            {saved && (
+              <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl animate-in fade-in slide-in-from-top-1">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>Pengaturan Berhasil Disimpan!</span>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSave} className="space-y-6">
             
             {/* 1. Profile Outlet Settings */}
-            <div className="space-y-3">
+            <div className="space-y-4">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <Store className="w-4 h-4 text-indigo-600" />
                 <span>Profil Toko & Outlet</span>
               </h3>
 
-              <div>
-                <label className="font-semibold text-xs text-slate-700 block mb-1">Nama Outlet / Cafe</label>
-                <Input 
-                  value={outletName}
-                  onChange={(e) => setOutletName(e.target.value)}
-                  className="min-h-[40px] text-xs font-medium bg-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-200/70">
                 <div>
-                  <label className="font-semibold text-xs text-slate-700 block mb-1">No. Telepon / WhatsApp</label>
+                  <label className="font-semibold text-xs text-slate-700 block mb-1">Nama Outlet / Cafe *</label>
                   <Input 
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="min-h-[40px] text-xs font-medium bg-white"
+                    value={outletName}
+                    onChange={(e) => setOutletName(e.target.value)}
+                    className="min-h-[40px] text-xs font-bold text-slate-900 bg-white rounded-xl"
+                    placeholder="cth: PERKARA COFFEE"
+                    required
                   />
                 </div>
 
-                <div>
-                  <label className="font-semibold text-xs text-slate-700 block mb-1">Alamat Lengkap</label>
-                  <Input 
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="min-h-[40px] text-xs font-medium bg-white"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-xs text-slate-700 block mb-1">No. Telepon / WhatsApp</label>
+                    <Input 
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="min-h-[40px] text-xs font-medium bg-white rounded-xl"
+                      placeholder="cth: 0812-3456-7890"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-xs text-slate-700 block mb-1">Alamat Lengkap Outlet</label>
+                    <Input 
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="min-h-[40px] text-xs font-medium bg-white rounded-xl"
+                      placeholder="cth: Jl. Boulevard Utama No. 8"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* 2. Receipt Settings */}
-            <div className="space-y-3 border-t pt-4">
+            {/* 2. Receipt & POS Settings */}
+            <div className="space-y-4 border-t pt-4">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <Printer className="w-4 h-4 text-indigo-600" />
-                <span>Tampilan Cetak Struk / Nota</span>
+                <span>Tampilan Cetak Struk & Pajak POS</span>
               </h3>
 
-              <div>
-                <label className="font-semibold text-xs text-slate-700 block mb-1">Pesan Footer Struk</label>
-                <Input 
-                  value={receiptFooter}
-                  onChange={(e) => setReceiptFooter(e.target.value)}
-                  className="min-h-[40px] text-xs font-medium bg-white"
-                />
+              <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-200/70">
+                <div>
+                  <label className="font-semibold text-xs text-slate-700 block mb-1">Pesan Footer Struk / Nota</label>
+                  <Input 
+                    value={receiptFooter}
+                    onChange={(e) => setReceiptFooter(e.target.value)}
+                    className="min-h-[40px] text-xs font-medium bg-white rounded-xl"
+                    placeholder="cth: Terima Kasih Atas Kunjungan Anda!"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-xs text-slate-700 block mb-1">Pajak PB1 / PPN (%)</label>
+                    <Input 
+                      type="number"
+                      value={taxPercentage || 0}
+                      onChange={(e) => setTaxPercentage(Number(e.target.value))}
+                      className="min-h-[40px] text-xs font-medium bg-white rounded-xl"
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-xs text-slate-700 block mb-1">Service Charge (%)</label>
+                    <Input 
+                      type="number"
+                      value={serviceCharge || 0}
+                      onChange={(e) => setServiceCharge(Number(e.target.value))}
+                      className="min-h-[40px] text-xs font-medium bg-white rounded-xl"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* 3. Sidebar Navigation Checklist Options (Placed at bottom, Collapsible Dropdown) */}
+            {/* 3. Sidebar Navigation Checklist Options */}
             <div className="space-y-3 bg-slate-50/70 p-5 rounded-2xl border border-slate-200/80 transition-all">
               <div 
                 onClick={() => setShowVisConfig(!showVisConfig)}
@@ -214,7 +364,7 @@ export default function SettingsPage() {
                     <span>Visibilitas Menu Navigasi Sidebar (Checklist Option)</span>
                   </h3>
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Centang untuk menampilkan menu di sidebar, atau hapus centang (misal: <strong className="text-slate-700">QR Menu</strong>) untuk menyembunyikannya.
+                    Centang untuk menampilkan menu di sidebar, atau klik untuk menyembunyikannya (perubahan otomatis tersimpan).
                   </p>
                 </div>
 
@@ -275,10 +425,17 @@ export default function SettingsPage() {
               )}
             </div>
 
-            <Button type="submit" className="bg-stone-800 hover:bg-stone-900 text-white min-h-[44px] text-xs font-semibold px-6 rounded-xl gap-2 shadow-xs cursor-pointer">
-              <Save className="w-4 h-4" />
-              <span>{saved ? "Pengaturan Tersimpan!" : "Simpan Seluruh Pengaturan"}</span>
-            </Button>
+            {/* Bottom Actions */}
+            <div className="flex items-center gap-3 pt-2">
+              <Button 
+                type="submit" 
+                disabled={saving}
+                className="bg-stone-800 hover:bg-stone-900 text-white min-h-[44px] text-xs font-semibold px-6 rounded-xl gap-2 shadow-xs cursor-pointer"
+              >
+                <Save className={`w-4 h-4 ${saving ? "animate-spin" : ""}`} />
+                <span>{saving ? "Menyimpan Pengaturan..." : saved ? "Pengaturan Tersimpan!" : "Simpan Seluruh Pengaturan"}</span>
+              </Button>
+            </div>
           </form>
 
         </div>

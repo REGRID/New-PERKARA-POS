@@ -42,12 +42,15 @@ export default function EmployeesPage() {
     shiftRate: 75000,
   });
 
+  const [shiftLogs, setShiftLogs] = useState<any[]>([]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [empRes, attRes] = await Promise.all([
+      const [empRes, attRes, absenRes] = await Promise.all([
         fetch("/api/data?type=employees"),
         fetch("/api/data?type=attendances"),
+        fetch(`/api/absen-kas?month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}&employee=ALL`),
       ]);
       if (empRes.ok) {
         const empJson = await empRes.json();
@@ -63,6 +66,13 @@ export default function EmployeesPage() {
       if (attRes.ok) {
         const attJson = await attRes.json();
         setAttendances(Array.isArray(attJson) ? attJson : []);
+      }
+
+      if (absenRes.ok) {
+        const absenJson = await absenRes.json();
+        if (absenJson.calendarLogs && Array.isArray(absenJson.calendarLogs)) {
+          setShiftLogs(absenJson.calendarLogs);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -410,13 +420,28 @@ export default function EmployeesPage() {
               </div>
 
               <div className="divide-y divide-slate-100 border rounded-xl overflow-hidden">
-                {employees.map((emp, idx) => {
+                {employees.map((emp) => {
                   const ratePerShift = Number(emp.dailyRate || emp.shiftRate || 75000);
-                  const shiftCompletedCount = 14 + (idx * 2); // Simulasi shift yang diselesaikan bulan ini
+                  
+                  // Hitung kehadiran real dari log shift kasir & tabel absensi
+                  const empShiftLogs = shiftLogs.filter((log: any) => {
+                    const logName = (log.employeeName || "").toLowerCase().trim();
+                    const empName = (emp.name || "").toLowerCase().trim();
+                    return logName === empName || (log.employeeId && log.employeeId === emp.id);
+                  });
+
+                  const empAtts = attendances.filter((att: any) => {
+                    const attEmpId = att.employeeId || att.employee?.id;
+                    const attName = (att.employee?.name || "").toLowerCase().trim();
+                    const empName = (emp.name || "").toLowerCase().trim();
+                    return (attEmpId && attEmpId === emp.id) || (attName && attName === empName);
+                  });
+
+                  const shiftCompletedCount = Math.max(empShiftLogs.length, empAtts.length);
                   const totalWage = shiftCompletedCount * ratePerShift;
 
                   return (
-                    <div key={emp.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:bg-slate-50/60">
+                    <div key={emp.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:bg-slate-50/60 transition-colors">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-extrabold text-slate-900 text-sm">{emp.name}</span>
@@ -425,7 +450,7 @@ export default function EmployeesPage() {
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-500 font-medium">
-                          Tarif: <strong className="text-slate-800">Rp {ratePerShift.toLocaleString("id-ID")} / shift</strong> &bull; Total Hadir: <strong className="text-slate-800">{shiftCompletedCount} Shift</strong>
+                          Tarif: <strong className="text-slate-800">Rp {ratePerShift.toLocaleString("id-ID")} / shift</strong> &bull; Total Hadir: <strong className={shiftCompletedCount > 0 ? "text-emerald-700 font-bold" : "text-slate-500"}>{shiftCompletedCount} Shift</strong>
                         </p>
                         <p className="text-[10px] text-slate-400 font-mono">
                           Formula: ({shiftCompletedCount} shift &times; Rp {ratePerShift.toLocaleString("id-ID")})
@@ -434,7 +459,9 @@ export default function EmployeesPage() {
 
                       <div className="text-right">
                         <span className="text-[10px] text-slate-400 uppercase font-bold block">TOTAL UPAH SHIFT</span>
-                        <span className="text-base font-extrabold text-emerald-600">Rp {totalWage.toLocaleString("id-ID")}</span>
+                        <span className={`text-base font-extrabold ${shiftCompletedCount > 0 ? "text-emerald-600" : "text-slate-400"}`}>
+                          Rp {totalWage.toLocaleString("id-ID")}
+                        </span>
                       </div>
                     </div>
                   );
