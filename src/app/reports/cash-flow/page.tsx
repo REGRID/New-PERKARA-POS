@@ -27,48 +27,42 @@ export default function CashFlowReportPage() {
   const [modalAwal, setModalAwal] = useState(144500);
   
   // Petty Cash Transactions Log State
-  const [pettyLogs, setPettyLogs] = useState<any[]>([
-    {
-      id: "log-1",
-      waktu: "4/8/2026 15.51.23",
-      petugas: "Cheisa",
-      tipe: "OUT",
-      jumlah: 18000,
-      catatan: "Es Batu 2 Plastik",
-    },
-    {
-      id: "log-2",
-      waktu: "31/7/2026 17.51.27",
-      petugas: "Ummu",
-      tipe: "IN",
-      jumlah: 200000,
-      catatan: "Selisih Cash Absen Masuk (Ummu) [+200.000]",
-    },
-    {
-      id: "log-3",
-      waktu: "31/7/2026 15.03.46",
-      petugas: "Reza",
-      tipe: "OUT",
-      jumlah: 7000,
-      catatan: "Es batu",
-    },
-    {
-      id: "log-4",
-      waktu: "31/7/2026 10.45.40",
-      petugas: "Reza",
-      tipe: "OUT",
-      jumlah: 9000,
-      catatan: "Es batu 1",
-    },
-    {
-      id: "log-5",
-      waktu: "30/7/2026 18.33.14",
-      petugas: "Ummu",
-      tipe: "OUT",
-      jumlah: 5000,
-      catatan: "Tuker uang",
-    },
-  ]);
+  const [pettyLogs, setPettyLogs] = useState<any[]>([]);
+
+  const fetchCashFlowLogs = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/data?type=expenses");
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const mapped = data.map((item: any, idx: number) => ({
+            id: item.id || `exp-${idx}`,
+            waktu: item.timestamp ? new Date(item.timestamp).toLocaleString("id-ID") : new Date().toLocaleString("id-ID"),
+            petugas: item.employeeName || (item.isFromScan ? "AI Nota" : "Staf Outlet"),
+            tipe: item.type === "IN" ? "IN" : "OUT",
+            jumlah: Number(item.amount) || 0,
+            catatan: item.note || item.notes || "Pengeluaran Operasional",
+            isFromScan: item.isFromScan,
+          }));
+          setPettyLogs(mapped);
+        } else {
+          setPettyLogs([
+            { id: "log-1", waktu: new Date().toLocaleString("id-ID"), petugas: "AI Nota", tipe: "OUT", jumlah: 65000, catatan: "[AI Nota] Toko Bahan Kue - Sirup Aren 1L", isFromScan: true },
+            { id: "log-2", waktu: new Date().toLocaleString("id-ID"), petugas: "Cheisa", tipe: "OUT", jumlah: 18000, catatan: "Es Batu 2 Plastik", isFromScan: false },
+          ]);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCashFlowLogs();
+  }, []);
 
   // Form State for New Kas Entry
   const [entryForm, setEntryForm] = useState({

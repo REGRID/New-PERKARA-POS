@@ -65,7 +65,7 @@ class BluetoothPrinterDriver {
     const ESC = 0x1b;
     const GS = 0x1d;
     const encoder = new TextEncoder();
-    let commands: number[] = [];
+    const commands: number[] = [];
 
     // Initialize printer
     commands.push(ESC, 0x40);

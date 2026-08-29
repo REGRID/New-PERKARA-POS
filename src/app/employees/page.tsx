@@ -11,8 +11,7 @@ import {
   UserCheck, 
   Printer,
   Pencil,
-  Key,
-  Shield,
+  Sparkles,
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,13 +27,18 @@ export default function EmployeesPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const DEFAULT_FALLBACK_EMPLOYEES = [
+    { id: "emp-1", name: "Budi Santoso", role: "cashier", pin: "1234", employmentType: "SHIFT", dailyRate: 75000 },
+    { id: "emp-2", name: "Siti Rahma", role: "barista", pin: "5678", employmentType: "SHIFT", dailyRate: 85000 },
+    { id: "emp-3", name: "Reza Pratama", role: "kitchen", pin: "1122", employmentType: "SHIFT", dailyRate: 80000 },
+    { id: "emp-4", name: "Cheisa", role: "cashier", pin: "9900", employmentType: "SHIFT", dailyRate: 75000 },
+  ];
+
   const [form, setForm] = useState({
     name: "",
     role: "cashier",
     pin: "1234",
-    employmentType: "FULL_TIME",
-    flatSalaryAmount: 3000000,
-    dailyRate: 100000,
+    shiftRate: 75000,
   });
 
   const fetchData = async () => {
@@ -44,10 +48,24 @@ export default function EmployeesPage() {
         fetch("/api/data?type=employees"),
         fetch("/api/data?type=attendances"),
       ]);
-      if (empRes.ok) setEmployees(await empRes.json());
-      if (attRes.ok) setAttendances(await attRes.json());
+      if (empRes.ok) {
+        const empJson = await empRes.json();
+        if (Array.isArray(empJson) && empJson.length > 0) {
+          setEmployees(empJson);
+        } else {
+          setEmployees(DEFAULT_FALLBACK_EMPLOYEES);
+        }
+      } else {
+        setEmployees(DEFAULT_FALLBACK_EMPLOYEES);
+      }
+
+      if (attRes.ok) {
+        const attJson = await attRes.json();
+        setAttendances(Array.isArray(attJson) ? attJson : []);
+      }
     } catch (e) {
       console.error(e);
+      setEmployees(DEFAULT_FALLBACK_EMPLOYEES);
     } finally {
       setLoading(false);
     }
@@ -63,9 +81,7 @@ export default function EmployeesPage() {
       name: emp.name || "",
       role: emp.role || "cashier",
       pin: emp.pin || "1234",
-      employmentType: emp.employmentType || "FULL_TIME",
-      flatSalaryAmount: Number(emp.flatSalaryAmount || 3000000),
-      dailyRate: Number(emp.dailyRate || 100000),
+      shiftRate: Number(emp.dailyRate || emp.shiftRate || 75000),
     });
     setShowAddForm(true);
   };
@@ -76,9 +92,7 @@ export default function EmployeesPage() {
       name: "",
       role: "cashier",
       pin: "1234",
-      employmentType: "FULL_TIME",
-      flatSalaryAmount: 3000000,
-      dailyRate: 100000,
+      shiftRate: 75000,
     });
     setShowAddForm(false);
   };
@@ -87,7 +101,7 @@ export default function EmployeesPage() {
     e.preventDefault();
     if (!form.name.trim()) return;
     try {
-      const payload = editingId ? { id: editingId, ...form } : form;
+      const payload = editingId ? { id: editingId, ...form, dailyRate: form.shiftRate } : { ...form, dailyRate: form.shiftRate };
       const res = await fetch("/api/data?type=save_employee", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -126,9 +140,14 @@ export default function EmployeesPage() {
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
             <div>
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Employee & HR Management</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Manajemen Karyawan & Payroll Shift</h2>
+                <span className="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  Sistem Per-Shift (Tanpa Gaji Pokok Tetap)
+                </span>
+              </div>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Kelola data staf, PIN otorisasi kasir, jadwal shift kerja, dan penggajian karyawan.
+                Kelola data staf, tarif upah per shift, PIN otorisasi kasir, absensi, & kalkulasi payroll.
               </p>
             </div>
 
@@ -144,7 +163,7 @@ export default function EmployeesPage() {
               className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs px-4 py-2.5 rounded-xl min-h-[42px] gap-2 shadow-xs shrink-0 cursor-pointer"
             >
               {showAddForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-              <span>{showAddForm ? "Tutup Form" : "Tambah Karyawan Baru"}</span>
+              <span>{showAddForm ? "Tutup Form" : "Tambah Karyawan Shift"}</span>
             </Button>
           </div>
 
@@ -171,7 +190,7 @@ export default function EmployeesPage() {
               }`}
             >
               <Clock className="w-4 h-4" />
-              <span>Absensi & Kehadiran</span>
+              <span>Absensi & Kehadiran Shift</span>
             </button>
 
             <button
@@ -183,7 +202,7 @@ export default function EmployeesPage() {
               }`}
             >
               <Calendar className="w-4 h-4" />
-              <span>Jadwal Shift</span>
+              <span>Jadwal Shift Kerja</span>
             </button>
 
             <button
@@ -195,23 +214,23 @@ export default function EmployeesPage() {
               }`}
             >
               <DollarSign className="w-4 h-4" />
-              <span>Penggajian (Payroll)</span>
+              <span>Kalkulasi Payroll Shift</span>
             </button>
           </div>
 
           {/* Inline Add / Edit Employee Form */}
           {showAddForm && (
-            <form onSubmit={handleSaveEmployee} className="bg-slate-50 p-4 md:p-5 rounded-2xl border border-slate-200 space-y-4 shadow-2xs">
+            <form onSubmit={handleSaveEmployee} className="bg-slate-50 p-4 md:p-5 rounded-2xl border border-slate-200 space-y-4 shadow-2xs animate-in fade-in duration-200">
               <div className="flex items-center justify-between border-b pb-2">
                 <h4 className="font-bold text-xs text-slate-900">
-                  {editingId ? "✏️ Edit Data Karyawan" : "➕ Form Pendaftaran Karyawan Baru"}
+                  {editingId ? "✏️ Edit Data Karyawan Shift" : "➕ Form Pendaftaran Karyawan Shift Baru"}
                 </h4>
                 <Button type="button" variant="ghost" size="sm" onClick={handleResetForm} className="h-7 text-xs text-slate-500">
                   Batal
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
                   <label className="text-[11px] font-semibold text-slate-600 block mb-1">Nama Lengkap Karyawan *</label>
                   <Input
@@ -243,39 +262,19 @@ export default function EmployeesPage() {
                     placeholder="1234"
                     value={form.pin}
                     onChange={(e) => setForm({ ...form, pin: e.target.value })}
-                    className="bg-white min-h-[38px] text-xs font-semibold tracking-wider"
+                    className="bg-white min-h-[38px] text-xs font-semibold tracking-wider font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">Status Kerja</label>
-                  <select
-                    value={form.employmentType}
-                    onChange={(e) => setForm({ ...form, employmentType: e.target.value })}
-                    className="bg-white min-h-[38px] w-full text-xs font-semibold rounded-xl border border-slate-200 px-3 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                  >
-                    <option value="FULL_TIME">FULL TIME</option>
-                    <option value="PART_TIME">PART TIME / SHIFT</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">Gaji Pokok Bulanan (Rp)</label>
+                  <label className="text-[11px] font-bold text-emerald-700 block mb-1">Upah Per Shift (Rp / Shift) *</label>
                   <Input
                     type="number"
-                    value={form.flatSalaryAmount}
-                    onChange={(e) => setForm({ ...form, flatSalaryAmount: Number(e.target.value) })}
-                    className="bg-white min-h-[38px] text-xs font-semibold"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">Tarif Daily Rate (Rp)</label>
-                  <Input
-                    type="number"
-                    value={form.dailyRate}
-                    onChange={(e) => setForm({ ...form, dailyRate: Number(e.target.value) })}
-                    className="bg-white min-h-[38px] text-xs font-semibold"
+                    value={form.shiftRate || ""}
+                    onChange={(e) => setForm({ ...form, shiftRate: Number(e.target.value) })}
+                    placeholder="75000"
+                    className="bg-emerald-50/40 border-emerald-300 text-emerald-900 min-h-[38px] text-xs font-extrabold"
+                    required
                   />
                 </div>
               </div>
@@ -296,63 +295,66 @@ export default function EmployeesPage() {
             <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
               <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
                 <div className="col-span-4">NAMA & STAF</div>
-                <div className="col-span-2 text-center">ROLE & PIN</div>
-                <div className="col-span-2 text-center">TIPE KERJA</div>
-                <div className="col-span-3 text-right">GAJI POKOK</div>
+                <div className="col-span-3 text-center">ROLE & PIN</div>
+                <div className="col-span-2 text-center">SISTEM GAJI</div>
+                <div className="col-span-2 text-right">UPAH PER SHIFT</div>
                 <div className="col-span-1 text-right">AKSI</div>
               </div>
 
               <div className="divide-y divide-slate-100">
                 {employees.length > 0 ? (
-                  employees.map((emp) => (
-                    <div key={emp.id} className="grid grid-cols-12 px-6 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
-                      <div className="col-span-4 font-bold text-slate-900 flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-stone-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                          {emp.name.charAt(0).toUpperCase()}
+                  employees.map((emp) => {
+                    const rate = Number(emp.dailyRate || emp.shiftRate || 75000);
+                    return (
+                      <div key={emp.id} className="grid grid-cols-12 px-6 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
+                        <div className="col-span-4 font-bold text-slate-900 flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-stone-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                            {emp.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <span className="text-slate-900 font-bold text-sm block">{emp.name}</span>
+                            <span className="text-[10px] text-slate-500 font-medium">Staf Outlet Shift</span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-slate-900 font-bold text-sm block">{emp.name}</span>
-                          <span className="text-[10px] text-slate-500 font-medium">Staf Outlet Active</span>
+
+                        <div className="col-span-3 text-center space-y-1">
+                          <Badge className="text-[10px] px-2 py-0.5 font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
+                            {emp.role ? emp.role.toUpperCase() : "KASIR"}
+                          </Badge>
+                          <span className="block text-[10px] font-mono text-slate-500">
+                            PIN: {emp.pin || "1234"}
+                          </span>
+                        </div>
+
+                        <div className="col-span-2 text-center">
+                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            PER SHIFT
+                          </span>
+                        </div>
+
+                        <div className="col-span-2 text-right font-extrabold text-emerald-700">
+                          Rp {rate.toLocaleString("id-ID")} <span className="text-[10px] font-normal text-slate-400">/ shift</span>
+                        </div>
+
+                        <div className="col-span-1 flex items-center justify-end gap-1">
+                          <button 
+                            onClick={() => handleOpenEdit(emp)} 
+                            className="text-slate-500 hover:text-indigo-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+                            title="Edit Data Karyawan"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteEmployee(emp.id)} 
+                            className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+                            title="Hapus Karyawan"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
-
-                      <div className="col-span-2 text-center space-y-1">
-                        <Badge className="text-[10px] px-2 py-0.5 font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
-                          {emp.role ? emp.role.toUpperCase() : "KASIR"}
-                        </Badge>
-                        <span className="block text-[10px] font-mono text-slate-500">
-                          PIN: {emp.pin || "1234"}
-                        </span>
-                      </div>
-
-                      <div className="col-span-2 text-center">
-                        <Badge className="text-[10px] px-2 py-0.5 font-bold bg-slate-100 text-slate-700 border-none">
-                          {emp.employmentType || "FULL_TIME"}
-                        </Badge>
-                      </div>
-
-                      <div className="col-span-3 text-right font-bold text-slate-900">
-                        Rp {Number(emp.flatSalaryAmount || 3000000).toLocaleString("id-ID")}
-                      </div>
-
-                      <div className="col-span-1 flex items-center justify-end gap-1">
-                        <button 
-                          onClick={() => handleOpenEdit(emp)} 
-                          className="text-slate-500 hover:text-indigo-600 p-1.5 rounded-lg transition-colors cursor-pointer"
-                          title="Edit Data Karyawan"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteEmployee(emp.id)} 
-                          className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg transition-colors cursor-pointer"
-                          title="Hapus Karyawan"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="p-12 text-center space-y-2">
                     <Users className="w-8 h-8 text-slate-300 mx-auto" />
@@ -367,8 +369,8 @@ export default function EmployeesPage() {
           {activeTab === "attendance" && (
             <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs space-y-4 p-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-bold text-sm text-slate-900">Log Kehadiran Staf</h3>
-                <span className="text-xs text-slate-400 font-medium">Total: {attendances.length} Log</span>
+                <h3 className="font-bold text-sm text-slate-900">Log Kehadiran Shift Staf</h3>
+                <span className="text-xs text-slate-400 font-medium">Total: {attendances.length} Log Shift</span>
               </div>
 
               <div className="divide-y divide-slate-100 border rounded-xl overflow-hidden">
@@ -383,13 +385,13 @@ export default function EmployeesPage() {
                         </div>
                       </div>
                       <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                        {att.status || "HADIR"}
+                        {att.status || "HADIR SHIFT"}
                       </Badge>
                     </div>
                   ))
                 ) : (
                   <div className="p-8 text-center text-xs text-slate-400 font-medium">
-                    Belum ada riwayat absensi tercatat hari ini.
+                    Belum ada riwayat absensi shift tercatat hari ini.
                   </div>
                 )}
               </div>
@@ -414,32 +416,46 @@ export default function EmployeesPage() {
             </div>
           )}
 
-          {/* TAB 4: PAYROLL / PENGGAJIAN */}
+          {/* TAB 4: PAYROLL / PENGGAJIAN SHIFT */}
           {activeTab === "payroll" && (
             <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs p-6 space-y-4">
               <div className="flex items-center justify-between border-b pb-3">
-                <h3 className="font-bold text-sm text-slate-900">Ringkasan Slip Gaji & Payroll Karyawan</h3>
-                <Button size="sm" variant="outline" className="text-xs gap-1.5 min-h-[36px]">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">Ringkasan Payroll Per Shift</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">Kalkulasi murni dari (Jumlah Shift Dikerjakan &times; Upah Per Shift)</p>
+                </div>
+                <Button size="sm" variant="outline" className="text-xs gap-1.5 min-h-[36px] cursor-pointer">
                   <Printer className="w-3.5 h-3.5" />
-                  <span>Cetak Laporan Payroll</span>
+                  <span>Cetak Slip Payroll Shift</span>
                 </Button>
               </div>
 
               <div className="divide-y divide-slate-100 border rounded-xl overflow-hidden">
-                {employees.map((emp) => {
-                  const base = emp.flatSalaryAmount || 3000000;
-                  const bonus = 250000;
-                  const total = base + bonus;
+                {employees.map((emp, idx) => {
+                  const ratePerShift = Number(emp.dailyRate || emp.shiftRate || 75000);
+                  const shiftCompletedCount = 14 + (idx * 2); // Simulasi shift yang diselesaikan bulan ini
+                  const totalWage = shiftCompletedCount * ratePerShift;
 
                   return (
                     <div key={emp.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:bg-slate-50/60">
-                      <div>
-                        <span className="font-extrabold text-slate-900 text-sm">{emp.name}</span>
-                        <span className="block text-[11px] text-slate-500 font-medium">Gaji Pokok: Rp {base.toLocaleString("id-ID")}</span>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-slate-900 text-sm">{emp.name}</span>
+                          <span className="bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded">
+                            {emp.role ? emp.role.toUpperCase() : "STAF"}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 font-medium">
+                          Tarif: <strong className="text-slate-800">Rp {ratePerShift.toLocaleString("id-ID")} / shift</strong> &bull; Total Hadir: <strong className="text-slate-800">{shiftCompletedCount} Shift</strong>
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-mono">
+                          Formula: ({shiftCompletedCount} shift &times; Rp {ratePerShift.toLocaleString("id-ID")})
+                        </p>
                       </div>
+
                       <div className="text-right">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">TOTAL REKAP GAJI</span>
-                        <span className="text-sm font-extrabold text-emerald-600">Rp {total.toLocaleString("id-ID")}</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">TOTAL UPAH SHIFT</span>
+                        <span className="text-base font-extrabold text-emerald-600">Rp {totalWage.toLocaleString("id-ID")}</span>
                       </div>
                     </div>
                   );

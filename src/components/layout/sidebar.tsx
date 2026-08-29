@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
-  LayoutDashboard, 
   ShoppingCart, 
   Boxes, 
   ClipboardList, 
@@ -13,7 +12,6 @@ import {
   Menu, 
   X, 
   Store, 
-  ShieldCheck, 
   CircleDot,
   Database,
   LogOut,
@@ -27,7 +25,6 @@ import {
   FileText,
   CreditCard,
   Settings as SettingsIcon,
-  TrendingUp,
   Wallet
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -162,7 +159,7 @@ export function Sidebar() {
           });
           return parsed;
         }
-      } catch (e) {}
+      } catch {}
     }
 
     const initial: Record<string, boolean> = { OPERATIONS: false, CATALOG: false, INVENTORY: false, REPORTS: false, SYSTEM: false };
@@ -179,7 +176,7 @@ export function Sidebar() {
     if (typeof window !== "undefined") {
       try {
         sessionStorage.setItem("perkara_pos_sidebar_open_groups", JSON.stringify(openGroups));
-      } catch (e) {}
+      } catch {}
     }
   }, [openGroups]);
 
@@ -190,12 +187,12 @@ export function Sidebar() {
         setOpenGroups((prev) => {
           if (prev[group.id]) return prev;
           const next = { ...prev, [group.id]: true };
-          try { sessionStorage.setItem("perkara_pos_sidebar_open_groups", JSON.stringify(next)); } catch (e) {}
+          try { sessionStorage.setItem("perkara_pos_sidebar_open_groups", JSON.stringify(next)); } catch {}
           return next;
         });
       }
     });
-  }, [pathname]);
+  }, [pathname, navigation]);
 
   const toggleGroup = (groupId: string) => {
     setOpenGroups((prev) => ({

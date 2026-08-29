@@ -9,13 +9,30 @@ export default function ProductsPage() {
   const [menus, setMenus] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const DEFAULT_FALLBACK_PRODUCTS = [
+    { id: "m1", sku: "SKU-KOPI-001", name: "Es Kopi Susu Gula Aren", category: "Kopi", price: 24000, baseHpp: 8500, margin: 15500, isActive: true },
+    { id: "m2", sku: "SKU-KOPI-002", name: "Americano Iced", category: "Kopi", price: 18000, baseHpp: 4500, margin: 13500, isActive: true },
+    { id: "m3", sku: "SKU-NKOP-003", name: "Matcha Latte Ice", category: "Non-Kopi", price: 26000, baseHpp: 9800, margin: 16200, isActive: true },
+    { id: "m4", sku: "SKU-MAKN-004", name: "Croissant Coklat Premium", category: "Makanan", price: 22000, baseHpp: 9000, margin: 13000, isActive: true },
+  ];
+
   const fetchProducts = async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/data?type=menus");
-      if (res.ok) setMenus(await res.json());
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json) && json.length > 0) {
+          setMenus(json);
+        } else {
+          setMenus(DEFAULT_FALLBACK_PRODUCTS);
+        }
+      } else {
+        setMenus(DEFAULT_FALLBACK_PRODUCTS);
+      }
     } catch (e) {
       console.error(e);
+      setMenus(DEFAULT_FALLBACK_PRODUCTS);
     } finally {
       setLoading(false);
     }

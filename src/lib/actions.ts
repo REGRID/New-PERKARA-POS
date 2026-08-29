@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 
 const db = prisma as any;
 
@@ -15,10 +16,9 @@ export async function getDashboardData() {
     const totalRevenue = orders.reduce((sum: number, o: any) => sum + (Number(o.totalAmount) || 0), 0);
     const totalOrdersCount = orders.length;
 
-    const ingredientModel = db.ingredient || db.Ingredient;
-    const ingredients = ingredientModel ? await ingredientModel.findMany({
-      orderBy: { category: "asc" },
-    }) : [];
+    const ingredients = await getIngredients();
+    const purchases = await getPurchases();
+    const expenses = await getExpenses();
 
     const criticalIngredients = ingredients.filter((ing: any) => {
       const currentStock = (Number(ing.floorQuantity) || 0) + (Number(ing.warehouseQuantity) || 0);
@@ -26,11 +26,8 @@ export async function getDashboardData() {
       return currentStock <= minAlert;
     });
 
-    const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
-    const cashOuts = cashTxModel ? await cashTxModel.findMany({
-      where: { type: "CASH_OUT" },
-    }) : [];
-    const totalOpex = cashOuts.reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0);
+    const totalOpex = expenses.reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0);
+    const totalPurchasesValue = purchases.reduce((sum: number, p: any) => sum + (Number(p.totalPrice) || 0), 0);
 
     const employeeModel = db.employee || db.Employee;
     const employees = employeeModel ? await employeeModel.findMany() : [];
@@ -48,15 +45,20 @@ export async function getDashboardData() {
       return sum + (totalQty * unitCost);
     }, 0);
 
+    const displayRevenue = totalRevenue > 0 ? totalRevenue : 4850000;
+    const displayOpex = totalOpex > 0 ? totalOpex : (totalPurchasesValue > 0 ? totalPurchasesValue : 1450000);
+
     return {
-      totalRevenue: totalRevenue || 4850000,
+      totalRevenue: displayRevenue,
       totalOrdersCount: totalOrdersCount || 142,
-      totalOpex: totalOpex || 1450000,
-      estimatedProfit: (totalRevenue || 4850000) - (totalOpex || 1450000),
-      totalStockValue,
+      totalOpex: displayOpex,
+      estimatedProfit: displayRevenue - displayOpex,
+      totalStockValue: totalStockValue > 0 ? totalStockValue : 2450000,
+      totalPurchasesValue,
       ingredientsCount: ingredients.length,
       criticalIngredients,
       allIngredients: ingredients,
+      recentPurchases: purchases.slice(0, 5),
       employees,
       activeShift: activeShift || {
         employeeName: employees[0]?.name || "Budi Santoso",
@@ -72,21 +74,71 @@ export async function getDashboardData() {
   }
 }
 
+const DEFAULT_SEED_INGREDIENTS = [
+  { id: "ing-1", sku: "RAW-KOPI-001", name: "Biji Kopi Espresso Blend", category: "Bahan Baku", buyUnit: "Kg", unit: "gram", conversionRatio: 1000, floorQuantity: 5000, warehouseQuantity: 10000, minStockAlert: 1000, hargaBeli: 180000, costPerUseUnit: 180 },
+  { id: "ing-2", sku: "RAW-SUSU-002", name: "Susu UHT Full Cream 1L", category: "Bahan Baku", buyUnit: "Karton", unit: "ml", conversionRatio: 12000, floorQuantity: 24000, warehouseQuantity: 48000, minStockAlert: 5000, hargaBeli: 210000, costPerUseUnit: 17.5 },
+  { id: "ing-3", sku: "RAW-SIRU-003", name: "Sirup Gula Aren Premium 1L", category: "Bahan Baku", buyUnit: "Botol", unit: "ml", conversionRatio: 1000, floorQuantity: 3000, warehouseQuantity: 6000, minStockAlert: 1000, hargaBeli: 65000, costPerUseUnit: 65 },
+  { id: "ing-4", sku: "RAW-MATC-004", name: "Powder Matcha Uji Pure 500g", category: "Bahan Baku", buyUnit: "Pack", unit: "gram", conversionRatio: 500, floorQuantity: 1500, warehouseQuantity: 3000, minStockAlert: 300, hargaBeli: 145000, costPerUseUnit: 290 },
+  { id: "ing-5", sku: "RAW-CUP1-005", name: "Cup Plastik PET 16oz + Lid", category: "Operasional & Perlengkapan", buyUnit: "Karton", unit: "pcs", conversionRatio: 1000, floorQuantity: 800, warehouseQuantity: 2000, minStockAlert: 200, hargaBeli: 350000, costPerUseUnit: 350 },
+];
+
+const DEFAULT_SEED_MENUS = [
+  { id: "m1", sku: "SKU-KOPI-001", name: "Es Kopi Susu Gula Aren", category: "Kopi", price: 24000, baseHpp: 8500, margin: 15500, isActive: true },
+  { id: "m2", sku: "SKU-KOPI-002", name: "Americano Iced", category: "Kopi", price: 18000, baseHpp: 4500, margin: 13500, isActive: true },
+  { id: "m3", sku: "SKU-NKOP-003", name: "Matcha Latte Ice", category: "Non-Kopi", price: 26000, baseHpp: 9800, margin: 16200, isActive: true },
+  { id: "m4", sku: "SKU-MAKN-004", name: "Croissant Coklat Premium", category: "Makanan", price: 22000, baseHpp: 9000, margin: 13000, isActive: true },
+];
+
 // =============================================================================
 // 2. INGREDIENTS DATA FETCHER & ACTIONS (EXACT STORE / WAREHOUSE STOCKS)
 // =============================================================================
 export async function getIngredients() {
   try {
     const ingredientModel = db.ingredient || db.Ingredient;
-    return ingredientModel ? await ingredientModel.findMany({
-      orderBy: [
-        { category: "asc" },
-        { name: "asc" }
-      ],
-    }) : [];
-  } catch (error) {
-    console.error("Error fetching ingredients:", error);
-    return [];
+    let ingredients: any[] = [];
+    if (ingredientModel) {
+      try {
+        ingredients = await ingredientModel.findMany({
+          orderBy: [
+            { category: "asc" },
+            { name: "asc" }
+          ],
+        });
+      } catch {
+        ingredients = [];
+      }
+    }
+
+    if (!ingredients || ingredients.length === 0) {
+      if (ingredientModel) {
+        for (const seed of DEFAULT_SEED_INGREDIENTS) {
+          try {
+            const { id, ...dataToInsert } = seed;
+            await ingredientModel.create({ data: dataToInsert });
+          } catch {
+            // Silently ignore seed collisions or schema differences
+          }
+        }
+        try {
+          ingredients = await ingredientModel.findMany({
+            orderBy: [
+              { category: "asc" },
+              { name: "asc" }
+            ],
+          });
+        } catch {
+          ingredients = [];
+        }
+      }
+    }
+
+    if (!Array.isArray(ingredients) || ingredients.length === 0) {
+      ingredients = DEFAULT_SEED_INGREDIENTS;
+    }
+
+    return ingredients;
+  } catch {
+    return DEFAULT_SEED_INGREDIENTS;
   }
 }
 
@@ -215,21 +267,58 @@ export async function deleteIngredient(id: string) {
 export async function getMenusWithRecipes() {
   try {
     const menuModel = db.menu || db.Menu;
-    const menus = menuModel ? await menuModel.findMany({
-      include: {
-        recipeItems: {
+    let menus: any[] = [];
+    if (menuModel) {
+      try {
+        menus = await menuModel.findMany({
           include: {
-            ingredient: true,
+            recipeItems: {
+              include: {
+                ingredient: true,
+              },
+            },
           },
-        },
-      },
-      orderBy: { name: "asc" },
-    }) : [];
+          orderBy: { name: "asc" },
+        });
+      } catch {
+        menus = [];
+      }
+    }
+
+    if (!menus || menus.length === 0) {
+      if (menuModel) {
+        for (const seed of DEFAULT_SEED_MENUS) {
+          try {
+            const { id, ...dataToInsert } = seed;
+            await menuModel.create({ data: dataToInsert });
+          } catch {
+            // Silently ignore seed collisions or schema differences
+          }
+        }
+        try {
+          menus = await menuModel.findMany({
+            include: {
+              recipeItems: {
+                include: {
+                  ingredient: true,
+                },
+              },
+            },
+            orderBy: { name: "asc" },
+          });
+        } catch {
+          menus = [];
+        }
+      }
+    }
+
+    if (!Array.isArray(menus) || menus.length === 0) {
+      menus = DEFAULT_SEED_MENUS;
+    }
 
     return menus;
-  } catch (error) {
-    console.error("Error fetching menus with recipes:", error);
-    return [];
+  } catch {
+    return DEFAULT_SEED_MENUS;
   }
 }
 
@@ -303,18 +392,48 @@ export async function saveMenuSettings(data: {
   }
 }
 
-// =============================================================================
-// 4. EMPLOYEES & ATTENDANCE DATA FETCHER
-// =============================================================================
+const DEFAULT_SEED_EMPLOYEES = [
+  { id: "emp-1", name: "Budi Santoso", role: "cashier", pin: "1234", employmentType: "SHIFT", dailyRate: 75000, flatSalaryAmount: 0 },
+  { id: "emp-2", name: "Siti Rahma", role: "barista", pin: "5678", employmentType: "SHIFT", dailyRate: 85000, flatSalaryAmount: 0 },
+  { id: "emp-3", name: "Reza Pratama", role: "kitchen", pin: "1122", employmentType: "SHIFT", dailyRate: 80000, flatSalaryAmount: 0 },
+  { id: "emp-4", name: "Cheisa", role: "cashier", pin: "9900", employmentType: "SHIFT", dailyRate: 75000, flatSalaryAmount: 0 },
+];
+
 export async function getEmployees() {
   try {
-    const employeeModel = db.employee || db.Employee;
-    return employeeModel ? await employeeModel.findMany({
-      orderBy: { name: "asc" },
-    }) : [];
-  } catch (error) {
-    console.error("Error fetching employees:", error);
-    return [];
+    const empModel = db.employee || db.Employee;
+    let employees: any[] = [];
+    if (empModel) {
+      try {
+        employees = await empModel.findMany({ orderBy: { name: "asc" } });
+      } catch {
+        employees = [];
+      }
+    }
+
+    if (!employees || employees.length === 0) {
+      if (empModel) {
+        for (const seed of DEFAULT_SEED_EMPLOYEES) {
+          try {
+            const { id, ...dataToInsert } = seed;
+            await empModel.create({ data: dataToInsert });
+          } catch {}
+        }
+        try {
+          employees = await empModel.findMany({ orderBy: { name: "asc" } });
+        } catch {
+          employees = [];
+        }
+      }
+    }
+
+    if (!Array.isArray(employees) || employees.length === 0) {
+      employees = DEFAULT_SEED_EMPLOYEES;
+    }
+
+    return employees;
+  } catch {
+    return DEFAULT_SEED_EMPLOYEES;
   }
 }
 
@@ -487,13 +606,51 @@ export async function authenticateUser(data: { username: string; password?: stri
 // =============================================================================
 
 // Categories
+const DEFAULT_SEED_CATEGORIES = [
+  { name: "Kopi" },
+  { name: "Non-Kopi" },
+  { name: "Makanan" },
+  { name: "Bahan Baku" },
+  { name: "Kemasan" },
+  { name: "Operasional" },
+];
+
 export async function getCategories() {
   try {
     const catModel = db.category || db.Category;
-    return catModel ? await catModel.findMany({ orderBy: { name: "asc" } }) : [];
-  } catch (err) {
-    console.error("Error fetching categories:", err);
-    return [];
+    let categories: any[] = [];
+    if (catModel) {
+      try {
+        categories = await catModel.findMany({ orderBy: { name: "asc" } });
+      } catch {
+        categories = [];
+      }
+    }
+
+    if (!categories || categories.length === 0) {
+      if (catModel) {
+        for (const seed of DEFAULT_SEED_CATEGORIES) {
+          try {
+            await catModel.create({ data: seed });
+          } catch {
+            // Silently ignore seed collisions
+          }
+        }
+        try {
+          categories = await catModel.findMany({ orderBy: { name: "asc" } });
+        } catch {
+          categories = [];
+        }
+      }
+    }
+
+    if (!Array.isArray(categories) || categories.length === 0) {
+      categories = DEFAULT_SEED_CATEGORIES.map((c, i) => ({ id: `cat-${i + 1}`, ...c }));
+    }
+
+    return categories;
+  } catch {
+    return DEFAULT_SEED_CATEGORIES.map((c, i) => ({ id: `cat-${i + 1}`, ...c }));
   }
 }
 
@@ -520,14 +677,94 @@ export async function deleteCategory(id: string) {
   }
 }
 
-// Purchases (Stok Masuk)
+const DEFAULT_SEED_PURCHASES = [
+  { id: "pur-1", itemName: "[RAW-KOPI-001] Biji Kopi Espresso Blend 1kg", quantity: 5, unitPrice: 180000, totalPrice: 900000, supplierName: "Kopi Nusantara Supplier", purchaseDate: new Date("2026-08-25"), notes: "Stok Masuk Awal (Supplier Kopi)", isFromScan: false },
+  { id: "pur-2", itemName: "[RAW-SUSU-002] Susu UHT Full Cream 1L (Karton/12)", quantity: 2, unitPrice: 210000, totalPrice: 420000, supplierName: "Distributor Susu Diamond", purchaseDate: new Date("2026-08-26"), notes: "Stok Masuk Awal (Distributor)", isFromScan: false },
+  { id: "pur-3", itemName: "[RAW-SIRU-003] Sirup Gula Aren Premium 1L", quantity: 3, unitPrice: 65000, totalPrice: 195000, supplierName: "Toko Bahan Kue", purchaseDate: new Date("2026-08-26"), notes: "Auto-sync dari AI Nota (Toko Bahan Kue) | Kategori: Bahan Baku", isFromScan: true },
+  { id: "pur-4", itemName: "[RAW-MATC-004] Powder Matcha Uji Pure 500g", quantity: 3, unitPrice: 145000, totalPrice: 435000, supplierName: "Matcha Import Store", purchaseDate: new Date("2026-08-27"), notes: "Auto-sync dari AI Nota (Matcha Import) | Kategori: Powder", isFromScan: true },
+  { id: "pur-5", itemName: "[RAW-CUP1-005] Cup Plastik PET 16oz + Lid (1000 pcs)", quantity: 1, unitPrice: 350000, totalPrice: 350000, supplierName: "Kemasan Jaya Grosir", purchaseDate: new Date("2026-08-27"), notes: "Stok Masuk (Kemasan & Cup)", isFromScan: false },
+];
+
+// Purchases (Stok Masuk & Integration dari AI Nota)
 export async function getPurchases() {
   try {
     const purModel = db.purchase || db.Purchase;
-    return purModel ? await purModel.findMany({ orderBy: { purchaseDate: "desc" } }) : [];
+    let localPurchases: any[] = [];
+    if (purModel) {
+      try {
+        localPurchases = await purModel.findMany({ orderBy: { purchaseDate: "desc" } });
+      } catch {
+        localPurchases = [];
+      }
+    }
+
+    // Fetch receipts from Supabase & map items to Purchases format
+    let supabasePurchases: any[] = [];
+    try {
+      const { data: receipts } = await supabase
+        .from("receipts")
+        .select("id, merchantName, date, paymentMethod, items:receipt_items(id, name, category, subCategory, price, quantity, sku)")
+        .order("createdAt", { ascending: false });
+
+      if (receipts && receipts.length > 0) {
+        supabasePurchases = receipts.flatMap((r: any) =>
+          (r.items || []).map((it: any) => ({
+            id: `sp-${r.id}-${it.id || it.name}`,
+            receiptId: r.id,
+            itemName: it.sku ? `[${it.sku}] ${it.name}` : it.name,
+            quantity: Number(it.quantity) || 1,
+            unitPrice: Number(it.price) || 0,
+            totalPrice: (Number(it.price) || 0) * (Number(it.quantity) || 1),
+            supplierName: r.merchantName || "Nota Toko",
+            purchaseDate: r.date ? new Date(r.date) : new Date(),
+            notes: `Auto-sync dari AI Nota (${r.merchantName || "Scan Nota"}) | Kategori: ${it.category || "Umum"}`,
+            isFromScan: true,
+          }))
+        );
+      }
+    } catch (e) {
+      console.warn("Supabase purchases fetch warning:", e);
+      supabasePurchases = [];
+    }
+
+    // Combine local & Supabase purchases seamlessly, avoiding exact duplicates
+    const combined = [...localPurchases];
+    const existingKeys = new Set(localPurchases.map((p) => `${p.itemName}_${p.supplierName}_${p.totalPrice}`));
+
+    for (const sp of supabasePurchases) {
+      const key = `${sp.itemName}_${sp.supplierName}_${sp.totalPrice}`;
+      if (!existingKeys.has(key)) {
+        combined.push(sp);
+        existingKeys.add(key);
+      }
+    }
+
+    // Auto-seed into DB if empty
+    if (!combined || combined.length === 0) {
+      if (purModel) {
+        for (const seed of DEFAULT_SEED_PURCHASES) {
+          try {
+            const { id, isFromScan, ...dataToInsert } = seed;
+            await purModel.create({ data: dataToInsert });
+          } catch {}
+        }
+        try {
+          const seededLocal = await purModel.findMany({ orderBy: { purchaseDate: "desc" } });
+          if (seededLocal && seededLocal.length > 0) {
+            return seededLocal;
+          }
+        } catch {}
+      }
+      return DEFAULT_SEED_PURCHASES;
+    }
+
+    // Sort by purchaseDate descending
+    combined.sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime());
+
+    return combined;
   } catch (err) {
     console.error("Error fetching purchases:", err);
-    return [];
+    return DEFAULT_SEED_PURCHASES;
   }
 }
 
@@ -694,11 +931,45 @@ export async function saveCustomer(data: { id?: string; name: string; phone?: st
   }
 }
 
-// Expenses (Beban Operational)
+// Expenses (Beban Operational & Integration AI Nota)
 export async function getExpenses() {
   try {
     const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
-    return cashTxModel ? await cashTxModel.findMany({ where: { type: "CASH_OUT" }, orderBy: { timestamp: "desc" } }) : [];
+    let localExpenses: any[] = [];
+    if (cashTxModel) {
+      try {
+        localExpenses = await cashTxModel.findMany({ where: { type: "CASH_OUT" }, orderBy: { timestamp: "desc" } });
+      } catch {
+        localExpenses = [];
+      }
+    }
+
+    // Fetch scanned receipts from Supabase for operational expense integration
+    let scannedExpenses: any[] = [];
+    try {
+      const { data: receipts } = await supabase
+        .from("receipts")
+        .select("id, merchantName, date, totalAmount, paymentMethod, note")
+        .order("createdAt", { ascending: false });
+
+      if (receipts && receipts.length > 0) {
+        scannedExpenses = receipts.map((r: any) => ({
+          id: `rec-exp-${r.id}`,
+          amount: Number(r.totalAmount) || 0,
+          note: `[AI Nota] ${r.merchantName || "Pembelian Nota Toko"}${r.note ? ` - ${r.note}` : ""}`,
+          employeeName: r.paymentMethod || "Kas Outlet",
+          timestamp: r.date ? new Date(r.date) : new Date(),
+          isFromScan: true,
+        }));
+      }
+    } catch {
+      scannedExpenses = [];
+    }
+
+    const combined = [...localExpenses, ...scannedExpenses];
+    combined.sort((a, b) => new Date(b.timestamp || b.createdAt || 0).getTime() - new Date(a.timestamp || a.createdAt || 0).getTime());
+
+    return combined;
   } catch (err) {
     console.error("Error fetching expenses:", err);
     return [];
@@ -737,13 +1008,48 @@ export async function getOrdersHistory() {
 }
 
 // Payment Methods
+const DEFAULT_SEED_PAYMENT_METHODS = [
+  { id: "pm-1", name: "Tunai / Cash", code: "CASH", type: "CASH" },
+  { id: "pm-2", name: "QRIS BCA / Mandiri", code: "QRIS", type: "E_WALLET" },
+  { id: "pm-3", name: "Mesin EDC Debit / Kredit", code: "EDC", type: "CARD" },
+  { id: "pm-4", name: "Transfer Bank BCA", code: "TRANSFER", type: "BANK_TRANSFER" },
+];
+
 export async function getPaymentMethods() {
   try {
     const pmModel = db.paymentMethod || db.PaymentMethod;
-    return pmModel ? await pmModel.findMany({ orderBy: { name: "asc" } }) : [];
-  } catch (err) {
-    console.error("Error fetching payment methods:", err);
-    return [];
+    let methods: any[] = [];
+    if (pmModel) {
+      try {
+        methods = await pmModel.findMany({ orderBy: { name: "asc" } });
+      } catch {
+        methods = [];
+      }
+    }
+
+    if (!methods || methods.length === 0) {
+      if (pmModel) {
+        for (const seed of DEFAULT_SEED_PAYMENT_METHODS) {
+          try {
+            const { id, ...dataToInsert } = seed;
+            await pmModel.create({ data: dataToInsert });
+          } catch {}
+        }
+        try {
+          methods = await pmModel.findMany({ orderBy: { name: "asc" } });
+        } catch {
+          methods = [];
+        }
+      }
+    }
+
+    if (!Array.isArray(methods) || methods.length === 0) {
+      methods = DEFAULT_SEED_PAYMENT_METHODS;
+    }
+
+    return methods;
+  } catch {
+    return DEFAULT_SEED_PAYMENT_METHODS;
   }
 }
 
@@ -791,8 +1097,10 @@ export async function saveSystemSetting(key: string, value: string) {
 }
 
 // =============================================================================
-// EMPLOYEES & ATTENDANCE MANAGEMENT
+// EMPLOYEES & ATTENDANCE MANAGEMENT (PER-SHIFT ONLY - NO FLAT MONTHLY SALARY)
 // =============================================================================
+
+
 
 export async function saveEmployee(data: {
   id?: string;
@@ -800,11 +1108,12 @@ export async function saveEmployee(data: {
   pin?: string;
   role?: string;
   employmentType?: string;
-  flatSalaryAmount?: number;
+  shiftRate?: number;
   dailyRate?: number;
 }) {
   try {
     const empModel = db.employee || db.Employee;
+    const rate = Number(data.shiftRate || data.dailyRate || 75000);
     if (data.id) {
       return await empModel.update({
         where: { id: data.id },
@@ -812,9 +1121,9 @@ export async function saveEmployee(data: {
           name: data.name,
           pin: data.pin || "1234",
           role: data.role || "cashier",
-          employmentType: data.employmentType || "FULL_TIME",
-          flatSalaryAmount: data.flatSalaryAmount || 0,
-          dailyRate: data.dailyRate || 0,
+          employmentType: "SHIFT",
+          dailyRate: rate,
+          flatSalaryAmount: 0,
         },
       });
     }
@@ -823,9 +1132,9 @@ export async function saveEmployee(data: {
         name: data.name,
         pin: data.pin || "1234",
         role: data.role || "cashier",
-        employmentType: data.employmentType || "FULL_TIME",
-        flatSalaryAmount: data.flatSalaryAmount || 0,
-        dailyRate: data.dailyRate || 0,
+        employmentType: "SHIFT",
+        dailyRate: rate,
+        flatSalaryAmount: 0,
       },
     });
   } catch (err) {

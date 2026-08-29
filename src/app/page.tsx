@@ -4,29 +4,15 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
   TrendingUp, 
-  Receipt, 
-  Users, 
-  Clock, 
   Camera, 
   ShoppingCart, 
-  AlertTriangle, 
-  PlusCircle, 
-  ArrowUpRight, 
   DollarSign,
-  Boxes,
-  ClipboardList,
-  Activity,
-  ArrowRight,
-  Sparkles,
-  RefreshCw,
   Tag,
   Package
 } from "lucide-react";
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/lib/auth-context";
 
@@ -34,7 +20,6 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const { user, isAdmin } = useAuth();
   const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
   // If user role is Karyawan, redirect to POS Terminal as primary view
   useEffect(() => {
@@ -45,7 +30,6 @@ export default function AdminDashboardPage() {
 
   const fetchDashboard = async () => {
     try {
-      setLoading(true);
       const res = await fetch("/api/data");
       if (res.ok) {
         const json = await res.json();
@@ -53,8 +37,6 @@ export default function AdminDashboardPage() {
       }
     } catch (err) {
       console.error("Error fetching live dashboard data:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -63,19 +45,8 @@ export default function AdminDashboardPage() {
   }, []);
 
   const totalRevenue = data?.totalRevenue ?? 4850000;
-  const totalOrdersCount = data?.totalOrdersCount ?? 142;
   const totalOpex = data?.totalOpex ?? 1450000;
   const estimatedProfit = data?.estimatedProfit ?? 3400000;
-  const criticalList = data?.criticalIngredients?.length > 0 
-    ? data.criticalIngredients.slice(0, 4) 
-    : (data?.allIngredients?.slice(0, 3) || []);
-  const activeShift = data?.activeShift || {
-    employeeName: "Budi Santoso",
-    status: "OPEN",
-    startCash: 500000,
-    expectedCash: 2150000,
-  };
-  const employeesCount = data?.employees?.length ?? 7;
 
   return (
     <AppShell>

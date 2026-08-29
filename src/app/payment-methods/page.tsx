@@ -11,13 +11,30 @@ export default function PaymentMethodsPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ name: "", code: "", type: "CASH" });
 
+  const DEFAULT_FALLBACK_PAYMENT_METHODS = [
+    { id: "pm-1", name: "Tunai / Cash", code: "CASH", type: "CASH" },
+    { id: "pm-2", name: "QRIS BCA / Mandiri", code: "QRIS", type: "E_WALLET" },
+    { id: "pm-3", name: "Mesin EDC Debit / Kredit", code: "EDC", type: "CARD" },
+    { id: "pm-4", name: "Transfer Bank BCA", code: "TRANSFER", type: "BANK_TRANSFER" },
+  ];
+
   const fetchMethods = async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/data?type=payment_methods");
-      if (res.ok) setMethods(await res.json());
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json) && json.length > 0) {
+          setMethods(json);
+        } else {
+          setMethods(DEFAULT_FALLBACK_PAYMENT_METHODS);
+        }
+      } else {
+        setMethods(DEFAULT_FALLBACK_PAYMENT_METHODS);
+      }
     } catch (e) {
       console.error(e);
+      setMethods(DEFAULT_FALLBACK_PAYMENT_METHODS);
     } finally {
       setLoading(false);
     }

@@ -4,32 +4,25 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
   ShoppingCart, 
-  ArrowLeft, 
   CheckCircle2, 
-  Trash2, 
   Plus, 
   Minus, 
   Search, 
   CreditCard, 
-  DollarSign, 
   ShieldAlert,
   Coffee,
   CupSoda,
   Utensils,
-  Package,
-  Layers,
-  Store,
   LayoutDashboard,
   RefreshCw,
   Maximize,
   Minimize,
-  LogOut,
   Clock,
   FileText,
   Wallet
 } from "lucide-react";
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +32,7 @@ import { bluetoothPrinter } from "@/lib/bluetooth-printer";
 import { useAuth } from "@/lib/auth-context";
 
 export default function POSTerminalPage() {
-  const { user, logout, isAdmin, switchRole } = useAuth();
+  const { user, isAdmin, switchRole } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<any[]>([]);
@@ -180,7 +173,10 @@ export default function POSTerminalPage() {
   const handleProcessCheckout = async () => {
     try {
       setIsProcessing(true);
-      const orderNumber = `POS-${Math.floor(Math.random() * 9000) + 1000}`;
+      const randomSuffix = typeof window !== "undefined" && window.crypto?.randomUUID 
+        ? window.crypto.randomUUID().slice(0, 4).toUpperCase() 
+        : String(Date.now()).slice(-4);
+      const orderNumber = `POS-${randomSuffix}`;
 
       // Save real order to database
       await fetch("/api/data?type=checkout", {

@@ -107,16 +107,31 @@ export default function RawMaterialsPage() {
     isPercentageMode: false,
   });
 
+  const DEFAULT_FALLBACK_MATERIALS = [
+    { id: "ing-1", sku: "RAW-KOPI-001", name: "Biji Kopi Espresso Blend", category: "Bahan Baku", buyUnit: "Kg", unit: "gram", conversionRatio: 1000, floorQuantity: 5000, warehouseQuantity: 10000, minStockAlert: 1000, hargaBeli: 180000, costPerUseUnit: 180 },
+    { id: "ing-2", sku: "RAW-SUSU-002", name: "Susu UHT Full Cream 1L", category: "Bahan Baku", buyUnit: "Karton", unit: "ml", conversionRatio: 12000, floorQuantity: 24000, warehouseQuantity: 48000, minStockAlert: 5000, hargaBeli: 210000, costPerUseUnit: 17.5 },
+    { id: "ing-3", sku: "RAW-SIRU-003", name: "Sirup Gula Aren Premium 1L", category: "Bahan Baku", buyUnit: "Botol", unit: "ml", conversionRatio: 1000, floorQuantity: 3000, warehouseQuantity: 6000, minStockAlert: 1000, hargaBeli: 65000, costPerUseUnit: 65 },
+    { id: "ing-4", sku: "RAW-MATC-004", name: "Powder Matcha Uji Pure 500g", category: "Bahan Baku", buyUnit: "Pack", unit: "gram", conversionRatio: 500, floorQuantity: 1500, warehouseQuantity: 3000, minStockAlert: 300, hargaBeli: 145000, costPerUseUnit: 290 },
+    { id: "ing-5", sku: "RAW-CUP1-005", name: "Cup Plastik PET 16oz + Lid", category: "Operasional", buyUnit: "Karton", unit: "pcs", conversionRatio: 1000, floorQuantity: 800, warehouseQuantity: 2000, minStockAlert: 200, hargaBeli: 350000, costPerUseUnit: 350 },
+  ];
+
   const fetchIngredients = async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/data?type=ingredients");
       if (res.ok) {
         const json = await res.json();
-        setMaterials(json);
+        if (Array.isArray(json) && json.length > 0) {
+          setMaterials(json);
+        } else {
+          setMaterials(DEFAULT_FALLBACK_MATERIALS);
+        }
+      } else {
+        setMaterials(DEFAULT_FALLBACK_MATERIALS);
       }
     } catch (err) {
       console.error("Error fetching ingredients:", err);
+      setMaterials(DEFAULT_FALLBACK_MATERIALS);
     } finally {
       setLoading(false);
     }

@@ -131,6 +131,7 @@ export interface ReceiptItem {
   categoryId?: string;
   rawMaterialId?: string;
   isStockItem: boolean;
+  sku?: string;
 }
 
 export interface PhotoReceipt {

@@ -20,11 +20,6 @@ export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // If already wrapped in persistent RootLayout AppShell, render children directly
-  if (isAlreadyInShell) {
-    return <>{children}</>;
-  }
-
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotifPopover, setShowNotifPopover] = useState(false);
@@ -113,7 +108,7 @@ export function AppShell({ children }: AppShellProps) {
     }
   }, [user, loading, pathname, router, isAdmin]);
 
-  if (pathname === "/login" || pathname.startsWith("/qr-menu") || pathname === "/pos") {
+  if (isAlreadyInShell || pathname === "/login" || pathname.startsWith("/qr-menu") || pathname === "/pos") {
     return <>{children}</>;
   }
 
