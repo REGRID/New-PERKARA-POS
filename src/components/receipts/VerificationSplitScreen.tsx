@@ -36,6 +36,8 @@ import { ParsedItem, ParsedReceiptResult } from "@/app/api/parse-receipt/route"
 import { ImageInteractiveLightbox } from "@/components/receipts/ImageInteractiveLightbox"
 import { getAuthHeaders } from "@/lib/authClient"
 import { generateItemSku } from "@/lib/utils"
+import { format } from "date-fns"
+import { DatePicker } from "@/components/ui/date-picker"
 
 interface VerificationSplitScreenProps {
   imagePreviewUrl: string
@@ -680,11 +682,10 @@ export function VerificationSplitScreen({
                 <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5 text-slate-500" /> Tanggal Nota
                 </label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 text-sm text-slate-900 font-semibold transition-all bg-white"
+                <DatePicker
+                  date={date ? new Date(date) : undefined}
+                  setDate={(newDate) => setDate(newDate ? format(newDate, "yyyy-MM-dd") : "")}
+                  placeholder="Pilih tanggal nota..."
                 />
               </div>
 

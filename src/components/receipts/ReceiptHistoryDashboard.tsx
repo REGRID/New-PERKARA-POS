@@ -61,6 +61,9 @@ import {
 } from "recharts"
 import { ImageInteractiveLightbox } from "@/components/receipts/ImageInteractiveLightbox"
 import { getAuthHeaders } from "@/lib/authClient"
+import { format } from "date-fns"
+import { type DateRange } from "react-day-picker"
+import { DatePickerWithRange } from "@/components/ui/date-picker-with-range"
 
 export interface ReceiptItem {
   id: string
@@ -1638,18 +1641,21 @@ export function ReceiptHistoryDashboard({ onScanNewReceipt, onEditReceipt, curre
 
         {dateRangeFilter === "custom" && (
           <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 w-fit">
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="px-2.5 py-1 rounded-lg border border-slate-300 text-xs font-bold text-slate-800 bg-white"
-            />
-            <span className="text-xs text-slate-400 font-bold">s/d</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="px-2.5 py-1 rounded-lg border border-slate-300 text-xs font-bold text-slate-800 bg-white"
+            <DatePickerWithRange
+              date={startDate ? {
+                from: new Date(startDate),
+                to: endDate ? new Date(endDate) : undefined,
+              } : undefined}
+              setDate={(range) => {
+                if (!range || !range.from) {
+                  setStartDate("");
+                  setEndDate("");
+                } else {
+                  setStartDate(format(range.from, "yyyy-MM-dd"));
+                  setEndDate(range.to ? format(range.to, "yyyy-MM-dd") : "");
+                }
+              }}
+              placeholder="Pilih rentang tanggal kustom..."
             />
           </div>
         )}

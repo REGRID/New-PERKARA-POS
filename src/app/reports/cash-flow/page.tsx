@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Wallet, 
   Download, 
@@ -11,17 +11,28 @@ import {
   Calendar, 
   Check, 
   X,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Receipt,
+  Eye,
+  Camera,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AppShell } from "@/components/layout/app-shell";
+import { type DateRange } from "react-day-picker";
+import { DatePickerWithRange } from "@/components/ui/date-picker-with-range";
+import { CashInOutModal, CashTransactionPayload } from "@/components/cash-flow/CashInOutModal";
+import { ReceiptProofModal } from "@/components/cash-flow/ReceiptProofModal";
+import { startOfDay, endOfDay, isWithinInterval, isSameDay } from "date-fns";
 
 export default function CashFlowReportPage() {
   const [loading, setLoading] = useState(true);
   const [filterPeriod, setFilterPeriod] = useState<"today" | "month" | "all">("all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [showInputModal, setShowInputModal] = useState(false);
+  const [selectedProofTransaction, setSelectedProofTransaction] = useState<any>(null);
 
   // Cash Drawer State
   const [modalAwal, setModalAwal] = useState(144500);
@@ -39,17 +50,20 @@ export default function CashFlowReportPage() {
           const mapped = data.map((item: any, idx: number) => ({
             id: item.id || `exp-${idx}`,
             waktu: item.timestamp ? new Date(item.timestamp).toLocaleString("id-ID") : new Date().toLocaleString("id-ID"),
+            timestamp: item.timestamp || item.createdAt,
             petugas: item.employeeName || (item.isFromScan ? "AI Nota" : "Staf Outlet"),
-            tipe: item.type === "IN" ? "IN" : "OUT",
+            tipe: item.type === "IN" || item.type === "CASH_IN" ? "IN" : "OUT",
             jumlah: Number(item.amount) || 0,
             catatan: item.note || item.notes || "Pengeluaran Operasional",
             isFromScan: item.isFromScan,
+            receiptImage: item.receiptImage || (item.imageUrl ? item.imageUrl : null),
+            voucherNumber: item.voucherNumber || `VKAS-${(item.id || idx).toString().slice(-6)}`,
           }));
           setPettyLogs(mapped);
         } else {
           setPettyLogs([
-            { id: "log-1", waktu: new Date().toLocaleString("id-ID"), petugas: "AI Nota", tipe: "OUT", jumlah: 65000, catatan: "[AI Nota] Toko Bahan Kue - Sirup Aren 1L", isFromScan: true },
-            { id: "log-2", waktu: new Date().toLocaleString("id-ID"), petugas: "Cheisa", tipe: "OUT", jumlah: 18000, catatan: "Es Batu 2 Plastik", isFromScan: false },
+            { id: "log-1", waktu: new Date().toLocaleString("id-ID"), petugas: "AI Nota", tipe: "OUT", jumlah: 65000, catatan: "[AI Nota] Toko Bahan Kue - Sirup Aren 1L", isFromScan: true, voucherNumber: "VKAS-001" },
+            { id: "log-2", waktu: new Date().toLocaleString("id-ID"), petugas: "Cheisa", tipe: "OUT", jumlah: 18000, catatan: "Es Batu 2 Plastik", isFromScan: false, voucherNumber: "VKAS-002" },
           ]);
         }
       }
@@ -64,36 +78,73 @@ export default function CashFlowReportPage() {
     fetchCashFlowLogs();
   }, []);
 
-  // Form State for New Kas Entry
-  const [entryForm, setEntryForm] = useState({
-    tipe: "OUT",
-    jumlah: 0,
-    petugas: "Admin",
-    catatan: "",
-  });
+  // Filtered petty logs
+  const filteredPettyLogs = useMemo(() => {
+    return pettyLogs.filter((log) => {
+      if (!log) return false;
+      const logDate = new Date(log.timestamp || log.waktu || Date.now());
 
-  // Calculate totals
-  const totalKasMasuk = pettyLogs.filter(l => l.tipe === "IN").reduce((s, l) => s + l.jumlah, 0);
-  const totalKasKeluar = pettyLogs.filter(l => l.tipe === "OUT").reduce((s, l) => s + l.jumlah, 0);
+      if (dateRange?.from) {
+        if (dateRange.to) {
+          return isWithinInterval(logDate, {
+            start: startOfDay(dateRange.from),
+            end: endOfDay(dateRange.to),
+          });
+        }
+        return isSameDay(logDate, dateRange.from);
+      }
+
+      if (filterPeriod === "today") {
+        return isSameDay(logDate, new Date());
+      }
+
+      if (filterPeriod === "month") {
+        const now = new Date();
+        return logDate.getMonth() === now.getMonth() && logDate.getFullYear() === now.getFullYear();
+      }
+
+      return true;
+    });
+  }, [pettyLogs, dateRange, filterPeriod]);
+
+  // Calculate totals based on all / filtered
+  const totalKasMasuk = filteredPettyLogs.filter(l => l.tipe === "IN").reduce((s, l) => s + l.jumlah, 0);
+  const totalKasKeluar = filteredPettyLogs.filter(l => l.tipe === "OUT").reduce((s, l) => s + l.jumlah, 0);
   const totalPenjualanTunai = 0; // Live offline sales
   const liveReadyCash = modalAwal + totalPenjualanTunai + totalKasMasuk - totalKasKeluar;
 
-  const handleAddPettyLog = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (entryForm.jumlah <= 0 || !entryForm.catatan.trim()) return;
-
+  const handleCashInOutSuccess = async (data: CashTransactionPayload) => {
     const newLog = {
       id: "log-" + Date.now(),
       waktu: new Date().toLocaleString("id-ID"),
-      petugas: entryForm.petugas || "Admin",
-      tipe: entryForm.tipe,
-      jumlah: Number(entryForm.jumlah),
-      catatan: entryForm.catatan,
+      timestamp: new Date().toISOString(),
+      petugas: data.petugas,
+      tipe: data.type === "CASH_IN" || data.type === "IN" ? "IN" : "OUT",
+      jumlah: Number(data.amount),
+      catatan: data.catatan,
+      receiptImage: data.receiptImage,
+      voucherNumber: data.voucherNumber,
+      isFromScan: Boolean(data.receiptImage),
     };
 
     setPettyLogs([newLog, ...pettyLogs]);
-    setEntryForm({ tipe: "OUT", jumlah: 0, petugas: "Admin", catatan: "" });
-    setShowInputModal(false);
+
+    // Also persist via API
+    try {
+      await fetch("/api/data?type=save_expense", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: data.amount,
+          note: data.catatan,
+          employeeName: data.petugas,
+          type: data.type,
+          receiptImage: data.receiptImage,
+        }),
+      });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleDeleteLog = (id: string) => {
@@ -103,7 +154,7 @@ export default function CashFlowReportPage() {
 
   const handleExportCSV = () => {
     const csvContent = "data:text/csv;charset=utf-8," 
-      + ["Waktu,Petugas,Tipe,Jumlah,Catatan", ...pettyLogs.map(l => `"${l.waktu}","${l.petugas}","${l.tipe}",${l.jumlah},"${l.catatan}"`)].join("\n");
+      + ["Waktu,Petugas,Tipe,Jumlah,Catatan,NoVoucher", ...filteredPettyLogs.map(l => `"${l.waktu}","${l.petugas}","${l.tipe}",${l.jumlah},"${l.catatan}","${l.voucherNumber || ""}"`)].join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -125,6 +176,9 @@ export default function CashFlowReportPage() {
             </div>
             <div>
               <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Kas Shift & Operasional Laci</h1>
+              <p className="text-xs text-slate-500 font-medium">
+                Pencatatan kas masuk & keluar laci kasir dengan verifikasi foto nota & slip bukti kas resmi.
+              </p>
             </div>
           </div>
 
@@ -143,12 +197,12 @@ export default function CashFlowReportPage() {
               className="min-h-[42px] bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 rounded-xl gap-2 shadow-xs cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Input Kas Masuk / Out</span>
+              <span>Input Kas Masuk / Out (Foto Nota)</span>
             </Button>
           </div>
         </div>
 
-        {/* 2. Dark Theme Top Live Cash Drawer Status Banner (Matching Screenshot) */}
+        {/* 2. Top Live Cash Drawer Status Banner */}
         <div className="bg-[#0f172a] text-white p-6 rounded-3xl border border-slate-800 shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shrink-0">
@@ -165,7 +219,7 @@ export default function CashFlowReportPage() {
             </div>
           </div>
 
-          {/* 4 Stat Badges at Top Right */}
+          {/* Stat Badges at Top Right */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0">
             <div className="bg-slate-800/80 p-3 rounded-2xl border border-slate-700/60 min-w-[120px]">
               <span className="text-[10px] font-bold text-slate-400 uppercase block">Modal Awal Laci</span>
@@ -189,73 +243,57 @@ export default function CashFlowReportPage() {
           </div>
         </div>
 
-        {/* 3. Middle Section: Log Rincian Penjualan Offline Shift Karyawan */}
-        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
-            <div className="flex items-center gap-2.5">
-              <span className="text-emerald-600 font-bold text-base">$</span>
-              <h3 className="font-bold text-sm text-slate-900">Log Rincian Penjualan Offline Shift Karyawan</h3>
-              <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5">
-                0 Transaksi Offline
-              </Badge>
-            </div>
-
-            <div className="text-xs font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-              Total Omset Filtered: <strong className="text-slate-900">Rp 0</strong>
-            </div>
-          </div>
-
-          {/* Filter Bar */}
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-1.5 bg-slate-100/70 p-1 rounded-2xl text-xs font-semibold">
-              <button 
-                onClick={() => setFilterPeriod("today")}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${filterPeriod === "today" ? "bg-stone-800 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"}`}
-              >
-                Hari Ini
-              </button>
-              <button 
-                onClick={() => setFilterPeriod("month")}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${filterPeriod === "month" ? "bg-stone-800 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"}`}
-              >
-                Bulan Ini
-              </button>
-              <button 
-                onClick={() => setFilterPeriod("all")}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${filterPeriod === "all" ? "bg-stone-800 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"}`}
-              >
-                Semua
-              </button>
-              <button className="px-3 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5" /> Tanggal
-              </button>
-            </div>
-          </div>
-
-          {/* Empty State Container */}
-          <div className="border border-slate-200/80 rounded-2xl p-10 text-center text-xs text-slate-400 font-medium italic">
-            Belum ada log transaksi penjualan offline pada periode ini.
-          </div>
-        </div>
-
-        {/* 4. Bottom Section: Log Uang Kas Masuk & Kas Keluar (Petty Cash) */}
+        {/* 3. Log Uang Kas Masuk & Kas Keluar (Petty Cash Table) */}
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
             <div>
-              <h3 className="font-bold text-sm text-slate-900">Log Uang Kas Masuk & Kas Keluar (Petty Cash)</h3>
+              <h3 className="font-bold text-sm text-slate-900">Log Kas Masuk & Kas Keluar (Petty Cash)</h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Pengeluaran kas kecil selama shift (pembelian galon, es batu, parkir, kebersihan).
+                Pengeluaran kas kecil selama shift (pembelian bahan, es batu, parkir, galon, dll) lengkap dengan bukti foto nota.
               </p>
             </div>
 
             <Button 
               onClick={() => setShowInputModal(true)}
               size="sm" 
-              variant="outline" 
-              className="text-xs font-semibold min-h-[38px] rounded-xl border-slate-300"
+              className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold min-h-[38px] rounded-xl cursor-pointer gap-1.5"
             >
-              + Tambah Kas
+              <Camera className="w-3.5 h-3.5" />
+              <span>+ Input Kas (Foto Nota)</span>
             </Button>
+          </div>
+
+          {/* Filter Bar */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-1.5 bg-slate-100/70 p-1 rounded-2xl text-xs font-semibold">
+              <button 
+                onClick={() => { setFilterPeriod("today"); setDateRange(undefined); }}
+                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${filterPeriod === "today" && !dateRange ? "bg-stone-800 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"}`}
+              >
+                Hari Ini
+              </button>
+              <button 
+                onClick={() => { setFilterPeriod("month"); setDateRange(undefined); }}
+                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${filterPeriod === "month" && !dateRange ? "bg-stone-800 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"}`}
+              >
+                Bulan Ini
+              </button>
+              <button 
+                onClick={() => { setFilterPeriod("all"); setDateRange(undefined); }}
+                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${filterPeriod === "all" && !dateRange ? "bg-stone-800 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"}`}
+              >
+                Semua
+              </button>
+            </div>
+
+            <DatePickerWithRange
+              date={dateRange}
+              setDate={(range) => {
+                setDateRange(range);
+                if (range?.from) setFilterPeriod("all");
+              }}
+              placeholder="Filter Rentang Tanggal"
+            />
           </div>
 
           {/* Summary Badges */}
@@ -274,20 +312,22 @@ export default function CashFlowReportPage() {
           {/* Table Container */}
           <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
             <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-              <div className="col-span-3">WAKTU</div>
-              <div className="col-span-2">PETUGAS</div>
+              <div className="col-span-3">WAKTU & PETUGAS</div>
               <div className="col-span-2">TIPE</div>
               <div className="col-span-2">JUMLAH (RP)</div>
-              <div className="col-span-2">CATATAN KEPERLUAN</div>
-              <div className="col-span-1 text-right">AKSI</div>
+              <div className="col-span-3">CATATAN & BUKTI</div>
+              <div className="col-span-2 text-right">AKSI / NOTA</div>
             </div>
 
             <div className="divide-y divide-slate-100">
-              {pettyLogs.length > 0 ? (
-                pettyLogs.map((log) => (
+              {filteredPettyLogs.length > 0 ? (
+                filteredPettyLogs.map((log) => (
                   <div key={log.id} className="grid grid-cols-12 px-6 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
-                    <div className="col-span-3 text-slate-500 font-mono text-[11px]">{log.waktu}</div>
-                    <div className="col-span-2 font-bold text-slate-800">{log.petugas}</div>
+                    <div className="col-span-3">
+                      <div className="font-bold text-slate-800">{log.petugas}</div>
+                      <div className="text-slate-400 font-mono text-[11px]">{log.waktu}</div>
+                    </div>
+
                     <div className="col-span-2">
                       {log.tipe === "OUT" ? (
                         <span className="bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-lg inline-flex items-center gap-1">
@@ -299,23 +339,54 @@ export default function CashFlowReportPage() {
                         </span>
                       )}
                     </div>
+
                     <div className="col-span-2 font-extrabold text-slate-900">
                       Rp {Number(log.jumlah).toLocaleString("id-ID")}
                     </div>
-                    <div className="col-span-2 text-slate-600 font-medium truncate">{log.catatan}</div>
-                    <div className="col-span-1 text-right">
+
+                    <div className="col-span-3 text-slate-600 font-medium space-y-1">
+                      <div className="truncate">{log.catatan}</div>
+                      <div className="flex items-center gap-1">
+                        {log.receiptImage ? (
+                          <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                            <Camera className="w-2.5 h-2.5 text-emerald-600" /> Foto Terlampir
+                          </span>
+                        ) : (
+                          <span className="bg-slate-100 text-slate-600 text-[9px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                            <Receipt className="w-2.5 h-2.5 text-slate-500" /> E-Nota Slip
+                          </span>
+                        )}
+                        {log.voucherNumber && (
+                          <span className="text-[10px] text-slate-400 font-mono">#{log.voucherNumber}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="col-span-2 text-right flex items-center justify-end gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedProofTransaction(log)}
+                        className="text-[11px] h-7 px-2.5 rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100 gap-1 cursor-pointer"
+                        title="Buka Popup Bukti Nota"
+                      >
+                        <Eye className="w-3 h-3 text-indigo-600" />
+                        <span>Lihat Nota</span>
+                      </Button>
+
                       <button 
                         onClick={() => handleDeleteLog(log.id)}
                         className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+                        title="Hapus Catatan"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="p-8 text-center text-xs text-slate-400 font-medium">
-                  Belum ada transaksi kas kecil tercatat.
+                  Belum ada transaksi kas kecil tercatat pada periode ini.
                 </div>
               )}
             </div>
@@ -323,75 +394,20 @@ export default function CashFlowReportPage() {
 
         </div>
 
-        {/* Modal Dialog Input Kas Masuk / Out */}
-        {showInputModal && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-3xl border shadow-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between border-b pb-3">
-                <h3 className="font-bold text-sm text-slate-900">Input Kas Masuk / Out (Petty Cash)</h3>
-                <button onClick={() => setShowInputModal(false)} className="text-slate-400 hover:text-slate-700">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+        {/* Modal Dialog Input Kas Masuk / Out (With Receipt Photo & Digital E-Nota) */}
+        <CashInOutModal
+          isOpen={showInputModal}
+          onClose={() => setShowInputModal(false)}
+          onSuccess={handleCashInOutSuccess}
+          currentCashBalance={liveReadyCash}
+        />
 
-              <form onSubmit={handleAddPettyLog} className="space-y-3 text-xs">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Jenis Transaksi Kas</label>
-                  <select
-                    value={entryForm.tipe}
-                    onChange={(e) => setEntryForm({ ...entryForm, tipe: e.target.value })}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 min-h-[40px] text-xs font-semibold"
-                  >
-                    <option value="OUT">Kas Keluar (OUT - Operasional/Belanja)</option>
-                    <option value="IN">Kas Masuk (IN - Tambahan Modal/Selisih)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Jumlah Nominal (Rp) *</label>
-                  <Input
-                    type="number"
-                    placeholder="Contoh: 15000"
-                    value={entryForm.jumlah || ""}
-                    onChange={(e) => setEntryForm({ ...entryForm, jumlah: Number(e.target.value) })}
-                    className="min-h-[40px] text-xs font-semibold"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Petugas / Kasir</label>
-                  <Input
-                    placeholder="Nama Petugas..."
-                    value={entryForm.petugas}
-                    onChange={(e) => setEntryForm({ ...entryForm, petugas: e.target.value })}
-                    className="min-h-[40px] text-xs font-medium"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Catatan Keperluan *</label>
-                  <Input
-                    placeholder="Contoh: Pembelian Es Batu 2 Plastik"
-                    value={entryForm.catatan}
-                    onChange={(e) => setEntryForm({ ...entryForm, catatan: e.target.value })}
-                    className="min-h-[40px] text-xs font-medium"
-                    required
-                  />
-                </div>
-
-                <div className="pt-2 flex gap-2 justify-end">
-                  <Button type="button" variant="outline" onClick={() => setShowInputModal(false)} className="text-xs min-h-[38px] rounded-xl">
-                    Batal
-                  </Button>
-                  <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold min-h-[38px] rounded-xl px-5">
-                    Simpan Transaksi Kas
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        {/* Modal Dialog Bukti Nota / E-Nota Pop-up Preview */}
+        <ReceiptProofModal
+          isOpen={Boolean(selectedProofTransaction)}
+          onClose={() => setSelectedProofTransaction(null)}
+          transaction={selectedProofTransaction}
+        />
 
       </div>
     </AppShell>

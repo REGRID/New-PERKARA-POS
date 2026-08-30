@@ -19,7 +19,8 @@ import {
   Minimize,
   Clock,
   FileText,
-  Wallet
+  Wallet,
+  Camera
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
@@ -31,9 +32,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { bluetoothPrinter } from "@/lib/bluetooth-printer";
 import { useAuth } from "@/lib/auth-context";
 import { MandatoryShiftGate } from "@/components/mandatory-shift-gate";
+import { CashInOutModal, CashTransactionPayload } from "@/components/cash-flow/CashInOutModal";
 
 export default function POSTerminalPage() {
   const { user, isAdmin, switchRole } = useAuth();
+  const [isPettyCashOpen, setIsPettyCashOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<any[]>([]);
@@ -401,6 +404,16 @@ export default function POSTerminalPage() {
               <span className="hidden sm:inline">Transaksi</span>
             </Button>
           </Link>
+
+          <Button
+            size="sm"
+            onClick={() => setIsPettyCashOpen(true)}
+            className="min-h-[38px] text-xs font-bold gap-1.5 px-3 rounded-xl cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white"
+            title="Catat Kas Masuk / Kas Keluar dengan Foto Nota"
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Kas In/Out (Foto Nota)</span>
+          </Button>
 
           <Link href="/reports/cash-flow">
             <Button size="sm" variant="outline" className="min-h-[38px] text-xs gap-1.5 border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700">
@@ -879,6 +892,31 @@ export default function POSTerminalPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Quick Petty Cash In / Out Modal with Photo Receipt & Digital E-Nota */}
+      <CashInOutModal
+        isOpen={isPettyCashOpen}
+        onClose={() => setIsPettyCashOpen(false)}
+        onSuccess={async (data) => {
+          try {
+            await fetch("/api/data?type=save_expense", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                amount: data.amount,
+                note: data.catatan,
+                employeeName: data.petugas,
+                type: data.type,
+                receiptImage: data.receiptImage,
+              }),
+            });
+            alert(`Transaksi Kas ${data.type === "CASH_IN" ? "Masuk" : "Keluar"} Rp ${data.amount.toLocaleString("id-ID")} berhasil dicatat!`);
+          } catch (e) {
+            console.error(e);
+          }
+        }}
+        currentEmployeeName={activeShift?.employeeName || user?.name || "Kasir Outlet"}
+      />
 
     </div>
   );

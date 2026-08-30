@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Receipt, 
   RefreshCw, 
@@ -9,19 +9,22 @@ import {
   Trash2, 
   Eye, 
   Clock, 
-  Calendar, 
-  CreditCard, 
-  CheckCircle2, 
-  XCircle,
-  FileText,
-  User
+  ChevronLeft, 
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  FilterX
 } from "lucide-react";
+import { type DateRange } from "react-day-picker";
+import { startOfDay, endOfDay, isWithinInterval, isSameDay } from "date-fns";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/lib/auth-context";
+import { DatePickerWithRange } from "@/components/ui/date-picker-with-range";
 
 export default function OrdersPage() {
   const { isAdmin } = useAuth();
@@ -32,6 +35,13 @@ export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
+
+  // Date Range filter state
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const fetchOrders = async () => {
     try {
@@ -51,6 +61,11 @@ export default function OrdersPage() {
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  // Reset pagination when search query, status, or date range changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedStatus, dateRange, pageSize]);
 
   const openDetailModal = (order: any) => {
     setSelectedOrder(order);
@@ -102,16 +117,49 @@ export default function OrdersPage() {
     }
   };
 
-  const filteredOrders = orders.filter((o) => {
-    const q = searchQuery.toLowerCase();
-    const matchQuery = (o.orderNumber || "").toLowerCase().includes(q) ||
-                       (o.customerName || "").toLowerCase().includes(q) ||
-                       (o.paymentMethod || "").toLowerCase().includes(q);
-    const matchStatus = selectedStatus === "ALL" || (o.paymentStatus || "PAID") === selectedStatus;
-    return matchQuery && matchStatus;
-  });
+  // Filtered Orders calculation
+  const filteredOrders = useMemo(() => {
+    return orders.filter((o) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchQuery = !q || 
+        (o.orderNumber || "").toLowerCase().includes(q) ||
+        (o.customerName || "").toLowerCase().includes(q) ||
+        (o.paymentMethod || "").toLowerCase().includes(q);
 
-  const totalRevenue = orders.filter(o => o.paymentStatus === "PAID" || !o.paymentStatus).reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
+      const matchStatus = selectedStatus === "ALL" || (o.paymentStatus || "PAID") === selectedStatus;
+
+      // Date filtering
+      let matchDate = true;
+      if (dateRange?.from) {
+        const orderDate = new Date(o.createdAt || o.timestamp);
+        if (dateRange.to) {
+          const from = startOfDay(dateRange.from);
+          const to = endOfDay(dateRange.to);
+          matchDate = isWithinInterval(orderDate, { start: from, end: to });
+        } else {
+          matchDate = isSameDay(orderDate, dateRange.from);
+        }
+      }
+
+      return matchQuery && matchStatus && matchDate;
+    });
+  }, [orders, searchQuery, selectedStatus, dateRange]);
+
+  // Paginated Orders
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+  
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (validCurrentPage - 1) * pageSize;
+    return filteredOrders.slice(startIndex, startIndex + pageSize);
+  }, [filteredOrders, validCurrentPage, pageSize]);
+
+  const totalRevenue = filteredOrders
+    .filter(o => o.paymentStatus === "PAID" || !o.paymentStatus)
+    .reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
+
+  const startRecord = filteredOrders.length > 0 ? (validCurrentPage - 1) * pageSize + 1 : 0;
+  const endRecord = Math.min(validCurrentPage * pageSize, filteredOrders.length);
 
   return (
     <AppShell>
@@ -136,7 +184,7 @@ export default function OrdersPage() {
               </p>
             </div>
 
-            <Button size="sm" variant="outline" onClick={fetchOrders} className="text-xs gap-1.5 min-h-[40px] rounded-xl">
+            <Button size="sm" variant="outline" onClick={fetchOrders} className="text-xs gap-1.5 min-h-[40px] rounded-xl cursor-pointer">
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>Refresh</span>
             </Button>
@@ -150,44 +198,78 @@ export default function OrdersPage() {
             </div>
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
               <div className="text-[11px] font-bold text-slate-400 uppercase">Total Transaksi</div>
-              <div className="text-lg font-extrabold text-slate-900 mt-0.5">{orders.length} Transaksi</div>
+              <div className="text-lg font-extrabold text-slate-900 mt-0.5">{filteredOrders.length} Transaksi</div>
             </div>
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
               <div className="text-[11px] font-bold text-slate-400 uppercase">Transaksi Berhasil</div>
               <div className="text-lg font-extrabold text-emerald-600 mt-0.5">
-                {orders.filter(o => o.paymentStatus === "PAID" || !o.paymentStatus).length} Selesai
+                {filteredOrders.filter(o => o.paymentStatus === "PAID" || !o.paymentStatus).length} Selesai
               </div>
             </div>
           </div>
 
-          {/* Filter Bar */}
-          <div className="flex flex-col sm:flex-row gap-2.5 items-center justify-between">
-            <div className="relative flex-1 w-full">
+          {/* Filter Bar (Search + DatePicker Range + Status) */}
+          <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+            {/* Search Input */}
+            <div className="relative flex-1 w-full min-w-[240px]">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <Input
                 type="text"
                 placeholder="Cari no. struk / order, nama pelanggan, atau metode..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-slate-50 border-slate-200 text-xs font-medium min-h-[38px] rounded-xl"
+                className="pl-9 bg-slate-50 border-slate-200 text-xs font-medium min-h-[38px] rounded-xl w-full"
               />
             </div>
-            <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto">
-              {["ALL", "PAID", "CANCELLED"].map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setSelectedStatus(status)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer shrink-0 ${
-                    selectedStatus === status 
-                      ? "bg-stone-800 text-white" 
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {status === "ALL" ? "Semua Status" : status === "PAID" ? "Lunas (PAID)" : "Dibatalkan (CANCEL)"}
-                </button>
-              ))}
+
+            {/* Date Range Picker & Status Tabs */}
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+              {/* DatePicker Range Component */}
+              <DatePickerWithRange
+                date={dateRange}
+                setDate={setDateRange}
+                placeholder="Pilih Rentang Tanggal"
+                className="w-full sm:w-auto"
+              />
+
+              {/* Status Filter Buttons */}
+              <div className="flex items-center gap-1.5 overflow-x-auto">
+                {["ALL", "PAID", "CANCELLED"].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setSelectedStatus(status)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 min-h-[38px] ${
+                      selectedStatus === status 
+                        ? "bg-stone-800 text-white shadow-xs" 
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {status === "ALL" ? "Semua Status" : status === "PAID" ? "Lunas (PAID)" : "Dibatalkan (CANCEL)"}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
+
+          {/* Active Filter Indicators if any */}
+          {(searchQuery || selectedStatus !== "ALL" || dateRange?.from) && (
+            <div className="flex items-center justify-between bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200/60 text-xs">
+              <span className="text-slate-600 font-medium">
+                Ditemukan <strong className="text-slate-900">{filteredOrders.length}</strong> transaksi sesuai filter aktif.
+              </span>
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedStatus("ALL");
+                  setDateRange(undefined);
+                }}
+                className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <FilterX className="w-3.5 h-3.5" />
+                <span>Reset Semua Filter</span>
+              </button>
+            </div>
+          )}
 
           {/* Inner Data Table Box Container */}
           <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
@@ -202,11 +284,11 @@ export default function OrdersPage() {
 
             {/* Content Rows or Empty State */}
             <div className="divide-y divide-slate-100">
-              {filteredOrders.length > 0 ? (
-                filteredOrders.map((o) => {
+              {paginatedOrders.length > 0 ? (
+                paginatedOrders.map((o) => {
                   const isPaid = (o.paymentStatus || "PAID") === "PAID";
                   const dateStr = o.createdAt ? new Date(o.createdAt).toLocaleString("id-ID", {
-                    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
+                    day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"
                   }) : "-";
 
                   return (
@@ -269,12 +351,114 @@ export default function OrdersPage() {
                   <div>
                     <h4 className="font-bold text-sm text-slate-800">Belum ada riwayat transaksi</h4>
                     <p className="text-xs text-slate-400 mt-1 font-medium">
-                      Transaksi yang dibuat dari kasir POS akan otomatis tercatat di sini.
+                      {searchQuery || dateRange?.from || selectedStatus !== "ALL"
+                        ? "Tidak ada transaksi yang cocok dengan filter yang dipilih."
+                        : "Transaksi yang dibuat dari kasir POS akan otomatis tercatat di sini."}
                     </p>
                   </div>
                 </div>
               )}
             </div>
+
+            {/* Pagination Controls Footer */}
+            {filteredOrders.length > 0 && (
+              <div className="px-6 py-4 bg-slate-50/70 border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+                {/* Info Text & Page Size Selector */}
+                <div className="flex items-center gap-3 text-slate-500 font-medium">
+                  <span>
+                    Menampilkan <strong className="text-slate-800">{startRecord}</strong> - <strong className="text-slate-800">{endRecord}</strong> dari <strong className="text-slate-800">{filteredOrders.length}</strong> transaksi
+                  </span>
+                  <div className="hidden sm:flex items-center gap-1.5 ml-2 pl-3 border-l border-slate-200">
+                    <span className="text-[11px] text-slate-400">Tampilkan:</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => setPageSize(Number(e.target.value))}
+                      className="bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg px-2 py-1 outline-none cursor-pointer"
+                    >
+                      <option value={10}>10 / hal</option>
+                      <option value={20}>20 / hal</option>
+                      <option value={50}>50 / hal</option>
+                      <option value={100}>100 / hal</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Pagination Page Navigation */}
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={validCurrentPage <= 1}
+                    className="h-8 w-8 p-0 rounded-lg cursor-pointer bg-white"
+                    title="Halaman Pertama"
+                  >
+                    <ChevronsLeft className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={validCurrentPage <= 1}
+                    className="h-8 w-8 p-0 rounded-lg cursor-pointer bg-white"
+                    title="Halaman Sebelumnya"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </Button>
+
+                  {/* Page numbers */}
+                  <div className="flex items-center gap-1 px-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((page) => {
+                        return (
+                          page === 1 ||
+                          page === totalPages ||
+                          Math.abs(page - validCurrentPage) <= 1
+                        );
+                      })
+                      .map((page, index, array) => {
+                        const showEllipsis = index > 0 && page - array[index - 1] > 1;
+                        return (
+                          <React.Fragment key={page}>
+                            {showEllipsis && <span className="px-1 text-slate-400">...</span>}
+                            <button
+                              onClick={() => setCurrentPage(page)}
+                              className={`h-8 min-w-[32px] px-2 rounded-lg font-bold text-xs transition-colors cursor-pointer ${
+                                validCurrentPage === page
+                                  ? "bg-stone-800 text-white shadow-xs"
+                                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={validCurrentPage >= totalPages}
+                    className="h-8 w-8 p-0 rounded-lg cursor-pointer bg-white"
+                    title="Halaman Berikutnya"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={validCurrentPage >= totalPages}
+                    className="h-8 w-8 p-0 rounded-lg cursor-pointer bg-white"
+                    title="Halaman Terakhir"
+                  >
+                    <ChevronsRight className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
         </div>
@@ -396,14 +580,14 @@ export default function OrdersPage() {
                   type="button"
                   variant="outline"
                   onClick={() => setIsDetailOpen(false)}
-                  className="text-xs rounded-xl min-h-[38px]"
+                  className="text-xs rounded-xl min-h-[38px] cursor-pointer"
                 >
                   Tutup
                 </Button>
                 <Button
                   type="button"
                   onClick={() => window.print()}
-                  className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold rounded-xl min-h-[38px] gap-1.5"
+                  className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold rounded-xl min-h-[38px] gap-1.5 cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   <span>Cetak Struk</span>

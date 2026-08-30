@@ -96,6 +96,7 @@ export async function getIngredients() {
   try {
     const ingredientModel = db.ingredient || db.Ingredient;
     let ingredients: any[] = [];
+    let queryFailed = false;
     if (ingredientModel) {
       try {
         ingredients = await ingredientModel.findMany({
@@ -105,11 +106,12 @@ export async function getIngredients() {
           ],
         });
       } catch {
+        queryFailed = true;
         ingredients = [];
       }
     }
 
-    if (!ingredients || ingredients.length === 0) {
+    if (!queryFailed && (!ingredients || ingredients.length === 0)) {
       if (ingredientModel) {
         for (const seed of DEFAULT_SEED_INGREDIENTS) {
           try {
@@ -268,6 +270,7 @@ export async function getMenusWithRecipes() {
   try {
     const menuModel = db.menu || db.Menu;
     let menus: any[] = [];
+    let queryFailed = false;
     if (menuModel) {
       try {
         menus = await menuModel.findMany({
@@ -281,11 +284,12 @@ export async function getMenusWithRecipes() {
           orderBy: { name: "asc" },
         });
       } catch {
+        queryFailed = true;
         menus = [];
       }
     }
 
-    if (!menus || menus.length === 0) {
+    if (!queryFailed && (!menus || menus.length === 0)) {
       if (menuModel) {
         for (const seed of DEFAULT_SEED_MENUS) {
           try {
@@ -754,15 +758,17 @@ export async function getCategories() {
   try {
     const catModel = db.category || db.Category;
     let categories: any[] = [];
+    let queryFailed = false;
     if (catModel) {
       try {
         categories = await catModel.findMany({ orderBy: { name: "asc" } });
       } catch {
+        queryFailed = true;
         categories = [];
       }
     }
 
-    if (!categories || categories.length === 0) {
+    if (!queryFailed && (!categories || categories.length === 0)) {
       if (catModel) {
         for (const seed of DEFAULT_SEED_CATEGORIES) {
           try {
