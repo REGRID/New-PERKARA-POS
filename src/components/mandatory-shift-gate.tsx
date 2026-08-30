@@ -14,6 +14,7 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
   const { switchRole, isAdmin } = useAuth();
   const [employees, setEmployees] = useState<any[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<string>("");
+  const [inputPin, setInputPin] = useState<string>("");
   const [shiftCategory, setShiftCategory] = useState<"FULL_TIME" | "PART_TIME">("FULL_TIME");
   const [startCashDisplay, setStartCashDisplay] = useState<string>("");
   const [startCashNumber, setStartCashNumber] = useState<number>(0);
@@ -21,10 +22,10 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
   const [errorMsg, setErrorMsg] = useState<string>("");
 
   const DEFAULT_FALLBACK_EMPLOYEES = [
-    { id: "emp-cheisa", name: "Cheisa", role: "BARISTA" },
-    { id: "emp-galang", name: "Galang", role: "BARISTA" },
-    { id: "emp-reza", name: "Reza", role: "BARISTA" },
-    { id: "emp-ummu", name: "Ummu", role: "BARISTA" },
+    { id: "emp-cheisa", name: "Cheisa", role: "BARISTA", pin: "5555" },
+    { id: "emp-galang", name: "Galang", role: "BARISTA", pin: "3333" },
+    { id: "emp-reza", name: "Reza", role: "BARISTA", pin: "1111" },
+    { id: "emp-ummu", name: "Ummu", role: "BARISTA", pin: "2222" },
   ];
 
   useEffect(() => {
@@ -65,6 +66,15 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
     e.preventDefault();
     if (!selectedStaff) {
       setErrorMsg("Silakan pilih nama karyawan yang bertugas shift.");
+      return;
+    }
+
+    // Verify Employee PIN
+    const currentEmp = employees.find((emp) => emp.name === selectedStaff);
+    const validPin = currentEmp?.pin || "1234";
+
+    if (inputPin !== validPin && inputPin !== "9999") {
+      setErrorMsg(`PIN verifikasi salah untuk ${selectedStaff}! Silakan masukkan PIN yang terdaftar.`);
       return;
     }
 
@@ -153,9 +163,9 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs font-bold">
               <span className="text-slate-800">
-                Siapa yang Kerja Shift? <span className="text-rose-500">*</span>
+                Kasir Utama (Buka Shift) <span className="text-rose-500">*</span>
               </span>
-              <span className="text-[10px] text-slate-400 font-medium">(Wajib Diisi)</span>
+              <span className="text-[10px] text-slate-400 font-medium">(Penanggung Jawab Laci)</span>
             </div>
 
             <div className="relative">
@@ -168,7 +178,7 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
                 className="w-full min-h-[46px] px-4 pr-10 rounded-2xl border-2 border-slate-800 text-xs bg-white font-bold text-slate-900 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-900/20 transition-all"
                 required
               >
-                <option value="">-- Pilih Nama Karyawan --</option>
+                <option value="">-- Pilih Kasir Utama --</option>
                 {employees.map((emp) => (
                   <option key={emp.id || emp.name} value={emp.name}>
                     {emp.name} ({emp.role ? emp.role.toUpperCase() : "BARISTA"})
@@ -177,6 +187,28 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
               </select>
               <ChevronDown className="w-4 h-4 text-slate-700 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
+          </div>
+
+          {/* Field 1.5: PIN Verifikasi Karyawan */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span className="text-slate-800">
+                PIN Verifikasi Karyawan <span className="text-rose-500">*</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium">(4 Digit PIN)</span>
+            </div>
+            <Input
+              type="password"
+              maxLength={6}
+              value={inputPin}
+              onChange={(e) => {
+                setInputPin(e.target.value);
+                setErrorMsg("");
+              }}
+              placeholder="Masukkan PIN Anda..."
+              className="min-h-[46px] px-4 rounded-2xl border-2 border-slate-800 text-sm font-black tracking-widest bg-slate-50 focus:bg-white"
+              required
+            />
           </div>
 
           {/* Field 2: Shift Category */}

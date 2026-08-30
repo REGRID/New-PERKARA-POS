@@ -56,24 +56,113 @@ export async function GET(req: Request) {
       const rawLogs = await shiftModel.findMany({
         where: whereClause,
         orderBy: { startTime: "desc" },
-        include: { employee: true },
+        include: { employee: true, transactions: true },
       });
 
-      calendarLogs = rawLogs.map((l: any) => ({
-        id: l.id,
-        employeeId: l.employeeId,
-        employeeName: l.employeeName || l.employee?.name || "Karyawan",
-        type: l.type || (l.status === "CLOSED" ? "SHIFT_OUT" : "SHIFT_IN"),
-        shiftCategory: l.shiftCategory || "FULL_TIME",
-        timestamp: (l.timestamp || l.startTime || new Date()).toISOString(),
-        startingCash: Number(l.startingCash || l.startCash || 0),
-        cashVerified: Number(l.cashVerified || l.endCash || 0),
-        cashExpected: Number(l.cashExpected || l.expectedCash || 0),
-        cashDiscrepancy: Number(l.cashDiscrepancy || l.difference || 0),
-        cashNote: l.cashNote || (l.status === "CLOSED" ? "Closing shift" : "Buka shift"),
-        stockReport: l.stockReport || null,
-        status: l.status || "OPEN",
-      }));
+      // Also fetch related CashTransactions, Orders & Purchases for this month
+      const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
+      const orderModel = db.order || db.Order;
+      const purModel = db.purchase || db.Purchase;
+
+      let allMonthCashTx: any[] = [];
+      let allMonthOrders: any[] = [];
+      let allMonthPurchases: any[] = [];
+
+      if (cashTxModel) {
+        try {
+          allMonthCashTx = await cashTxModel.findMany({
+            where: {
+              timestamp: { gte: startDate, lte: endDate },
+            },
+            orderBy: { timestamp: "desc" },
+          });
+        } catch {}
+      }
+
+      if (orderModel) {
+        try {
+          allMonthOrders = await orderModel.findMany({
+            where: {
+              createdAt: { gte: startDate, lte: endDate },
+            },
+            orderBy: { createdAt: "desc" },
+            include: { items: true },
+          });
+        } catch {}
+      }
+
+      if (purModel) {
+        try {
+          allMonthPurchases = await purModel.findMany({
+            where: {
+              purchaseDate: { gte: startDate, lte: endDate },
+            },
+            orderBy: { purchaseDate: "desc" },
+          });
+        } catch {}
+      }
+
+      calendarLogs = rawLogs.map((l: any) => {
+        const logDateStr = new Date(l.timestamp || l.startTime).toDateString();
+
+        // 1. Matched Cash Transactions
+        const directTx = l.transactions || [];
+        const matchedTx = allMonthCashTx.filter((tx: any) => 
+          tx.shiftLogId === l.id || 
+          (tx.employeeName && tx.employeeName.toLowerCase() === (l.employeeName || "").toLowerCase() &&
+           new Date(tx.timestamp).toDateString() === logDateStr)
+        );
+        const mergedTx = Array.from(new Map([...directTx, ...matchedTx].map(t => [t.id, t])).values());
+
+        // 2. Matched POS Orders during this shift / date
+        const matchedOrders = allMonthOrders.filter((ord: any) =>
+          ord.shiftLogId === l.id || new Date(ord.createdAt).toDateString() === logDateStr
+        );
+
+        // 3. Matched Purchases / Stock In during this shift / date
+        const matchedPurchases = allMonthPurchases.filter((p: any) =>
+          new Date(p.purchaseDate).toDateString() === logDateStr
+        );
+
+        return {
+          id: l.id,
+          employeeId: l.employeeId,
+          employeeName: l.employeeName || l.employee?.name || "Karyawan",
+          type: l.type || (l.status === "CLOSED" ? "SHIFT_OUT" : "SHIFT_IN"),
+          shiftCategory: l.shiftCategory || "FULL_TIME",
+          timestamp: (l.timestamp || l.startTime || new Date()).toISOString(),
+          startingCash: Number(l.startingCash || l.startCash || 0),
+          cashVerified: Number(l.cashVerified || l.endCash || 0),
+          cashExpected: Number(l.cashExpected || l.expectedCash || 0),
+          cashDiscrepancy: Number(l.cashDiscrepancy || l.difference || 0),
+          cashNote: l.cashNote || (l.status === "CLOSED" ? "Closing shift" : "Buka shift"),
+          stockReport: l.stockReport || null,
+          status: l.status || "OPEN",
+          transactions: mergedTx.map((t: any) => ({
+            id: t.id,
+            amount: Number(t.amount) || 0,
+            type: t.type,
+            note: t.note,
+            employeeName: t.employeeName,
+            timestamp: t.timestamp ? new Date(t.timestamp).toISOString() : new Date().toISOString(),
+          })),
+          orders: matchedOrders.map((o: any) => ({
+            id: o.id,
+            orderNumber: o.orderNumber,
+            totalAmount: Number(o.totalAmount) || 0,
+            paymentMethod: o.paymentMethod || "CASH",
+            itemCount: o.items ? o.items.length : 1,
+            time: new Date(o.createdAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          })),
+          purchases: matchedPurchases.map((p: any) => ({
+            id: p.id,
+            itemName: p.itemName,
+            quantity: Number(p.quantity) || 1,
+            totalPrice: Number(p.totalPrice) || 0,
+            supplierName: p.supplierName,
+          })),
+        };
+      });
     }
 
     // 3. Active Shifts
@@ -84,14 +173,14 @@ export async function GET(req: Request) {
 
     for (const log of sortedLogs) {
       if (!employeeActiveMap.has(log.employeeName)) {
-        if (log.type === "SHIFT_IN" || log.status === "OPEN") {
+        if ((log.type === "SHIFT_IN" || log.status === "OPEN") && log.status !== "CLOSED" && log.type !== "SHIFT_OUT") {
           employeeActiveMap.set(log.employeeName, log);
         } else {
           employeeActiveMap.set(log.employeeName, null);
         }
       }
     }
-    const activeShifts = Array.from(employeeActiveMap.values()).filter((shift) => shift !== null);
+    const activeShifts = Array.from(employeeActiveMap.values()).filter((shift) => Boolean(shift));
 
     return NextResponse.json({
       success: true,
@@ -126,6 +215,7 @@ export async function POST(req: Request) {
 
     if (action === "shift-in" || type === "SHIFT_IN") {
       const startAmount = Number(startingCash) || 0;
+
       const newLog = {
         employeeId: empRecord?.id || null,
         employeeName: employeeName,
@@ -140,7 +230,7 @@ export async function POST(req: Request) {
       };
 
       const created = shiftModel ? await shiftModel.create({ data: newLog }) : newLog;
-      return NextResponse.json({ success: true, message: `Absen masuk berhasil: ${employeeName}`, log: created });
+      return NextResponse.json({ success: true, message: "Shift berhasil dibuka", log: created });
     }
 
     if (action === "shift-out" || type === "SHIFT_OUT") {
@@ -149,6 +239,24 @@ export async function POST(req: Request) {
       const discrepancy = verified - startAmount;
 
       const reportText = `=== LAPORAN CLOSING SHIFT PERKARA KOPI ===\nNama Kasir: ${employeeName}\nTanggal: ${logDate.toLocaleString("id-ID")}\nModal Awal: Rp ${startAmount.toLocaleString("id-ID")}\nKas Fisik Laci: Rp ${verified.toLocaleString("id-ID")}\nSelisih Kas: Rp ${discrepancy.toLocaleString("id-ID")}\nCatatan: ${note || "-"}`;
+
+      // Update any currently open shift records for this employee to CLOSED
+      if (shiftModel) {
+        try {
+          await shiftModel.updateMany({
+            where: {
+              employeeName: employeeName,
+              status: "OPEN",
+            },
+            data: {
+              status: "CLOSED",
+              endTime: logDate,
+            },
+          });
+        } catch (updateErr) {
+          console.warn("Error closing previous shift logs:", updateErr);
+        }
+      }
 
       const newLog = {
         employeeId: empRecord?.id || null,
@@ -172,7 +280,7 @@ export async function POST(req: Request) {
       const created = shiftModel ? await shiftModel.create({ data: newLog }) : newLog;
       return NextResponse.json({
         success: true,
-        message: `Closing shift berhasil: ${employeeName}`,
+        message: `Tutup shift berhasil: ${employeeName}`,
         stockReportText: reportText,
         log: created,
       });
@@ -251,17 +359,22 @@ export async function DELETE(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-
-    if (!id) {
-      return NextResponse.json({ error: "ID is required" }, { status: 400 });
-    }
+    const clearAll = searchParams.get("clearAll");
 
     const shiftModel = db.shiftLog || db.shiftlog || db.ShiftLog;
     if (shiftModel) {
-      await shiftModel.delete({ where: { id } });
+      if (id === "ALL" || clearAll === "true") {
+        await shiftModel.deleteMany({});
+        return NextResponse.json({ success: true, message: "Semua log absensi berhasil dibersihkan" });
+      }
+
+      if (id) {
+        await shiftModel.delete({ where: { id } });
+        return NextResponse.json({ success: true, message: "Log absen berhasil dihapus" });
+      }
     }
 
-    return NextResponse.json({ success: true, message: "Log absen berhasil dihapus" });
+    return NextResponse.json({ error: "ID or clearAll is required" }, { status: 400 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Failed to delete" }, { status: 500 });
   }

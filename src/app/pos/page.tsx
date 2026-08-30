@@ -318,6 +318,11 @@ export default function POSTerminalPage() {
         setClosingCash(0);
         setClosingCashDisplay("");
         setClosingNote("");
+        setCart([]);
+        setAmountPaid(0);
+        setPaymentMethod("CASH");
+        setSelectedCategory("Semua");
+        setSearchQuery("");
         await fetchActiveShift();
       }
     } catch (err) {
@@ -327,8 +332,8 @@ export default function POSTerminalPage() {
     }
   };
 
-  // Mandatory Shift Gate: Blocks Karyawan if no shift is active
-  if (!isAdmin && !activeShift && !checkingShift) {
+  // Mandatory Shift Gate: Blocks terminal and resets to default shift opening gate if no shift is active
+  if (!activeShift && !checkingShift) {
     return (
       <MandatoryShiftGate
         onShiftOpened={(newShift) => {

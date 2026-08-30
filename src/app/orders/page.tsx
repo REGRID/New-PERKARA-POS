@@ -36,8 +36,14 @@ export default function OrdersPage() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
 
-  // Date Range filter state
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  // Filter Mode (Default: TODAY)
+  const [filterMode, setFilterMode] = useState<"TODAY" | "ALL" | "CUSTOM">("TODAY");
+
+  // Date Range filter state (Default: Today)
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => ({
+    from: startOfDay(new Date()),
+    to: endOfDay(new Date()),
+  }));
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -193,11 +199,15 @@ export default function OrdersPage() {
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <div className="text-[11px] font-bold text-slate-400 uppercase">Total Omset Sukses</div>
+              <div className="text-[11px] font-bold text-slate-400 uppercase">
+                {filterMode === "TODAY" ? "Total Omset Hari Ini" : filterMode === "ALL" ? "Total Omset Semua Riwayat" : "Total Omset Periode"}
+              </div>
               <div className="text-lg font-extrabold text-slate-900 mt-0.5">Rp {totalRevenue.toLocaleString("id-ID")}</div>
             </div>
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <div className="text-[11px] font-bold text-slate-400 uppercase">Total Transaksi</div>
+              <div className="text-[11px] font-bold text-slate-400 uppercase">
+                {filterMode === "TODAY" ? "Transaksi Hari Ini" : "Total Transaksi"}
+              </div>
               <div className="text-lg font-extrabold text-slate-900 mt-0.5">{filteredOrders.length} Transaksi</div>
             </div>
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
@@ -208,32 +218,69 @@ export default function OrdersPage() {
             </div>
           </div>
 
-          {/* Filter Bar (Search + DatePicker Range + Status) */}
-          <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
-            {/* Search Input */}
-            <div className="relative flex-1 w-full min-w-[240px]">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <Input
-                type="text"
-                placeholder="Cari no. struk / order, nama pelanggan, atau metode..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-slate-50 border-slate-200 text-xs font-medium min-h-[38px] rounded-xl w-full"
-              />
-            </div>
+          {/* Mode Selector & Filter Bar (Hari Ini vs Semua Riwayat + Search + DatePicker Range + Status) */}
+          <div className="space-y-3">
+            <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+              {/* Search Input */}
+              <div className="relative flex-1 w-full min-w-[240px]">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Input
+                  type="text"
+                  placeholder="Cari no. struk / order, nama pelanggan, atau metode..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 bg-slate-50 border-slate-200 text-xs font-medium min-h-[38px] rounded-xl w-full"
+                />
+              </div>
 
-            {/* Date Range Picker & Status Tabs */}
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+              {/* View Mode Toggle: Hari Ini (Default) vs Semua Riwayat */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterMode("TODAY");
+                    setDateRange({
+                      from: startOfDay(new Date()),
+                      to: endOfDay(new Date()),
+                    });
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    filterMode === "TODAY"
+                      ? "bg-emerald-600 text-white shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  📅 Hari Ini (Default)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterMode("ALL");
+                    setDateRange(undefined);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    filterMode === "ALL"
+                      ? "bg-slate-900 text-white shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  🌐 Semua Riwayat Transaksi
+                </button>
+              </div>
+
               {/* DatePicker Range Component */}
               <DatePickerWithRange
                 date={dateRange}
-                setDate={setDateRange}
+                setDate={(range) => {
+                  setFilterMode(range ? "CUSTOM" : "ALL");
+                  setDateRange(range);
+                }}
                 placeholder="Pilih Rentang Tanggal"
-                className="w-full sm:w-auto"
+                className="w-full lg:w-auto"
               />
 
               {/* Status Filter Buttons */}
-              <div className="flex items-center gap-1.5 overflow-x-auto">
+              <div className="flex items-center gap-1.5 overflow-x-auto shrink-0">
                 {["ALL", "PAID", "CANCELLED"].map((status) => (
                   <button
                     key={status}
@@ -252,24 +299,30 @@ export default function OrdersPage() {
           </div>
 
           {/* Active Filter Indicators if any */}
-          {(searchQuery || selectedStatus !== "ALL" || dateRange?.from) && (
-            <div className="flex items-center justify-between bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200/60 text-xs">
-              <span className="text-slate-600 font-medium">
-                Ditemukan <strong className="text-slate-900">{filteredOrders.length}</strong> transaksi sesuai filter aktif.
-              </span>
+          <div className="flex items-center justify-between bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200/60 text-xs">
+            <span className="text-slate-600 font-medium">
+              {filterMode === "TODAY" ? (
+                <>📅 Menampilkan <strong className="text-slate-900">Transaksi Hari Ini</strong> ({filteredOrders.length} transaksi)</>
+              ) : filterMode === "ALL" ? (
+                <>🌐 Menampilkan <strong className="text-slate-900">Semua Histori Transaksi</strong> ({filteredOrders.length} transaksi)</>
+              ) : (
+                <>📆 Menampilkan Transaksi Rentang Tanggal Terpilih ({filteredOrders.length} transaksi)</>
+              )}
+            </span>
+            
+            {filterMode !== "ALL" && (
               <button
+                type="button"
                 onClick={() => {
-                  setSearchQuery("");
-                  setSelectedStatus("ALL");
+                  setFilterMode("ALL");
                   setDateRange(undefined);
                 }}
                 className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer"
               >
-                <FilterX className="w-3.5 h-3.5" />
-                <span>Reset Semua Filter</span>
+                <span>Lihat Semua Riwayat &rarr;</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Inner Data Table Box Container */}
           <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">

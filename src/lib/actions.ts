@@ -1177,9 +1177,27 @@ export async function getExpenses() {
   }
 }
 
-export async function saveExpense(data: { id?: string; amount: number; note?: string; employeeName?: string }) {
+export async function saveExpense(data: { id?: string; amount: number; note?: string; employeeName?: string; type?: string; shiftLogId?: string }) {
   try {
     const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
+    const shiftModel = db.shiftLog || db.shiftlog || db.ShiftLog;
+
+    let activeShiftId = data.shiftLogId;
+    if (!activeShiftId && shiftModel && data.employeeName) {
+      try {
+        const foundShift = await shiftModel.findFirst({
+          where: {
+            employeeName: data.employeeName,
+            status: "OPEN",
+          },
+          orderBy: { startTime: "desc" },
+        });
+        if (foundShift) activeShiftId = foundShift.id;
+      } catch {}
+    }
+
+    const txType = data.type === "CASH_IN" || data.type === "IN" ? "CASH_IN" : "CASH_OUT";
+
     if (data.id) {
       return await cashTxModel.update({
         where: { id: data.id },
@@ -1187,15 +1205,18 @@ export async function saveExpense(data: { id?: string; amount: number; note?: st
           amount: Number(data.amount) || 0,
           note: data.note || "Beban Operasional",
           employeeName: data.employeeName || "Staf Outlet",
+          type: txType,
+          shiftLogId: activeShiftId || undefined,
         },
       });
     }
     return await cashTxModel.create({
       data: {
-        type: "CASH_OUT",
+        type: txType,
         amount: Number(data.amount) || 0,
         note: data.note || "Beban Operasional",
         employeeName: data.employeeName || "Staf Outlet",
+        shiftLogId: activeShiftId || undefined,
       },
     });
   } catch (err) {
