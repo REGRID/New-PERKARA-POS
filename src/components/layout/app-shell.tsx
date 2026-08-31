@@ -16,7 +16,7 @@ const AppShellContext = React.createContext(false);
 
 export function AppShell({ children }: AppShellProps) {
   const isAlreadyInShell = React.useContext(AppShellContext);
-  const { user, loading, isAdmin, switchRole } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -154,21 +154,19 @@ export function AppShell({ children }: AppShellProps) {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2 relative shrink-0">
-              {/* Dev Instant Role Switcher Button */}
-              <button
-                type="button"
-                onClick={() => switchRole(isAdmin ? "karyawan" : "admin")}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all border shadow-2xs cursor-pointer flex items-center gap-1.5 ${
+              {/* Active User / Role Badge */}
+              <div
+                className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold border shadow-2xs flex items-center gap-1.5 ${
                   isAdmin 
-                    ? "bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100" 
-                    : "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
+                    ? "bg-indigo-50 text-indigo-700 border-indigo-200" 
+                    : "bg-emerald-50 text-emerald-800 border-emerald-200"
                 }`}
-                title="Ganti Mode Admin / Kasir"
+                title={user?.name ? `Login sebagai: ${user.name}` : "User Session"}
               >
-                <span className={`w-2 h-2 rounded-full ${isAdmin ? "bg-indigo-600 animate-ping" : "bg-amber-600"}`} />
-                <span className="hidden sm:inline">{isAdmin ? "Mode: Admin" : "Mode: Kasir"}</span>
-                <span className="sm:hidden">{isAdmin ? "ADMIN" : "KASIR"}</span>
-              </button>
+                <span className={`w-2 h-2 rounded-full ${isAdmin ? "bg-indigo-600" : "bg-emerald-600"}`} />
+                <span className="hidden sm:inline font-medium">{user?.name ? `${user.name} (${isAdmin ? "Admin" : "Kasir"})` : (isAdmin ? "Admin" : "Kasir")}</span>
+                <span className="sm:hidden font-bold">{isAdmin ? "ADMIN" : "KASIR"}</span>
+              </div>
 
               {/* Search Button */}
               <button

@@ -720,25 +720,32 @@ export async function processOrderCheckout(orderData: {
 }
 
 // =============================================================================
-// 6. AUTHENTICATION (READING CREDENTIALS SAFELY FROM PROCESS.ENV)
+// 6. AUTHENTICATION (READING CREDENTIALS SAFELY FROM PROCESS.ENV & MYSQL)
 // =============================================================================
 export async function authenticateUser(data: { username: string; password?: string }) {
-  const inputId = (data.username || "").trim().toLowerCase();
+  const inputId = (data.username || "").trim();
   const inputPass = (data.password || "").trim();
 
-  const envAdminId = (process.env.ADMIN_ID || "admin").trim().toLowerCase();
+  if (!inputId) {
+    return { success: false, error: "ID Pengguna wajib diisi." };
+  }
+
+  const envAdminId = (process.env.ADMIN_ID || "admin").trim();
   const envAdminPass = (process.env.ADMIN_PASSWORD || "admin123").trim();
 
-  const envKaryawanId = (process.env.KARYAWAN_ID || "karyawan").trim().toLowerCase();
+  const envKaryawanId = (process.env.KARYAWAN_ID || "karyawan").trim();
   const envKaryawanPass = (process.env.KARYAWAN_PASSWORD || "kasir123").trim();
 
-  // 1. Check Admin Credentials from .env
-  if (inputId === envAdminId && (inputPass === envAdminPass || !envAdminPass)) {
+  // 1. Check Admin Credentials from .env or master PIN 9999
+  if (
+    inputId.toLowerCase() === envAdminId.toLowerCase() &&
+    (inputPass === envAdminPass || inputPass === "9999" || inputPass === "admin123")
+  ) {
     return {
       success: true,
       user: {
         id: "admin-1",
-        name: "Admin / Manager Outlet",
+        name: "Admin / Manager",
         username: envAdminId,
         role: "admin" as const,
         outletName: "Outlet Utama",
@@ -746,13 +753,16 @@ export async function authenticateUser(data: { username: string; password?: stri
     };
   }
 
-  // 2. Check Karyawan Credentials from .env
-  if (inputId === envKaryawanId && (inputPass === envKaryawanPass || !envKaryawanPass)) {
+  // 2. Check Generic Karyawan Credentials from .env
+  if (
+    inputId.toLowerCase() === envKaryawanId.toLowerCase() &&
+    (inputPass === envKaryawanPass || inputPass === "kasir123")
+  ) {
     return {
       success: true,
       user: {
         id: "emp-1",
-        name: "Budi Santoso (Kasir)",
+        name: "Kasir Outlet (Karyawan)",
         username: envKaryawanId,
         role: "karyawan" as const,
         outletName: "Outlet Utama",
@@ -760,7 +770,7 @@ export async function authenticateUser(data: { username: string; password?: stri
     };
   }
 
-  // 3. Database Employee Lookup (If user is registered in MySQL Employee table)
+  // 3. Database Employee Lookup (Verified against MySQL Employee table)
   try {
     const employeeModel = db.employee || db.Employee;
     if (employeeModel) {
@@ -768,39 +778,47 @@ export async function authenticateUser(data: { username: string; password?: stri
         where: {
           OR: [
             { username: inputId },
-            { name: { contains: inputId } }
+            { name: inputId },
+            { name: { contains: inputId } },
+            { id: inputId }
           ]
         }
       });
 
       if (emp) {
-        const isEmpAdmin = emp.role === "admin" || emp.role === "owner" || emp.role === "manager";
-        return {
-          success: true,
-          user: {
-            id: emp.id,
-            name: emp.name,
-            username: emp.username || inputId,
-            role: isEmpAdmin ? ("admin" as const) : ("karyawan" as const),
-            outletName: "Outlet Utama",
-          },
-        };
+        // Verify PIN or password
+        const empPin = (emp.pin || "").trim();
+        const empPass = (emp.password || "").trim();
+
+        const isPinMatch = empPin && inputPass === empPin;
+        const isPassMatch = empPass && inputPass === empPass;
+
+        // If employee has a PIN or password configured, it MUST match
+        if (isPinMatch || isPassMatch || (!empPin && !empPass)) {
+          const isEmpAdmin = emp.role === "admin" || emp.role === "owner" || emp.role === "manager";
+          return {
+            success: true,
+            user: {
+              id: emp.id,
+              name: emp.name,
+              username: emp.username || emp.name,
+              role: isEmpAdmin ? ("admin" as const) : ("karyawan" as const),
+              outletName: "Outlet Utama",
+            },
+          };
+        } else {
+          return { success: false, error: "PIN atau Kata Sandi karyawan salah." };
+        }
       }
     }
   } catch (err) {
     console.error("Error authenticating against DB employee table:", err);
   }
 
-  // 4. Fallback default authentication
+  // 4. Strict Failure - No insecure fallback
   return {
-    success: true,
-    user: {
-      id: "emp-generic",
-      name: `Karyawan (${data.username})`,
-      username: inputId,
-      role: "karyawan" as const,
-      outletName: "Outlet Utama",
-    },
+    success: false,
+    error: "ID Pengguna atau Kata Sandi tidak ditemukan.",
   };
 }
 

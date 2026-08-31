@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireRole, getAuthSession } from "@/lib/authHelper";
 import { 
   getDashboardData, 
   getIngredients, 
@@ -51,6 +52,29 @@ import {
   saveSystemSetting
 } from "@/lib/actions";
 
+// Actions strictly restricted to Admin / Owner / Manager
+const ADMIN_ONLY_ACTIONS = new Set([
+  "save_employee",
+  "delete_employee",
+  "delete_attendance",
+  "save_menu_settings",
+  "delete_menu",
+  "delete_ingredient",
+  "save_category",
+  "delete_category",
+  "save_purchase",
+  "delete_purchase",
+  "save_discount",
+  "delete_discount",
+  "delete_order",
+  "delete_all_orders",
+  "delete_customer",
+  "delete_expense",
+  "save_payment_method",
+  "delete_payment_method",
+  "save_setting",
+]);
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
@@ -71,7 +95,12 @@ export async function GET(request: Request) {
     if (type === "payment_methods") return NextResponse.json(await getPaymentMethods());
     if (type === "settings") return NextResponse.json(await getSystemSettings());
 
-    // Default: Dashboard data
+    // Default: Dashboard data (Admin only)
+    const session = await getAuthSession(request);
+    if (session && session.role === "karyawan") {
+      return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+    }
+
     const data = await getDashboardData();
     return NextResponse.json(data);
   } catch (error: any) {
@@ -86,13 +115,24 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    if (type === "login") return NextResponse.json(await authenticateUser(body));
+    // 1. Public Authentication Action
+    if (type === "login") {
+      return NextResponse.json(await authenticateUser(body));
+    }
+
+    // 2. Check Admin Permission for Sensitive Actions
+    if (type && ADMIN_ONLY_ACTIONS.has(type)) {
+      const { errorResponse } = await requireRole(request, ["admin"]);
+      if (errorResponse) return errorResponse;
+    }
+
+    // 3. Operational & Inventory
     if (type === "update_stock") return NextResponse.json(await updateIngredientStock(body));
     if (type === "update_ingredient_detail") return NextResponse.json(await updateIngredientDetail(body));
     if (type === "delete_ingredient") return NextResponse.json(await deleteIngredient(body.id));
     if (type === "ingredient") return NextResponse.json(await createIngredient(body));
     
-    // Menus & Addons
+    // 4. Menus & Addons
     if (type === "save_menu_settings") return NextResponse.json(await saveMenuSettings(body));
     if (type === "delete_menu") return NextResponse.json(await deleteMenu(body.id));
     if (type === "save_addon_category") return NextResponse.json(await saveAddonCategory(body));
@@ -100,13 +140,13 @@ export async function POST(request: Request) {
     if (type === "save_addon_item") return NextResponse.json(await saveAddonItem(body));
     if (type === "delete_addon_item") return NextResponse.json(await deleteAddonItem(body.id));
     
-    // Checkout & Orders
+    // 5. Checkout & Orders
     if (type === "checkout") return NextResponse.json(await processOrderCheckout(body));
     if (type === "update_order_status") return NextResponse.json(await updateOrderStatus(body));
     if (type === "delete_order") return NextResponse.json(await deleteOrder(body.id));
     if (type === "delete_all_orders") return NextResponse.json(await deleteAllOrders());
     
-    // Extended Modules POST Handlers
+    // 6. Extended Modules POST Handlers
     if (type === "save_employee") return NextResponse.json(await saveEmployee(body));
     if (type === "delete_employee") return NextResponse.json(await deleteEmployee(body.id));
     if (type === "save_attendance") return NextResponse.json(await saveAttendanceRecord(body));

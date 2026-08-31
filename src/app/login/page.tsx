@@ -38,21 +38,22 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/data?type=login", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: inputId, password: inputPass }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.user) {
-          login(data.user);
-          router.push(data.user.role === "admin" ? "/" : "/pos");
-          return;
-        }
+      const data = await res.json();
+
+      if (res.ok && data.success && data.user) {
+        login(data.user);
+        router.push(data.user.role === "admin" ? "/" : "/pos");
+        router.refresh();
+        return;
+      } else {
+        setErrorMsg(data.error || "ID Pengguna atau Kata Sandi salah.");
       }
-      setErrorMsg("ID Pengguna atau Password salah.");
     } catch (err) {
       console.error("Login error:", err);
       setErrorMsg("Gagal menghubungi server autentikasi.");

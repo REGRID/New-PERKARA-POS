@@ -11,7 +11,7 @@ interface MandatoryShiftGateProps {
 }
 
 export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
-  const { switchRole, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const [employees, setEmployees] = useState<any[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<string>("");
   const [inputPin, setInputPin] = useState<string>("");
@@ -104,19 +104,6 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
       
       {/* Centered Modal Card */}
       <div className="max-w-[440px] w-full bg-white rounded-[28px] p-7 md:p-8 shadow-2xl space-y-6 text-slate-900 border border-slate-100/40 relative animate-in fade-in zoom-in-95 duration-200">
-        
-        {/* Top Dev Mode Switcher (Subtle) */}
-        <div className="absolute right-6 top-6">
-          <button
-            type="button"
-            onClick={() => switchRole("admin")}
-            className="text-[10px] text-slate-400 hover:text-slate-700 font-semibold px-2 py-1 rounded bg-slate-100/60 hover:bg-slate-200 transition-colors"
-            title="Beralih ke mode Admin"
-          >
-            Mode Admin
-          </button>
-        </div>
-
         {/* Coffee Cup Icon */}
         <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center mx-auto shadow-md">
           <Coffee className="w-7 h-7 text-amber-400" />

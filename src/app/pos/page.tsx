@@ -35,7 +35,7 @@ import { MandatoryShiftGate } from "@/components/mandatory-shift-gate";
 import { CashInOutModal, CashTransactionPayload } from "@/components/cash-flow/CashInOutModal";
 
 export default function POSTerminalPage() {
-  const { user, isAdmin, switchRole } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [isPettyCashOpen, setIsPettyCashOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [searchQuery, setSearchQuery] = useState("");
@@ -377,19 +377,6 @@ export default function POSTerminalPage() {
 
         {/* Quick Actions & Fullscreen Toggle Button */}
         <div className="flex items-center gap-2">
-          {/* Dev Instant Role Switcher Toggle */}
-          <Button
-            size="sm"
-            onClick={() => switchRole(isAdmin ? "karyawan" : "admin")}
-            className={`min-h-[38px] text-xs font-bold gap-1.5 px-3 rounded-xl cursor-pointer ${
-              isAdmin 
-                ? "bg-amber-500 hover:bg-amber-600 text-slate-950" 
-                : "bg-indigo-600 hover:bg-indigo-700 text-white"
-            }`}
-            title="Ganti Mode Admin / Kasir"
-          >
-            <span>{isAdmin ? "Mode: Admin" : "Mode: Kasir"}</span>
-          </Button>
 
           {activeShift && !isAdmin && (
             <Button

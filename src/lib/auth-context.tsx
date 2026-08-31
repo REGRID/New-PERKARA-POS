@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 export type UserRole = "admin" | "karyawan";
 
@@ -17,8 +18,8 @@ interface AuthContextType {
   user: UserSession | null;
   loading: boolean;
   login: (user: UserSession) => void;
-  logout: () => void;
-  switchRole: (targetRole: UserRole) => void;
+  logout: () => Promise<void>;
+  refreshSession: () => Promise<void>;
   isAdmin: boolean;
 }
 
@@ -26,66 +27,59 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   login: () => {},
-  logout: () => {},
-  switchRole: () => {},
+  logout: async () => {},
+  refreshSession: async () => {},
   isAdmin: false,
 });
-
-const DEFAULT_ADMIN: UserSession = {
-  id: "admin-1",
-  name: "Owner / Manager",
-  username: "admin",
-  role: "admin",
-  pin: "9999",
-  outletName: "Outlet Utama",
-};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  useEffect(() => {
+  const refreshSession = useCallback(async () => {
     try {
-      const stored = localStorage.getItem("perkara_pos_user_session");
-      if (stored) {
-        setUser(JSON.parse(stored));
-      } else {
-        // Default initial session for quick dev testing: Admin
-        setUser(DEFAULT_ADMIN);
-        localStorage.setItem("perkara_pos_user_session", JSON.stringify(DEFAULT_ADMIN));
+      const res = await fetch("/api/auth/me");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          setUser(data.user);
+          return;
+        }
       }
+      setUser(null);
     } catch (e) {
       console.error("Failed to load auth session", e);
+      setUser(null);
     } finally {
       setLoading(false);
     }
   }, []);
 
+  useEffect(() => {
+    refreshSession();
+  }, [refreshSession]);
+
   const login = (userData: UserSession) => {
     setUser(userData);
-    localStorage.setItem("perkara_pos_user_session", JSON.stringify(userData));
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("perkara_pos_user_session");
-  };
-
-  const switchRole = (targetRole: UserRole) => {
-    const baseUser = user || DEFAULT_ADMIN;
-    const updated: UserSession = {
-      ...baseUser,
-      role: targetRole,
-      name: targetRole === "admin" ? "Owner / Manager (Admin)" : "Kasir Outlet (Karyawan)",
-    };
-    setUser(updated);
-    localStorage.setItem("perkara_pos_user_session", JSON.stringify(updated));
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {
+      console.error("Logout request error:", e);
+    } finally {
+      setUser(null);
+      router.push("/login");
+      router.refresh();
+    }
   };
 
   const isAdmin = user?.role === "admin";
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, switchRole, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshSession, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

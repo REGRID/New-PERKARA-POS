@@ -87,7 +87,7 @@ interface ShiftLog {
 }
 
 export function AttendanceCalendarView() {
-  const { user, isAdmin, switchRole } = useAuth();
+  const { user, isAdmin } = useAuth();
   const initialEmpName = user?.name?.includes("(") ? user.name.split("(")[0].trim() : (user?.name || "Cheisa");
   const [selectedSelfName, setSelectedSelfName] = useState<string>(initialEmpName);
   const [hasManuallySelectedEmp, setHasManuallySelectedEmp] = useState(false);
@@ -562,14 +562,6 @@ export function AttendanceCalendarView() {
                 })}
               </select>
             </div>
-
-            <button
-              type="button"
-              onClick={() => switchRole("admin")}
-              className="text-[11px] text-slate-600 hover:text-slate-900 font-bold px-3 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors"
-            >
-              Mode Admin &rarr;
-            </button>
           </div>
         </div>
 
@@ -1024,13 +1016,6 @@ export function AttendanceCalendarView() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => switchRole("karyawan")}
-              className="text-[11px] text-slate-600 hover:text-slate-900 font-bold px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors"
-            >
-              Mode Karyawan &rarr;
-            </button>
             <Button
               size="sm"
               variant="outline"
