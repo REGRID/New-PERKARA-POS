@@ -799,9 +799,12 @@ export async function saveCategory(data: { id?: string; name: string }) {
   try {
     const catModel = db.category || db.Category;
     if (data.id) {
-      return await catModel.update({ where: { id: data.id }, data: { name: data.name } });
+      const existing = await catModel.findUnique({ where: { id: data.id } }).catch(() => null);
+      if (existing) {
+        return await catModel.update({ where: { id: data.id }, data: { name: data.name } });
+      }
     }
-    return await catModel.create({ data: { name: data.name } });
+    return await catModel.create({ data: { ...(data.id ? { id: data.id } : {}), name: data.name } });
   } catch (err) {
     console.error("Error saving category:", err);
     throw err;
@@ -1010,18 +1013,22 @@ export async function saveDiscount(data: { id?: string; name: string; type?: str
   try {
     const discModel = db.discount || db.Discount;
     if (data.id) {
-      return await discModel.update({
-        where: { id: data.id },
-        data: { 
-          name: data.name, 
-          type: data.type || "PERCENT", 
-          amount: Number(data.amount),
-          ...(data.isActive !== undefined ? { isActive: Boolean(data.isActive) } : {})
-        },
-      });
+      const existing = await discModel.findUnique({ where: { id: data.id } }).catch(() => null);
+      if (existing) {
+        return await discModel.update({
+          where: { id: data.id },
+          data: { 
+            name: data.name, 
+            type: data.type || "PERCENT", 
+            amount: Number(data.amount),
+            ...(data.isActive !== undefined ? { isActive: Boolean(data.isActive) } : {})
+          },
+        });
+      }
     }
     return await discModel.create({
       data: { 
+        ...(data.id ? { id: data.id } : {}),
         name: data.name, 
         type: data.type || "PERCENT", 
         amount: Number(data.amount),
@@ -1059,13 +1066,16 @@ export async function saveDiningTable(data: { id?: string; number: string; capac
   try {
     const tableModel = db.diningTable || db.DiningTable;
     if (data.id) {
-      return await tableModel.update({
-        where: { id: data.id },
-        data: { number: data.number, capacity: Number(data.capacity), status: data.status || "AVAILABLE" },
-      });
+      const existing = await tableModel.findUnique({ where: { id: data.id } }).catch(() => null);
+      if (existing) {
+        return await tableModel.update({
+          where: { id: data.id },
+          data: { number: data.number, capacity: Number(data.capacity), status: data.status || "AVAILABLE" },
+        });
+      }
     }
     return await tableModel.create({
-      data: { number: data.number, capacity: Number(data.capacity), status: data.status || "AVAILABLE" },
+      data: { ...(data.id ? { id: data.id } : {}), number: data.number, capacity: Number(data.capacity), status: data.status || "AVAILABLE" },
     });
   } catch (err) {
     console.error("Error saving table:", err);
@@ -1098,18 +1108,22 @@ export async function saveCustomer(data: { id?: string; name: string; phone?: st
   try {
     const custModel = db.customer || db.Customer;
     if (data.id) {
-      return await custModel.update({
-        where: { id: data.id },
-        data: { 
-          name: data.name, 
-          phone: data.phone || "", 
-          email: data.email || "",
-          ...(data.points !== undefined ? { points: Number(data.points) } : {})
-        },
-      });
+      const existing = await custModel.findUnique({ where: { id: data.id } }).catch(() => null);
+      if (existing) {
+        return await custModel.update({
+          where: { id: data.id },
+          data: { 
+            name: data.name, 
+            phone: data.phone || "", 
+            email: data.email || "",
+            ...(data.points !== undefined ? { points: Number(data.points) } : {})
+          },
+        });
+      }
     }
     return await custModel.create({
       data: { 
+        ...(data.id ? { id: data.id } : {}),
         name: data.name, 
         phone: data.phone || "", 
         email: data.email || "",
@@ -1236,18 +1250,104 @@ export async function deleteExpense(id: string) {
 }
 
 // Orders History & Order Status
+const DEFAULT_SEED_ORDERS = [
+  {
+    orderNumber: "POS-101",
+    customerName: "Rian Pratama",
+    channel: "DINE_IN",
+    subtotal: 48000,
+    discount: 0,
+    totalAmount: 48000,
+    paymentMethod: "QRIS",
+    paymentStatus: "PAID",
+    orderStatus: "COMPLETED",
+    createdAt: new Date(),
+    items: [
+      { menuName: "Es Kopi Susu Gula Aren", variantName: "Regular", price: 24000, quantity: 2, subtotal: 48000 }
+    ]
+  },
+  {
+    orderNumber: "POS-102",
+    customerName: "Siti Rahma",
+    channel: "TAKEAWAY",
+    subtotal: 50000,
+    discount: 0,
+    totalAmount: 50000,
+    paymentMethod: "CASH",
+    paymentStatus: "PAID",
+    orderStatus: "COMPLETED",
+    createdAt: new Date(),
+    items: [
+      { menuName: "Americano Iced", variantName: "Large", price: 24000, quantity: 1, subtotal: 24000 },
+      { menuName: "Matcha Latte Ice", variantName: "Regular", price: 26000, quantity: 1, subtotal: 26000 }
+    ]
+  },
+  {
+    orderNumber: "POS-103",
+    customerName: "Dimas Anggara",
+    channel: "DINE_IN",
+    subtotal: 46000,
+    discount: 0,
+    totalAmount: 46000,
+    paymentMethod: "EDC_CARD",
+    paymentStatus: "PAID",
+    orderStatus: "COMPLETED",
+    createdAt: new Date(),
+    items: [
+      { menuName: "Es Kopi Susu Gula Aren", variantName: "Regular", price: 24000, quantity: 1, subtotal: 24000 },
+      { menuName: "Croissant Coklat Premium", variantName: "Standard", price: 22000, quantity: 1, subtotal: 22000 }
+    ]
+  }
+];
+
 export async function getOrdersHistory() {
   try {
     const orderModel = db.order || db.Order;
-    return orderModel ? await orderModel.findMany({
-      include: { items: true },
-      orderBy: { createdAt: "desc" },
-    }) : [];
+    let orders: any[] = [];
+    if (orderModel) {
+      try {
+        orders = await orderModel.findMany({
+          include: { items: true },
+          orderBy: { createdAt: "desc" },
+        });
+      } catch {
+        orders = [];
+      }
+    }
+
+    if (!orders || orders.length === 0) {
+      if (orderModel) {
+        for (const seed of DEFAULT_SEED_ORDERS) {
+          try {
+            const { items: seedItems, ...orderData } = seed;
+            await orderModel.create({
+              data: {
+                ...orderData,
+                items: {
+                  create: seedItems,
+                },
+              },
+            });
+          } catch {}
+        }
+        try {
+          orders = await orderModel.findMany({
+            include: { items: true },
+            orderBy: { createdAt: "desc" },
+          });
+        } catch {
+          orders = [];
+        }
+      }
+    }
+
+    return orders || [];
   } catch (err) {
     console.error("Error fetching orders history:", err);
     return [];
   }
 }
+
 
 export async function updateOrderStatus(data: { id: string; orderStatus?: string; paymentStatus?: string }) {
   try {
@@ -1281,72 +1381,93 @@ export async function deleteOrder(id: string) {
 
 // Payment Methods
 const DEFAULT_SEED_PAYMENT_METHODS = [
-  { id: "pm-1", name: "Tunai / Cash", code: "CASH", type: "CASH", isActive: true },
+  { id: "pm-1", name: "Tunai", code: "CASH", type: "CASH", isActive: true },
   { id: "pm-2", name: "QRIS BCA / Mandiri", code: "QRIS", type: "E_WALLET", isActive: true },
-  { id: "pm-3", name: "Mesin EDC Debit / Kredit", code: "EDC", type: "CARD", isActive: true },
-  { id: "pm-4", name: "Transfer Bank BCA", code: "TRANSFER", type: "BANK_TRANSFER", isActive: true },
+  { id: "pm-3", name: "EDC Debit / Kredit", code: "EDC", type: "CARD", isActive: true },
+  { id: "pm-4", name: "Transfer Bank", code: "TRANSFER", type: "BANK_TRANSFER", isActive: true },
 ];
 
 export async function getPaymentMethods() {
   try {
     const pmModel = db.paymentMethod || db.PaymentMethod;
-    let methods: any[] = [];
-    if (pmModel) {
-      try {
-        methods = await pmModel.findMany({ orderBy: { name: "asc" } });
-      } catch {
-        methods = [];
-      }
+    const setModel = db.systemSetting || db.SystemSetting;
+
+    if (!pmModel) return DEFAULT_SEED_PAYMENT_METHODS;
+
+    let methods = await pmModel.findMany({ orderBy: { name: "asc" } }).catch(() => []);
+
+    // Check if initial seeding has occurred
+    let hasSeeded = null;
+    if (setModel) {
+      hasSeeded = await setModel.findUnique({ where: { key: "seeded_payment_methods" } }).catch(() => null);
     }
 
-    if (!methods || methods.length === 0) {
-      if (pmModel) {
-        for (const seed of DEFAULT_SEED_PAYMENT_METHODS) {
-          try {
-            const { id, ...dataToInsert } = seed;
-            await pmModel.create({ data: dataToInsert });
-          } catch {}
-        }
+    if (!hasSeeded && (!methods || methods.length === 0)) {
+      for (const seed of DEFAULT_SEED_PAYMENT_METHODS) {
         try {
-          methods = await pmModel.findMany({ orderBy: { name: "asc" } });
-        } catch {
-          methods = [];
-        }
+          await pmModel.create({ data: seed });
+        } catch {}
       }
+      if (setModel) {
+        await setModel.upsert({
+          where: { key: "seeded_payment_methods" },
+          update: { value: "true" },
+          create: { key: "seeded_payment_methods", value: "true" },
+        }).catch(() => null);
+      }
+      methods = await pmModel.findMany({ orderBy: { name: "asc" } }).catch(() => []);
     }
 
-    if (!Array.isArray(methods) || methods.length === 0) {
-      methods = DEFAULT_SEED_PAYMENT_METHODS;
-    }
-
-    return methods;
-  } catch {
-    return DEFAULT_SEED_PAYMENT_METHODS;
+    return Array.isArray(methods) ? methods : [];
+  } catch (err) {
+    console.error("Error fetching payment methods:", err);
+    return [];
   }
 }
 
 export async function savePaymentMethod(data: { id?: string; name: string; code: string; type?: string; isActive?: boolean }) {
   try {
     const pmModel = db.paymentMethod || db.PaymentMethod;
-    if (data.id) {
-      return await pmModel.update({
-        where: { id: data.id },
+    if (pmModel) {
+      if (data.id) {
+        const existing = await pmModel.findUnique({ where: { id: data.id } }).catch(() => null);
+        if (existing) {
+          return await pmModel.update({
+            where: { id: data.id },
+            data: { 
+              name: data.name, 
+              code: data.code, 
+              type: data.type || "CASH",
+              ...(data.isActive !== undefined ? { isActive: Boolean(data.isActive) } : {})
+            },
+          });
+        }
+
+        const existingByCode = await pmModel.findFirst({ where: { code: data.code } }).catch(() => null);
+        if (existingByCode) {
+          return await pmModel.update({
+            where: { id: existingByCode.id },
+            data: { 
+              name: data.name, 
+              code: data.code, 
+              type: data.type || "CASH",
+              ...(data.isActive !== undefined ? { isActive: Boolean(data.isActive) } : {})
+            },
+          });
+        }
+      }
+
+      return await pmModel.create({
         data: { 
+          ...(data.id ? { id: data.id } : {}),
           name: data.name, 
           code: data.code, 
           type: data.type || "CASH",
-          ...(data.isActive !== undefined ? { isActive: Boolean(data.isActive) } : {})
+          isActive: data.isActive !== undefined ? Boolean(data.isActive) : true
         },
       });
     }
-    return await pmModel.create({
-      data: { 
-        name: data.name, 
-        code: data.code, 
-        type: data.type || "CASH",
-        isActive: data.isActive !== undefined ? Boolean(data.isActive) : true
-      },
-    });
+    return data;
   } catch (err) {
     console.error("Error saving payment method:", err);
     throw err;
@@ -1356,7 +1477,29 @@ export async function savePaymentMethod(data: { id?: string; name: string; code:
 export async function deletePaymentMethod(id: string) {
   try {
     const pmModel = db.paymentMethod || db.PaymentMethod;
-    return await pmModel.delete({ where: { id } });
+    const setModel = db.systemSetting || db.SystemSetting;
+
+    // Mark as seeded so deletion won't trigger re-seed
+    if (setModel) {
+      await setModel.upsert({
+        where: { key: "seeded_payment_methods" },
+        update: { value: "true" },
+        create: { key: "seeded_payment_methods", value: "true" },
+      }).catch(() => null);
+    }
+
+    if (pmModel) {
+      const existing = await pmModel.findUnique({ where: { id } }).catch(() => null);
+      if (existing) {
+        return await pmModel.delete({ where: { id } });
+      }
+
+      const existingByCode = await pmModel.findFirst({ where: { code: id } }).catch(() => null);
+      if (existingByCode) {
+        return await pmModel.delete({ where: { id: existingByCode.id } });
+      }
+    }
+    return { success: true };
   } catch (err) {
     console.error("Error deleting payment method:", err);
     throw err;
@@ -1405,20 +1548,24 @@ export async function saveEmployee(data: {
     const empModel = db.employee || db.Employee;
     const rate = Number(data.shiftRate || data.dailyRate || 75000);
     if (data.id) {
-      return await empModel.update({
-        where: { id: data.id },
-        data: {
-          name: data.name,
-          pin: data.pin || "1234",
-          role: data.role || "cashier",
-          employmentType: "SHIFT",
-          dailyRate: rate,
-          flatSalaryAmount: 0,
-        },
-      });
+      const existing = await empModel.findUnique({ where: { id: data.id } }).catch(() => null);
+      if (existing) {
+        return await empModel.update({
+          where: { id: data.id },
+          data: {
+            name: data.name,
+            pin: data.pin || "1234",
+            role: data.role || "cashier",
+            employmentType: "SHIFT",
+            dailyRate: rate,
+            flatSalaryAmount: 0,
+          },
+        });
+      }
     }
     return await empModel.create({
       data: {
+        ...(data.id ? { id: data.id } : {}),
         name: data.name,
         pin: data.pin || "1234",
         role: data.role || "cashier",

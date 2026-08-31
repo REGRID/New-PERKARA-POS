@@ -330,27 +330,55 @@ export async function PATCH(req: Request) {
 
     const shiftModel = db.shiftLog || db.shiftlog || db.ShiftLog;
     if (shiftModel && id) {
-      await shiftModel.update({
-        where: { id },
-        data: {
-          employeeName,
-          type,
-          timestamp: timestamp ? new Date(timestamp) : undefined,
-          startTime: timestamp ? new Date(timestamp) : undefined,
-          startingCash: Number(startingCash) || 0,
-          startCash: Number(startingCash) || 0,
-          cashVerified: Number(cashVerified) || 0,
-          endCash: Number(cashVerified) || 0,
-          cashDiscrepancy: Number(cashDiscrepancy) || 0,
-          difference: Number(cashDiscrepancy) || 0,
-          cashNote: cashNote || "",
-          status: type === "SHIFT_OUT" ? "CLOSED" : "OPEN",
-        },
-      });
+      const logDate = timestamp ? new Date(timestamp) : new Date();
+      const startAmount = Number(startingCash) || 0;
+      const endAmount = Number(cashVerified) || 0;
+      const diff = cashDiscrepancy !== undefined ? Number(cashDiscrepancy) : (endAmount - startAmount);
+
+      const existing = await shiftModel.findUnique({ where: { id } }).catch(() => null);
+
+      if (existing) {
+        await shiftModel.update({
+          where: { id },
+          data: {
+            employeeName: employeeName || existing.employeeName,
+            type: type || existing.type,
+            timestamp: logDate,
+            startTime: logDate,
+            startingCash: startAmount,
+            startCash: startAmount,
+            cashVerified: endAmount,
+            endCash: endAmount,
+            cashDiscrepancy: diff,
+            difference: diff,
+            cashNote: cashNote ?? existing.cashNote,
+            status: type === "SHIFT_OUT" ? "CLOSED" : "OPEN",
+          },
+        });
+      } else {
+        await shiftModel.create({
+          data: {
+            id,
+            employeeName: employeeName || "Karyawan",
+            type: type || "SHIFT_IN",
+            timestamp: logDate,
+            startTime: logDate,
+            startingCash: startAmount,
+            startCash: startAmount,
+            cashVerified: endAmount,
+            endCash: endAmount,
+            cashDiscrepancy: diff,
+            difference: diff,
+            cashNote: cashNote || "",
+            status: type === "SHIFT_OUT" ? "CLOSED" : "OPEN",
+          },
+        });
+      }
     }
 
     return NextResponse.json({ success: true, message: "Log absen berhasil diperbarui" });
   } catch (err: any) {
+    console.error("PATCH /api/absen-kas error:", err);
     return NextResponse.json({ error: err.message || "Failed to update" }, { status: 500 });
   }
 }
@@ -369,13 +397,16 @@ export async function DELETE(req: Request) {
       }
 
       if (id) {
-        await shiftModel.delete({ where: { id } });
+        try {
+          await shiftModel.delete({ where: { id } });
+        } catch {}
         return NextResponse.json({ success: true, message: "Log absen berhasil dihapus" });
       }
     }
 
     return NextResponse.json({ error: "ID or clearAll is required" }, { status: 400 });
   } catch (err: any) {
+    console.error("DELETE /api/absen-kas error:", err);
     return NextResponse.json({ error: err.message || "Failed to delete" }, { status: 500 });
   }
 }

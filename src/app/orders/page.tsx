@@ -13,7 +13,10 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  FilterX
+  CreditCard,
+  CheckCircle2,
+  XCircle,
+  ShoppingBag
 } from "lucide-react";
 import { type DateRange } from "react-day-picker";
 import { startOfDay, endOfDay, isWithinInterval, isSameDay } from "date-fns";
@@ -68,7 +71,6 @@ export default function OrdersPage() {
     fetchOrders();
   }, []);
 
-  // Reset pagination when search query, status, or date range changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, selectedStatus, dateRange, pageSize]);
@@ -105,7 +107,7 @@ export default function OrdersPage() {
   };
 
   const handleDeleteOrder = async (id: string, orderNumber: string) => {
-    if (!confirm(`PERINGATAN ADMIN: Hapus transaksi ${orderNumber} secara permanen?`)) return;
+    if (!confirm(`Hapus transaksi ${orderNumber}?`)) return;
 
     try {
       const res = await fetch("/api/data?type=delete_order", {
@@ -134,7 +136,6 @@ export default function OrdersPage() {
 
       const matchStatus = selectedStatus === "ALL" || (o.paymentStatus || "PAID") === selectedStatus;
 
-      // Date filtering
       let matchDate = true;
       if (dateRange?.from) {
         const orderDate = new Date(o.createdAt || o.timestamp);
@@ -151,7 +152,6 @@ export default function OrdersPage() {
     });
   }, [orders, searchQuery, selectedStatus, dateRange]);
 
-  // Paginated Orders
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
   const validCurrentPage = Math.min(currentPage, totalPages);
   
@@ -169,72 +169,85 @@ export default function OrdersPage() {
 
   return (
     <AppShell>
-      <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto text-slate-900 space-y-6">
+      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto text-slate-900 space-y-6 select-none">
         
-        {/* Prominent Outer Card Container */}
-        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-2xs space-y-6">
+        {/* Main Card Container */}
+        <div className="bg-white p-5 md:p-7 rounded-3xl border border-slate-200/90 shadow-2xs space-y-6">
           
-          {/* Card Header & Main Action */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
             <div>
               <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Riwayat Transaksi & Struk Kasir</h2>
+                <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Riwayat Transaksi</h1>
                 {isAdmin && (
                   <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-bold">
-                    Admin Full Access
+                    Admin
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                Pantau seluruh transaksi kasir, rincian struk belanja, status pembayaran, dan cetak ulang nota.
+              <p className="text-xs text-slate-500 font-normal mt-0.5">
+                Daftar transaksi kasir, rincian pembayaran, dan cetak ulang nota.
               </p>
             </div>
 
-            <Button size="sm" variant="outline" onClick={fetchOrders} className="text-xs gap-1.5 min-h-[40px] rounded-xl cursor-pointer">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={fetchOrders} 
+              className="text-xs font-semibold gap-1.5 h-9 rounded-xl cursor-pointer border-slate-200 hover:bg-slate-50"
+            >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>Refresh</span>
             </Button>
           </div>
 
-          {/* Quick Metrics Bar */}
+          {/* Metric Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <div className="text-[11px] font-bold text-slate-400 uppercase">
-                {filterMode === "TODAY" ? "Total Omset Hari Ini" : filterMode === "ALL" ? "Total Omset Semua Riwayat" : "Total Omset Periode"}
+            <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/70">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                {filterMode === "TODAY" ? "Omset Hari Ini" : filterMode === "ALL" ? "Total Omset" : "Omset Periode"}
+              </span>
+              <div className="text-xl font-extrabold text-slate-900 mt-1">
+                Rp {totalRevenue.toLocaleString("id-ID")}
               </div>
-              <div className="text-lg font-extrabold text-slate-900 mt-0.5">Rp {totalRevenue.toLocaleString("id-ID")}</div>
             </div>
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <div className="text-[11px] font-bold text-slate-400 uppercase">
+
+            <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/70">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
                 {filterMode === "TODAY" ? "Transaksi Hari Ini" : "Total Transaksi"}
+              </span>
+              <div className="text-xl font-extrabold text-slate-900 mt-1">
+                {filteredOrders.length} <span className="text-xs font-normal text-slate-500">Pesanan</span>
               </div>
-              <div className="text-lg font-extrabold text-slate-900 mt-0.5">{filteredOrders.length} Transaksi</div>
             </div>
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <div className="text-[11px] font-bold text-slate-400 uppercase">Transaksi Berhasil</div>
-              <div className="text-lg font-extrabold text-emerald-600 mt-0.5">
-                {filteredOrders.filter(o => o.paymentStatus === "PAID" || !o.paymentStatus).length} Selesai
+
+            <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/70">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                Transaksi Berhasil
+              </span>
+              <div className="text-xl font-extrabold text-emerald-700 mt-1">
+                {filteredOrders.filter(o => o.paymentStatus === "PAID" || !o.paymentStatus).length} <span className="text-xs font-normal text-slate-500">Selesai</span>
               </div>
             </div>
           </div>
 
-          {/* Mode Selector & Filter Bar (Hari Ini vs Semua Riwayat + Search + DatePicker Range + Status) */}
+          {/* Filter Bar */}
           <div className="space-y-3">
-            <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
-              {/* Search Input */}
+            <div className="flex flex-col lg:flex-row gap-2.5 items-stretch lg:items-center justify-between">
+              {/* Search Bar */}
               <div className="relative flex-1 w-full min-w-[240px]">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <Input
                   type="text"
-                  placeholder="Cari no. struk / order, nama pelanggan, atau metode..."
+                  placeholder="Cari no. nota, nama pelanggan, metode..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 bg-slate-50 border-slate-200 text-xs font-medium min-h-[38px] rounded-xl w-full"
+                  className="pl-9 bg-slate-50 border-slate-200 text-xs font-medium h-9 rounded-xl w-full focus:bg-white"
                 />
               </div>
 
-              {/* View Mode Toggle: Hari Ini (Default) vs Semua Riwayat */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 shrink-0">
+              {/* View Mode: Hari Ini vs Semua */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
                 <button
                   type="button"
                   onClick={() => {
@@ -244,13 +257,13 @@ export default function OrdersPage() {
                       to: endOfDay(new Date()),
                     });
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     filterMode === "TODAY"
                       ? "bg-emerald-600 text-white shadow-2xs"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  📅 Hari Ini (Default)
+                  Hari Ini
                 </button>
                 <button
                   type="button"
@@ -258,17 +271,17 @@ export default function OrdersPage() {
                     setFilterMode("ALL");
                     setDateRange(undefined);
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     filterMode === "ALL"
                       ? "bg-slate-900 text-white shadow-2xs"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  🌐 Semua Riwayat Transaksi
+                  Semua Riwayat
                 </button>
               </div>
 
-              {/* DatePicker Range Component */}
+              {/* Date Range Picker */}
               <DatePickerWithRange
                 date={dateRange}
                 setDate={(range) => {
@@ -279,35 +292,33 @@ export default function OrdersPage() {
                 className="w-full lg:w-auto"
               />
 
-              {/* Status Filter Buttons */}
-              <div className="flex items-center gap-1.5 overflow-x-auto shrink-0">
-                {["ALL", "PAID", "CANCELLED"].map((status) => (
+              {/* Status Filter Chips */}
+              <div className="flex items-center gap-1 shrink-0">
+                {[
+                  { id: "ALL", label: "Semua" },
+                  { id: "PAID", label: "Lunas" },
+                  { id: "CANCELLED", label: "Batal" },
+                ].map((st) => (
                   <button
-                    key={status}
-                    onClick={() => setSelectedStatus(status)}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 min-h-[38px] ${
-                      selectedStatus === status 
-                        ? "bg-stone-800 text-white shadow-xs" 
+                    key={st.id}
+                    onClick={() => setSelectedStatus(st.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                      selectedStatus === st.id 
+                        ? "bg-slate-900 text-white" 
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }`}
                   >
-                    {status === "ALL" ? "Semua Status" : status === "PAID" ? "Lunas (PAID)" : "Dibatalkan (CANCEL)"}
+                    {st.label}
                   </button>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Active Filter Indicators if any */}
-          <div className="flex items-center justify-between bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200/60 text-xs">
+          {/* Active Filter Info Bar */}
+          <div className="flex items-center justify-between bg-slate-50/80 px-3.5 py-2 rounded-xl border border-slate-200/60 text-xs">
             <span className="text-slate-600 font-medium">
-              {filterMode === "TODAY" ? (
-                <>📅 Menampilkan <strong className="text-slate-900">Transaksi Hari Ini</strong> ({filteredOrders.length} transaksi)</>
-              ) : filterMode === "ALL" ? (
-                <>🌐 Menampilkan <strong className="text-slate-900">Semua Histori Transaksi</strong> ({filteredOrders.length} transaksi)</>
-              ) : (
-                <>📆 Menampilkan Transaksi Rentang Tanggal Terpilih ({filteredOrders.length} transaksi)</>
-              )}
+              Menampilkan <strong className="text-slate-900">{filteredOrders.length} transaksi</strong> ({filterMode === "TODAY" ? "Hari Ini" : filterMode === "ALL" ? "Semua Riwayat" : "Rentang Terpilih"})
             </span>
             
             {filterMode !== "ALL" && (
@@ -317,197 +328,159 @@ export default function OrdersPage() {
                   setFilterMode("ALL");
                   setDateRange(undefined);
                 }}
-                className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer"
+                className="text-emerald-700 hover:text-emerald-900 font-bold cursor-pointer"
               >
-                <span>Lihat Semua Riwayat &rarr;</span>
+                Lihat Semua &rarr;
               </button>
             )}
           </div>
 
-          {/* Inner Data Table Box Container */}
+          {/* Table Container */}
           <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
-            {/* Header Row */}
-            <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-              <div className="col-span-3">ORDER / STRUK</div>
-              <div className="col-span-3">PELANGGAN & WAKTU</div>
-              <div className="col-span-2 text-center">METODE BAYAR</div>
-              <div className="col-span-2 text-right">TOTAL NOMINAL</div>
-              <div className="col-span-2 text-right">AKSI</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[650px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200/80 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                    <th className="py-3 px-4">No. Nota</th>
+                    <th className="py-3 px-4">Pelanggan &amp; Waktu</th>
+                    <th className="py-3 px-4 text-center">Pembayaran</th>
+                    <th className="py-3 px-4 text-right">Total</th>
+                    <th className="py-3 px-4 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {paginatedOrders.length > 0 ? (
+                    paginatedOrders.map((o) => {
+                      const isPaid = (o.paymentStatus || "PAID") === "PAID";
+                      const dateStr = o.createdAt ? new Date(o.createdAt).toLocaleString("id-ID", {
+                        day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
+                      }) : "-";
+
+                      return (
+                        <tr key={o.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3 px-4 font-bold text-slate-900">
+                            <div className="flex items-center gap-2">
+                              <div className="h-7 w-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200 shrink-0">
+                                <Receipt className="w-3.5 h-3.5" />
+                              </div>
+                              <div>
+                                <span>{o.orderNumber || `POS-${o.id.slice(0, 6)}`}</span>
+                                <Badge
+                                  className={`ml-2 text-[9px] font-bold px-1.5 py-0 rounded ${
+                                    isPaid ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
+                                  }`}
+                                >
+                                  {isPaid ? "Lunas" : "Batal"}
+                                </Badge>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4 text-slate-600">
+                            <div className="font-semibold text-slate-900">{o.customerName || "Pelanggan"}</div>
+                            <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                              <Clock className="w-3 h-3" /> {dateStr} WIB
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4 text-center">
+                            <span className="bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded text-[11px]">
+                              {o.paymentMethod || "CASH"}
+                            </span>
+                          </td>
+
+                          <td className="py-3 px-4 text-right font-extrabold text-slate-900">
+                            Rp {Number(o.totalAmount || 0).toLocaleString("id-ID")}
+                          </td>
+
+                          <td className="py-3 px-4 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => openDetailModal(o)}
+                                className="h-7 w-7 p-0 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                                title="Lihat Detail & Cetak"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </Button>
+                              {isAdmin && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteOrder(o.id, o.orderNumber || o.id)}
+                                  className="h-7 w-7 p-0 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                                  title="Hapus"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-slate-400">
+                        <Receipt className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                        <p className="font-bold text-xs text-slate-700">Belum ada transaksi</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Transaksi dari kasir POS akan otomatis tercatat di sini.</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
 
-            {/* Content Rows or Empty State */}
-            <div className="divide-y divide-slate-100">
-              {paginatedOrders.length > 0 ? (
-                paginatedOrders.map((o) => {
-                  const isPaid = (o.paymentStatus || "PAID") === "PAID";
-                  const dateStr = o.createdAt ? new Date(o.createdAt).toLocaleString("id-ID", {
-                    day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"
-                  }) : "-";
-
-                  return (
-                    <div key={o.id} className="grid grid-cols-12 px-6 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
-                      <div className="col-span-3 font-bold text-slate-900 flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
-                          <Receipt className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span>{o.orderNumber || `POS-${o.id.slice(0, 6)}`}</span>
-                          <span className={`block text-[10px] font-bold ${isPaid ? "text-emerald-600" : "text-rose-600"}`}>
-                            {isPaid ? "LUNAS (PAID)" : "DIBATALKAN"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="col-span-3 text-slate-600 font-medium">
-                        <div className="font-semibold text-slate-900">{o.customerName || "Pelanggan Toko"}</div>
-                        <div className="text-[11px] text-slate-400 flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-slate-400" /> {dateStr}
-                        </div>
-                      </div>
-
-                      <div className="col-span-2 text-center">
-                        <span className="bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded text-[11px]">
-                          {o.paymentMethod || "TUNAI"}
-                        </span>
-                      </div>
-
-                      <div className="col-span-2 text-right font-extrabold text-slate-900">
-                        Rp {Number(o.totalAmount || 0).toLocaleString("id-ID")}
-                      </div>
-
-                      <div className="col-span-2 text-right flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => openDetailModal(o)}
-                          className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                          title="Lihat Detail & Cetak Nota"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        {isAdmin && (
-                          <button
-                            onClick={() => handleDeleteOrder(o.id, o.orderNumber || `POS-${o.id.slice(0, 6)}`)}
-                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                            title="Hapus Transaksi (Admin)"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="p-12 text-center space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-100/70 text-slate-400 flex items-center justify-center mx-auto">
-                    <Receipt className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-slate-800">Belum ada riwayat transaksi</h4>
-                    <p className="text-xs text-slate-400 mt-1 font-medium">
-                      {searchQuery || dateRange?.from || selectedStatus !== "ALL"
-                        ? "Tidak ada transaksi yang cocok dengan filter yang dipilih."
-                        : "Transaksi yang dibuat dari kasir POS akan otomatis tercatat di sini."}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Pagination Controls Footer */}
+            {/* Pagination */}
             {filteredOrders.length > 0 && (
-              <div className="px-6 py-4 bg-slate-50/70 border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-                {/* Info Text & Page Size Selector */}
-                <div className="flex items-center gap-3 text-slate-500 font-medium">
-                  <span>
-                    Menampilkan <strong className="text-slate-800">{startRecord}</strong> - <strong className="text-slate-800">{endRecord}</strong> dari <strong className="text-slate-800">{filteredOrders.length}</strong> transaksi
-                  </span>
-                  <div className="hidden sm:flex items-center gap-1.5 ml-2 pl-3 border-l border-slate-200">
-                    <span className="text-[11px] text-slate-400">Tampilkan:</span>
-                    <select
-                      value={pageSize}
-                      onChange={(e) => setPageSize(Number(e.target.value))}
-                      className="bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg px-2 py-1 outline-none cursor-pointer"
-                    >
-                      <option value={10}>10 / hal</option>
-                      <option value={20}>20 / hal</option>
-                      <option value={50}>50 / hal</option>
-                      <option value={100}>100 / hal</option>
-                    </select>
-                  </div>
+              <div className="px-4 py-3 bg-slate-50/70 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div className="text-slate-500 text-[11px]">
+                  Menampilkan <strong>{startRecord}</strong> - <strong>{endRecord}</strong> dari <strong>{filteredOrders.length}</strong> data
                 </div>
 
-                {/* Pagination Page Navigation */}
                 <div className="flex items-center gap-1">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(1)}
                     disabled={validCurrentPage <= 1}
-                    className="h-8 w-8 p-0 rounded-lg cursor-pointer bg-white"
-                    title="Halaman Pertama"
+                    className="h-7 w-7 p-0 rounded-lg bg-white"
                   >
-                    <ChevronsLeft className="w-3.5 h-3.5" />
+                    <ChevronsLeft className="w-3 h-3" />
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                     disabled={validCurrentPage <= 1}
-                    className="h-8 w-8 p-0 rounded-lg cursor-pointer bg-white"
-                    title="Halaman Sebelumnya"
+                    className="h-7 w-7 p-0 rounded-lg bg-white"
                   >
-                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <ChevronLeft className="w-3 h-3" />
                   </Button>
 
-                  {/* Page numbers */}
-                  <div className="flex items-center gap-1 px-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                      .filter((page) => {
-                        return (
-                          page === 1 ||
-                          page === totalPages ||
-                          Math.abs(page - validCurrentPage) <= 1
-                        );
-                      })
-                      .map((page, index, array) => {
-                        const showEllipsis = index > 0 && page - array[index - 1] > 1;
-                        return (
-                          <React.Fragment key={page}>
-                            {showEllipsis && <span className="px-1 text-slate-400">...</span>}
-                            <button
-                              onClick={() => setCurrentPage(page)}
-                              className={`h-8 min-w-[32px] px-2 rounded-lg font-bold text-xs transition-colors cursor-pointer ${
-                                validCurrentPage === page
-                                  ? "bg-stone-800 text-white shadow-xs"
-                                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
-                              }`}
-                            >
-                              {page}
-                            </button>
-                          </React.Fragment>
-                        );
-                      })}
-                  </div>
+                  <span className="px-2 text-xs font-bold text-slate-700">
+                    {validCurrentPage} / {totalPages}
+                  </span>
 
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                     disabled={validCurrentPage >= totalPages}
-                    className="h-8 w-8 p-0 rounded-lg cursor-pointer bg-white"
-                    title="Halaman Berikutnya"
+                    className="h-7 w-7 p-0 rounded-lg bg-white"
                   >
-                    <ChevronRight className="w-3.5 h-3.5" />
+                    <ChevronRight className="w-3 h-3" />
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(totalPages)}
                     disabled={validCurrentPage >= totalPages}
-                    className="h-8 w-8 p-0 rounded-lg cursor-pointer bg-white"
-                    title="Halaman Terakhir"
+                    className="h-7 w-7 p-0 rounded-lg bg-white"
                   >
-                    <ChevronsRight className="w-3.5 h-3.5" />
+                    <ChevronsRight className="w-3 h-3" />
                   </Button>
                 </div>
               </div>
@@ -518,53 +491,55 @@ export default function OrdersPage() {
 
       </div>
 
-      {/* Modal Detail Order & Reprint */}
+      {/* Modal Detail & Cetak Struk */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="sm:max-w-lg rounded-2xl">
+        <DialogContent className="sm:max-w-md p-6 bg-white border border-slate-200 rounded-3xl select-none">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900 flex items-center justify-between">
-              <span>Detail Transaksi #{selectedOrder?.orderNumber || "STRUK"}</span>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-base font-bold text-slate-900">
+                Detail Transaksi #{selectedOrder?.orderNumber || "STRUK"}
+              </DialogTitle>
               <Badge className={selectedOrder?.paymentStatus === "CANCELLED" ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800"}>
-                {selectedOrder?.paymentStatus || "PAID"}
+                {selectedOrder?.paymentStatus === "CANCELLED" ? "Dibatalkan" : "Lunas"}
               </Badge>
-            </DialogTitle>
+            </div>
             <DialogDescription className="text-xs text-slate-500">
-              Rincian item belanjaan dan log pembayaran kasir POS.
+              Rincian item belanja dan status pembayaran kasir.
             </DialogDescription>
           </DialogHeader>
 
           {selectedOrder && (
-            <div className="space-y-4 py-2 text-xs">
-              <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100 text-[11px]">
+            <div className="space-y-4 my-2 text-xs">
+              <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[11px]">
                 <div>
-                  <span className="text-slate-400 block">Pelanggan:</span>
-                  <span className="font-bold text-slate-900">{selectedOrder.customerName || "Pelanggan Toko"}</span>
+                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Pelanggan</span>
+                  <span className="font-bold text-slate-900">{selectedOrder.customerName || "Pelanggan"}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Metode Pembayaran:</span>
-                  <span className="font-bold text-slate-900">{selectedOrder.paymentMethod || "TUNAI"}</span>
+                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Metode Bayar</span>
+                  <span className="font-bold text-slate-900">{selectedOrder.paymentMethod || "CASH"}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Waktu Transaksi:</span>
+                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Waktu</span>
                   <span className="font-semibold text-slate-700">{new Date(selectedOrder.createdAt).toLocaleString("id-ID")}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Channel Penjualan:</span>
+                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Channel</span>
                   <span className="font-semibold text-slate-700">{selectedOrder.channel || "DINE_IN"}</span>
                 </div>
               </div>
 
-              {/* Items List */}
-              <div className="border rounded-xl divide-y overflow-hidden">
-                <div className="bg-slate-100/70 px-3 py-2 font-bold text-slate-700 grid grid-cols-12">
-                  <div className="col-span-6">Item Menu</div>
+              {/* Items Table */}
+              <div className="border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
+                <div className="bg-slate-50 px-3 py-2 font-bold text-slate-700 grid grid-cols-12 text-[10px] uppercase">
+                  <div className="col-span-6">Item</div>
                   <div className="col-span-2 text-center">Qty</div>
                   <div className="col-span-4 text-right">Subtotal</div>
                 </div>
                 {selectedOrder.items && selectedOrder.items.length > 0 ? (
                   selectedOrder.items.map((it: any, idx: number) => (
-                    <div key={it.id || idx} className="px-3 py-2 grid grid-cols-12 items-center text-[11px]">
-                      <div className="col-span-6 font-semibold text-slate-900">{it.menuName || "Item POS"}</div>
+                    <div key={it.id || idx} className="px-3 py-2 grid grid-cols-12 items-center text-xs">
+                      <div className="col-span-6 font-semibold text-slate-900">{it.menuName || "Item"}</div>
                       <div className="col-span-2 text-center font-bold text-slate-700">{it.quantity}</div>
                       <div className="col-span-4 text-right font-bold text-slate-900">
                         Rp {Number(it.subtotal || it.price * it.quantity || 0).toLocaleString("id-ID")}
@@ -572,11 +547,11 @@ export default function OrdersPage() {
                     </div>
                   ))
                 ) : (
-                  <div className="p-3 text-center text-slate-400">Rincian item ringkas</div>
+                  <div className="p-3 text-center text-slate-400">Tidak ada item</div>
                 )}
               </div>
 
-              {/* Pricing Breakdown */}
+              {/* Total Summary */}
               <div className="space-y-1 text-right pt-2 border-t text-xs">
                 <div className="flex justify-between text-slate-600">
                   <span>Subtotal:</span>
@@ -584,38 +559,38 @@ export default function OrdersPage() {
                 </div>
                 {Number(selectedOrder.discount) > 0 && (
                   <div className="flex justify-between text-rose-600 font-semibold">
-                    <span>Diskon Promo:</span>
+                    <span>Diskon:</span>
                     <span>- Rp {Number(selectedOrder.discount).toLocaleString("id-ID")}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-extrabold text-slate-900 pt-1 border-t">
-                  <span>Total Transaksi:</span>
+                  <span>Total:</span>
                   <span>Rp {Number(selectedOrder.totalAmount || 0).toLocaleString("id-ID")}</span>
                 </div>
               </div>
 
-              {/* Admin Actions */}
+              {/* Admin Status Switch */}
               {isAdmin && (
-                <div className="pt-3 border-t flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-slate-500">Ubah Status:</span>
+                <div className="pt-2 border-t flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-slate-500">Status:</span>
                     <button
                       disabled={statusUpdating}
                       onClick={() => handleUpdateStatus(selectedOrder.id, "PAID")}
-                      className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition-colors ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
                         selectedOrder.paymentStatus === "PAID" ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                       }`}
                     >
-                      Lunas (PAID)
+                      Lunas
                     </button>
                     <button
                       disabled={statusUpdating}
                       onClick={() => handleUpdateStatus(selectedOrder.id, "CANCELLED")}
-                      className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition-colors ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
                         selectedOrder.paymentStatus === "CANCELLED" ? "bg-rose-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                       }`}
                     >
-                      Batalkan
+                      Batal
                     </button>
                   </div>
 
@@ -628,19 +603,21 @@ export default function OrdersPage() {
                 </div>
               )}
 
-              <DialogFooter className="pt-2 flex items-center justify-between sm:justify-between w-full">
+              <DialogFooter className="pt-2 border-t flex gap-2">
                 <Button
                   type="button"
                   variant="outline"
+                  size="sm"
                   onClick={() => setIsDetailOpen(false)}
-                  className="text-xs rounded-xl min-h-[38px] cursor-pointer"
+                  className="rounded-xl text-xs"
                 >
                   Tutup
                 </Button>
                 <Button
                   type="button"
+                  size="sm"
                   onClick={() => window.print()}
-                  className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold rounded-xl min-h-[38px] gap-1.5 cursor-pointer"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl gap-1.5 cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   <span>Cetak Struk</span>
@@ -653,3 +630,4 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
+
