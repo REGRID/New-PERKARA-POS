@@ -90,16 +90,19 @@ export function AttendanceCalendarView() {
   const { user, isAdmin, switchRole } = useAuth();
   const initialEmpName = user?.name?.includes("(") ? user.name.split("(")[0].trim() : (user?.name || "Cheisa");
   const [selectedSelfName, setSelectedSelfName] = useState<string>(initialEmpName);
+  const [hasManuallySelectedEmp, setHasManuallySelectedEmp] = useState(false);
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [calendarLogs, setCalendarLogs] = useState<ShiftLog[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Sync selected self name if auth user changes
+  // Sync selected self name if auth user changes with specific employee name
   useEffect(() => {
     if (user?.name) {
       const clean = user.name.includes("(") ? user.name.split("(")[0].trim() : user.name;
-      setSelectedSelfName(clean);
+      if (clean && clean !== "Kasir Outlet" && clean !== "Owner / Manager") {
+        setSelectedSelfName(clean);
+      }
     }
   }, [user]);
 
@@ -153,6 +156,16 @@ export function AttendanceCalendarView() {
         const data = await res.json();
         if (data.employees) setEmployees(data.employees);
         if (data.calendarLogs) setCalendarLogs(data.calendarLogs);
+
+        // Auto default profil mengikuti siapa yang sedang aktif shift saat itu
+        if (!hasManuallySelectedEmp) {
+          if (data.activeShifts && data.activeShifts.length > 0) {
+            const activeStaff = data.activeShifts[0].employeeName;
+            if (activeStaff) {
+              setSelectedSelfName(activeStaff);
+            }
+          }
+        }
       }
     } catch (err) {
       console.error("Error fetching attendance calendar data:", err);
@@ -195,6 +208,7 @@ export function AttendanceCalendarView() {
       if (res.ok) {
         setIsEmpShiftInModalOpen(false);
         setEmpInputPin("");
+        setHasManuallySelectedEmp(false);
         await fetchData();
       } else {
         const errJson = await res.json();
@@ -231,6 +245,7 @@ export function AttendanceCalendarView() {
         setEmpStartingCash("200000");
         setEmpInputPin("");
         setEmpShiftCategory("FULL_TIME");
+        setHasManuallySelectedEmp(false);
         await fetchData();
       } else {
         const errJson = await res.json();
@@ -310,6 +325,20 @@ export function AttendanceCalendarView() {
       (st) => selectedEmployeeFilter === "ALL" || st.name === selectedEmployeeFilter
     );
   }, [employees, calendarLogs, selectedMonth, selectedYear, selectedEmployeeFilter]);
+
+  // Compute Realtime Active Shifts (Unconditionally for consistent hook execution)
+  const activeDutyShifts = useMemo(() => {
+    const staffLatestMap = new Map<string, ShiftLog>();
+    const sorted = [...calendarLogs].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+    sorted.forEach((l) => {
+      staffLatestMap.set(l.employeeName, l);
+    });
+    return Array.from(staffLatestMap.values()).filter(
+      (l) => (l.type === "SHIFT_IN" || l.status === "OPEN") && l.type !== "SHIFT_OUT" && l.status !== "CLOSED"
+    );
+  }, [calendarLogs]);
 
   // Month navigation
   const handlePrevMonth = () => {
@@ -518,14 +547,20 @@ export function AttendanceCalendarView() {
               <span>Profil:</span>
               <select
                 value={selectedSelfName}
-                onChange={(e) => setSelectedSelfName(e.target.value)}
+                onChange={(e) => {
+                  setSelectedSelfName(e.target.value);
+                  setHasManuallySelectedEmp(true);
+                }}
                 className="bg-transparent font-bold text-slate-900 focus:outline-none cursor-pointer"
               >
-                {employees.map((emp) => (
-                  <option key={emp.id || emp.name} value={emp.name}>
-                    {emp.name} ({emp.role ? emp.role.toUpperCase() : "BARISTA"})
-                  </option>
-                ))}
+                {employees.map((emp) => {
+                  const isEmpActive = activeDutyShifts.some((s) => s.employeeName === emp.name);
+                  return (
+                    <option key={emp.id || emp.name} value={emp.name}>
+                      {emp.name} ({emp.role ? emp.role.toUpperCase() : "BARISTA"}){isEmpActive ? " • 🟢 Sedang Shift" : ""}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -955,20 +990,6 @@ export function AttendanceCalendarView() {
   // ADMIN VIEW (ROLE: ADMIN / OWNER)
   // Melihat Kalender Visual Seluruh Karyawan, CRUD Log, & Rincian Global
   // ==========================================
-  // Compute Realtime Active Shifts for Admin
-  const activeDutyShifts = useMemo(() => {
-    const staffLatestMap = new Map<string, ShiftLog>();
-    const sorted = [...calendarLogs].sort(
-      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    );
-    sorted.forEach((l) => {
-      staffLatestMap.set(l.employeeName, l);
-    });
-    return Array.from(staffLatestMap.values()).filter(
-      (l) => (l.type === "SHIFT_IN" || l.status === "OPEN") && l.type !== "SHIFT_OUT" && l.status !== "CLOSED"
-    );
-  }, [calendarLogs]);
-
   // Compute Today's Complete Shift Logs
   const todayDateObj = new Date();
   const todayDayNumber = todayDateObj.getDate();
