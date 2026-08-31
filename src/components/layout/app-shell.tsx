@@ -63,25 +63,25 @@ export function AppShell({ children }: AppShellProps) {
   ]);
 
   const pageTitles: Record<string, string> = {
-    "/": "Dashboard",
-    "/pos": "POS Terminal",
-    "/products": "Products",
-    "/categories": "Categories",
-    "/inventory/raw-materials": "Raw Materials",
-    "/inventory/recipes": "Recipes & HPP",
-    "/inventory/addons": "Add-Ons",
-    "/discounts": "Discounts",
-    "/purchases": "Purchases",
-    "/orders": "Transactions",
-    "/tables": "Tables",
-    "/customers": "Customers",
-    "/expenses": "Expenses",
-    "/attendance": "Attendance",
-    "/receipts/upload": "Scan Receipt AI",
-    "/reports/cash-flow": "Cash Flow",
-    "/reports/daily-recaps": "Daily Recaps",
-    "/payment-methods": "Payment Methods",
-    "/settings": "Settings",
+    "/": "Dasbor",
+    "/pos": "Kasir POS",
+    "/products": "Katalog Produk",
+    "/categories": "Kategori Menu",
+    "/inventory/raw-materials": "Stok Bahan Baku",
+    "/inventory/recipes": "Resep & HPP",
+    "/inventory/addons": "Menu Tambahan",
+    "/discounts": "Diskon & Promo",
+    "/purchases": "Pembelian Bahan",
+    "/orders": "Riwayat Transaksi",
+    "/tables": "Manajemen Meja",
+    "/customers": "Data Pelanggan",
+    "/expenses": "Pengeluaran Operasional",
+    "/attendance": "Absensi & Shift",
+    "/receipts/upload": "Pindai Nota AI",
+    "/reports/cash-flow": "Kas Shift & Laci",
+    "/reports/daily-recaps": "Rekap Harian",
+    "/payment-methods": "Metode Pembayaran",
+    "/settings": "Pengaturan Sistem",
   };
 
   const currentTitle = pageTitles[pathname] || "PERKARA POS";
@@ -163,10 +163,10 @@ export function AppShell({ children }: AppShellProps) {
                     ? "bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100" 
                     : "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
                 }`}
-                title="Klik untuk switch Mode Admin <-> Mode Kasir (Uji Coba)"
+                title="Ganti Mode Admin / Kasir"
               >
                 <span className={`w-2 h-2 rounded-full ${isAdmin ? "bg-indigo-600 animate-ping" : "bg-amber-600"}`} />
-                <span className="hidden sm:inline">{isAdmin ? "Mode: ADMIN (Klik -> KASIR)" : "Mode: KASIR (Klik -> ADMIN)"}</span>
+                <span className="hidden sm:inline">{isAdmin ? "Mode: Admin" : "Mode: Kasir"}</span>
                 <span className="sm:hidden">{isAdmin ? "ADMIN" : "KASIR"}</span>
               </button>
 
@@ -175,7 +175,7 @@ export function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => setShowSearchModal(true)}
                 className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-                title="Cari Item / Produk"
+                title="Cari Menu / Bahan"
               >
                 <Search className="w-4 h-4" />
               </button>
@@ -185,7 +185,7 @@ export function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => setShowNotifPopover(!showNotifPopover)}
                 className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors cursor-pointer relative"
-                title="Notifikasi & Log Perubahan"
+                title="Notifikasi Aktivitas"
               >
                 <Bell className="w-4 h-4" />
                 {notifications.length > 0 && (
@@ -197,7 +197,7 @@ export function AppShell({ children }: AppShellProps) {
               {showNotifPopover && (
                 <div className="absolute right-0 top-12 w-80 sm:w-96 bg-white rounded-2xl border shadow-xl z-50 p-4 space-y-3">
                   <div className="flex items-center justify-between border-b pb-2">
-                    <h3 className="font-bold text-xs text-slate-900 uppercase tracking-wider">Log Perubahan & Notifikasi</h3>
+                    <h3 className="font-bold text-xs text-slate-900 uppercase tracking-wider">Notifikasi & Riwayat Aktivitas</h3>
                     <button 
                       onClick={() => setShowNotifPopover(false)} 
                       className="text-slate-400 hover:text-slate-700"
@@ -236,7 +236,7 @@ export function AppShell({ children }: AppShellProps) {
                     <Search className="w-4 h-4 text-slate-400 shrink-0" />
                     <Input
                       autoFocus
-                      placeholder="Ketik pencarian item, produk, bahan baku, atau transaksi..."
+                      placeholder="Cari produk, bahan baku, atau transaksi..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="border-none shadow-none focus-visible:ring-0 text-xs min-h-[38px]"
@@ -248,12 +248,12 @@ export function AppShell({ children }: AppShellProps) {
                 </div>
 
                 <div className="space-y-1 text-xs max-h-60 overflow-y-auto">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-2">Pintasan Halaman</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-2">Pintasan Menu</span>
                   <button 
                     onClick={() => { router.push("/products"); setShowSearchModal(false); }}
                     className="w-full p-2 rounded-lg text-left hover:bg-slate-100 flex items-center gap-2 text-slate-800 font-medium"
                   >
-                    <Package className="w-4 h-4 text-indigo-600" /> Master Produk
+                    <Package className="w-4 h-4 text-indigo-600" /> Katalog Produk
                   </button>
                   <button 
                     onClick={() => { router.push("/inventory/raw-materials"); setShowSearchModal(false); }}

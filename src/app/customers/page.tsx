@@ -146,22 +146,22 @@ export default function CustomersPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Database Pelanggan & CRM</h2>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Data Pelanggan</h2>
                 {isAdmin && (
                   <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-bold">
-                    Admin Full Access
+                    Admin
                   </Badge>
                 )}
               </div>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Kelola kontak, chat WhatsApp langsung, dan poin loyalitas reward pelanggan toko.
+                Kelola kontak pelanggan, WhatsApp, dan poin loyalitas.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={fetchCustomers} className="text-xs gap-1.5 min-h-[40px] rounded-xl">
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-                <span>Refresh</span>
+                <span>Segarkan</span>
               </Button>
               {isAdmin && (
                 <Button
@@ -178,15 +178,15 @@ export default function CustomersPage() {
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-              <div className="text-[11px] font-bold text-slate-400 uppercase">Total Pelanggan Terdaftar</div>
+              <div className="text-[11px] font-bold text-slate-400 uppercase">Total Pelanggan</div>
               <div className="text-lg font-extrabold text-slate-900 mt-0.5">{customers.length} Orang</div>
             </div>
             <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
               <div className="text-[11px] font-bold text-slate-400 uppercase">Total Poin Loyalitas</div>
-              <div className="text-lg font-extrabold text-amber-600 mt-0.5">{totalPoints} Pts</div>
+              <div className="text-lg font-extrabold text-amber-600 mt-0.5">{totalPoints} Poin</div>
             </div>
             <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-              <div className="text-[11px] font-bold text-slate-400 uppercase">Kontak WhatsApp Aktif</div>
+              <div className="text-[11px] font-bold text-slate-400 uppercase">Kontak WhatsApp</div>
               <div className="text-lg font-extrabold text-emerald-600 mt-0.5">
                 {customers.filter((c) => c.phone).length} Nomor
               </div>
@@ -198,7 +198,7 @@ export default function CustomersPage() {
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <Input
               type="text"
-              placeholder="Cari nama, no. telepon/WA, atau email pelanggan..."
+              placeholder="Cari nama, WhatsApp, atau email pelanggan..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 bg-slate-50 border-slate-200 text-xs font-medium min-h-[38px] rounded-xl"
@@ -209,10 +209,10 @@ export default function CustomersPage() {
           <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
             {/* Header Row */}
             <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-              <div className="col-span-4">CUSTOMER NAME</div>
-              <div className="col-span-3">CONTACT / WA</div>
-              <div className="col-span-2 text-center">LOYALTY POINTS</div>
-              <div className="col-span-3 text-right">ACTIONS</div>
+              <div className="col-span-4">NAMA PELANGGAN</div>
+              <div className="col-span-3">KONTAK / WHATSAPP</div>
+              <div className="col-span-2 text-center">POIN LOYALITAS</div>
+              <div className="col-span-3 text-right">AKSI</div>
             </div>
 
             {/* Content Rows or Empty State */}
@@ -257,7 +257,7 @@ export default function CustomersPage() {
                       <div className="col-span-2 text-center">
                         <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-bold text-[11px] border border-amber-100">
                           <Award className="w-3 h-3" />
-                          <span>{c.points || 0} Pts</span>
+                          <span>{c.points || 0} Poin</span>
                         </span>
                       </div>
 
@@ -267,20 +267,20 @@ export default function CustomersPage() {
                             <button
                               onClick={() => openEditModal(c)}
                               className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                              title="Edit Pelanggan"
+                              title="Ubah Data"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
                             <button 
                               onClick={() => handleDelete(c.id, c.name)} 
                               className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="Hapus Pelanggan"
+                              title="Hapus Data"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </>
                         ) : (
-                          <span className="text-slate-400 text-[10px]">Read-Only</span>
+                          <span className="text-slate-400 text-[10px]">Lihat Saja</span>
                         )}
                       </div>
                     </div>
@@ -292,9 +292,9 @@ export default function CustomersPage() {
                     <Users className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-800">Tidak ada pelanggan ditemukan</h4>
+                    <h4 className="font-bold text-sm text-slate-800">Pelanggan tidak ditemukan</h4>
                     <p className="text-xs text-slate-400 mt-1 font-medium">
-                      Simpan kontak pelanggan untuk program loyalitas dan promosi broadcast.
+                      Tambahkan data pelanggan untuk program loyalitas dan riwayat pesanan.
                     </p>
                   </div>
                 </div>
@@ -311,10 +311,10 @@ export default function CustomersPage() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900">
-              {editingCustomer ? "Edit Data Pelanggan" : "Tambah Pelanggan Baru"}
+              {editingCustomer ? "Ubah Data Pelanggan" : "Tambah Pelanggan"}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Informasi pelanggan terintegrasi dengan riwayat transaksi kasir POS.
+              Data pelanggan terhubung dengan transaksi kasir POS.
             </DialogDescription>
           </DialogHeader>
 
@@ -323,7 +323,7 @@ export default function CustomersPage() {
               <label className="text-[11px] font-bold text-slate-600 block mb-1">Nama Pelanggan *</label>
               <Input
                 autoFocus
-                placeholder="cth: Rahmat Hidayat"
+                placeholder="Contoh: Rahmat Hidayat"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="text-xs font-medium min-h-[38px] rounded-xl"
@@ -379,7 +379,7 @@ export default function CustomersPage() {
                 disabled={submitting}
                 className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold rounded-xl min-h-[38px]"
               >
-                {submitting ? "Menyimpan..." : "Simpan Pelanggan"}
+                {submitting ? "Menyimpan..." : "Simpan"}
               </Button>
             </DialogFooter>
           </form>

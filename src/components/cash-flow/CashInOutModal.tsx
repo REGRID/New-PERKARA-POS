@@ -277,13 +277,13 @@ export function CashInOutModal({
               </div>
               <div>
                 <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <span>Input Transaksi Kas {transactionType === "OUT" ? "Keluar (OUT)" : "Masuk (IN)"}</span>
+                  <span>Kas {transactionType === "OUT" ? "Keluar" : "Masuk"}</span>
                   <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-bold border-emerald-200">
-                    <Bot className="w-3 h-3 mr-1 text-emerald-600" /> AI OCR Ready
+                    <Bot className="w-3 h-3 mr-1 text-emerald-600" /> Pindai Nota AI
                   </Badge>
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500">
-                  Foto nota otomatis dibaca oleh Google Gemini AI & tersinkron ke riwayat belanja, stok & nota foto.
+                  Foto nota otomatis dipindai AI dan tersinkronisasi ke laporan keuangan.
                 </DialogDescription>
               </div>
             </div>
@@ -303,7 +303,7 @@ export function CashInOutModal({
               }`}
             >
               <ArrowUpRight className="w-4 h-4" />
-              <span>Kas Keluar (OUT - Beban/Belanja)</span>
+              <span>Kas Keluar (Pengeluaran)</span>
             </button>
             <button
               type="button"
@@ -315,7 +315,7 @@ export function CashInOutModal({
               }`}
             >
               <ArrowDownLeft className="w-4 h-4" />
-              <span>Kas Masuk (IN - Tambahan Modal)</span>
+              <span>Kas Masuk (Tambah Modal)</span>
             </button>
           </div>
 
@@ -324,7 +324,7 @@ export function CashInOutModal({
             <div className="flex items-center justify-between">
               <span className="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
                 <Receipt className="w-4 h-4 text-emerald-600" />
-                Bukti Foto Nota Struk (AI OCR Auto-Scan)
+                Bukti Foto Nota
               </span>
 
               {/* Mode Toggle */}
@@ -345,7 +345,7 @@ export function CashInOutModal({
                     activeTab === "DIGITAL_SLIP" ? "bg-stone-800 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  🧾 E-Nota Slip Kas
+                  🧾 Slip Kas
                 </button>
               </div>
             </div>

@@ -191,7 +191,7 @@ export default function PaymentMethodsPage() {
                 className="text-xs font-semibold gap-1.5 h-9 rounded-xl border-slate-200 hover:bg-slate-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-                <span>Refresh</span>
+                <span>Segarkan</span>
               </Button>
               {isAdmin && (
                 <Button
@@ -223,10 +223,10 @@ export default function PaymentMethodsPage() {
             <table className="w-full text-left border-collapse min-w-[550px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200/80 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3 px-4">Metode Bayar</th>
-                  <th className="py-3 px-4">Tipe</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-center">Aksi</th>
+                  <th className="py-3 px-4">METODE PEMBAYARAN</th>
+                  <th className="py-3 px-4">TIPE</th>
+                  <th className="py-3 px-4 text-center">STATUS</th>
+                  <th className="py-3 px-4 text-center">AKSI</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -264,7 +264,7 @@ export default function PaymentMethodsPage() {
                               isActive ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
                             }`}
                           >
-                            {isActive ? "Aktif" : "Non-Aktif"}
+                            {isActive ? "Aktif" : "Nonaktif"}
                           </Badge>
                         </td>
 
@@ -277,7 +277,7 @@ export default function PaymentMethodsPage() {
                                   variant="ghost"
                                   onClick={() => openEditModal(m)}
                                   className="h-7 w-7 p-0 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer"
-                                  title="Edit"
+                                  title="Ubah Data"
                                 >
                                   <Pencil className="w-3.5 h-3.5" />
                                 </Button>
@@ -292,7 +292,7 @@ export default function PaymentMethodsPage() {
                                 </Button>
                               </>
                             ) : (
-                              <span className="text-slate-400 text-[10px]">Lihat</span>
+                              <span className="text-slate-400 text-[10px]">Lihat Saja</span>
                             )}
                           </div>
                         </td>

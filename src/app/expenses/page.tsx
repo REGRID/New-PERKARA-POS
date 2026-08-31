@@ -228,28 +228,28 @@ export default function ExpensesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Beban & Pengeluaran Kas (OPEX)</h2>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Biaya Operasional</h2>
                 {isAdmin && (
                   <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-bold">
-                    Admin Full Access
+                    Admin
                   </Badge>
                 )}
                 {scannedCount > 0 && (
                   <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                     <Sparkles className="w-3 h-3 text-emerald-600" />
-                    {scannedCount} AI / Foto Nota Sync
+                    {scannedCount} Pindai Nota AI
                   </span>
                 )}
               </div>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Catatan kas keluar harian dengan verifikasi foto nota belanja & slip bukti kas resmi.
+                Pencatatan kas keluar operasional dengan verifikasi foto nota dan slip kas.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={fetchExpenses} className="text-xs gap-1.5 min-h-[40px] rounded-xl cursor-pointer">
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-                <span>Refresh</span>
+                <span>Segarkan</span>
               </Button>
               {isAdmin && (
                 <Button
@@ -257,7 +257,7 @@ export default function ExpensesPage() {
                   className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs px-4 py-2.5 rounded-xl min-h-[40px] gap-2 shadow-xs shrink-0 cursor-pointer"
                 >
                   <Camera className="w-4 h-4" />
-                  <span>Catat Kas (Foto Nota)</span>
+                  <span>Catat Pengeluaran</span>
                 </Button>
               )}
             </div>
@@ -313,7 +313,7 @@ export default function ExpensesPage() {
                 className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer"
               >
                 <FilterX className="w-3.5 h-3.5" />
-                <span>Reset Filter</span>
+                <span>Atur Ulang</span>
               </button>
             </div>
           )}

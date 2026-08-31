@@ -152,13 +152,13 @@ export default function EmployeesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Manajemen Karyawan & Payroll Shift</h2>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Data Karyawan</h2>
                 <span className="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  Sistem Per-Shift (Tanpa Gaji Pokok Tetap)
+                  Sistem Per-Shift
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Kelola data staf, tarif upah per shift, PIN otorisasi kasir, absensi, & kalkulasi payroll.
+                Kelola data staf, upah per shift, PIN kasir, absensi, dan payroll.
               </p>
             </div>
 
@@ -174,7 +174,7 @@ export default function EmployeesPage() {
               className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs px-4 py-2.5 rounded-xl min-h-[42px] gap-2 shadow-xs shrink-0 cursor-pointer"
             >
               {showAddForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-              <span>{showAddForm ? "Tutup Form" : "Tambah Karyawan Shift"}</span>
+              <span>{showAddForm ? "Tutup Formulir" : "Tambah Karyawan"}</span>
             </Button>
           </div>
 
@@ -201,7 +201,7 @@ export default function EmployeesPage() {
               }`}
             >
               <Clock className="w-4 h-4" />
-              <span>Absensi & Kehadiran Shift</span>
+              <span>Absensi & Kehadiran</span>
             </button>
 
             <button
@@ -213,7 +213,7 @@ export default function EmployeesPage() {
               }`}
             >
               <Calendar className="w-4 h-4" />
-              <span>Jadwal Shift Kerja</span>
+              <span>Jadwal Shift</span>
             </button>
 
             <button
@@ -225,7 +225,7 @@ export default function EmployeesPage() {
               }`}
             >
               <DollarSign className="w-4 h-4" />
-              <span>Kalkulasi Payroll Shift</span>
+              <span>Kalkulasi Payroll</span>
             </button>
           </div>
 
@@ -234,7 +234,7 @@ export default function EmployeesPage() {
             <form onSubmit={handleSaveEmployee} className="bg-slate-50 p-4 md:p-5 rounded-2xl border border-slate-200 space-y-4 shadow-2xs animate-in fade-in duration-200">
               <div className="flex items-center justify-between border-b pb-2">
                 <h4 className="font-bold text-xs text-slate-900">
-                  {editingId ? "✏️ Edit Data Karyawan Shift" : "➕ Form Pendaftaran Karyawan Shift Baru"}
+                  {editingId ? "Ubah Data Karyawan" : "Tambah Karyawan Baru"}
                 </h4>
                 <Button type="button" variant="ghost" size="sm" onClick={handleResetForm} className="h-7 text-xs text-slate-500">
                   Batal
@@ -243,9 +243,9 @@ export default function EmployeesPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">Nama Lengkap Karyawan *</label>
+                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">Nama Lengkap *</label>
                   <Input
-                    placeholder="misal: Budi Santoso"
+                    placeholder="Contoh: Budi Santoso"
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     className="bg-white min-h-[38px] text-xs font-semibold"
@@ -254,23 +254,23 @@ export default function EmployeesPage() {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">Role / Jabatan</label>
+                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">Jabatan</label>
                   <select
                     value={form.role}
                     onChange={(e) => setForm({ ...form, role: e.target.value })}
                     className="bg-white min-h-[38px] w-full text-xs font-semibold rounded-xl border border-slate-200 px-3 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   >
-                    <option value="cashier">Kasir / Front Desk</option>
-                    <option value="barista">Barista Utama</option>
-                    <option value="kitchen">Dapur / Chef</option>
-                    <option value="admin">Supervisor / Admin</option>
+                    <option value="cashier">Kasir</option>
+                    <option value="barista">Barista</option>
+                    <option value="kitchen">Dapur</option>
+                    <option value="admin">Supervisor</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">PIN Otorisasi Kasir (4 Digit)</label>
+                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">PIN Kasir (4 Digit)</label>
                   <Input
-                    placeholder="1234"
+                    placeholder="Contoh: 1234"
                     value={form.pin}
                     onChange={(e) => setForm({ ...form, pin: e.target.value })}
                     className="bg-white min-h-[38px] text-xs font-semibold tracking-wider font-mono"
@@ -278,12 +278,12 @@ export default function EmployeesPage() {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-emerald-700 block mb-1">Upah Per Shift (Rp / Shift) *</label>
+                  <label className="text-[11px] font-bold text-emerald-700 block mb-1">Upah Per Shift (Rp) *</label>
                   <Input
                     type="number"
                     value={form.shiftRate || ""}
                     onChange={(e) => setForm({ ...form, shiftRate: Number(e.target.value) })}
-                    placeholder="75000"
+                    placeholder="Contoh: 75000"
                     className="bg-emerald-50/40 border-emerald-300 text-emerald-900 min-h-[38px] text-xs font-extrabold"
                     required
                   />
@@ -295,7 +295,7 @@ export default function EmployeesPage() {
                   Batal
                 </Button>
                 <Button type="submit" className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold px-5 min-h-[38px] rounded-xl">
-                  {editingId ? "Update Karyawan" : "Simpan Karyawan"}
+                  {editingId ? "Simpan Perubahan" : "Simpan"}
                 </Button>
               </div>
             </form>

@@ -167,15 +167,15 @@ export default function RecipesAndMenuSettingsPage() {
               <SlidersHorizontal className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-foreground">Pengaturan Menu & Komposisi Resep (BOM)</h1>
-              <p className="text-xs text-muted-foreground">Konfigurasi menu jual dan takaran bahan baku yang otomatis dipotong saat transaksi</p>
+              <h1 className="text-xl font-bold tracking-tight text-foreground">Resep & HPP Produk</h1>
+              <p className="text-xs text-muted-foreground">Pengaturan takaran bahan baku per porsi dan kalkulasi HPP produk.</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={fetchData} className="min-h-[40px] text-xs font-medium gap-1.5">
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span>Refresh</span>
+              <span>Segarkan</span>
             </Button>
             <Button 
               size="sm" 
@@ -183,7 +183,7 @@ export default function RecipesAndMenuSettingsPage() {
               className="min-h-[40px] bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold gap-1.5 shadow-xs"
             >
               <Plus className="w-4 h-4" />
-              <span>Tambah Menu Baru</span>
+              <span>Tambah Resep</span>
             </Button>
           </div>
         </div>
@@ -191,7 +191,7 @@ export default function RecipesAndMenuSettingsPage() {
         {/* Menu Cards Outer Container */}
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
           <div className="border-b pb-3 flex items-center justify-between">
-            <h3 className="font-extrabold text-base text-slate-900">Daftar Menu & Komposisi Resep (BOM)</h3>
+            <h3 className="font-extrabold text-base text-slate-900">Daftar Resep & HPP Menu</h3>
             <span className="text-xs text-slate-500 font-medium">Total: {menus.length} Menu</span>
           </div>
 
@@ -213,7 +213,7 @@ export default function RecipesAndMenuSettingsPage() {
                           {menu.category || "Menu"}
                         </Badge>
                         {!menu.isActive && (
-                          <Badge variant="destructive" className="text-[10px]">Non-Aktif</Badge>
+                          <Badge variant="destructive" className="text-[10px]">Nonaktif</Badge>
                         )}
                       </div>
                       <CardDescription className="text-xs mt-0.5">
@@ -240,7 +240,7 @@ export default function RecipesAndMenuSettingsPage() {
                         className="min-h-[38px] text-xs font-semibold gap-1.5"
                       >
                         <Edit3 className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span>Setting Menu</span>
+                        <span>Ubah Resep</span>
                       </Button>
                     </div>
                   </div>

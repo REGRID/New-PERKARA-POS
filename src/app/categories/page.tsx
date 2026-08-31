@@ -145,19 +145,19 @@ export default function CategoriesPage() {
                 <h2 className="text-xl font-bold text-slate-900 tracking-tight">Kategori Produk</h2>
                 {isAdmin && (
                   <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-bold">
-                    Admin Full Access
+                    Admin
                   </Badge>
                 )}
               </div>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Kelola kategori produk dan menu untuk pengelompokan rapi di terminal kasir dan laporan.
+                Pengelompokan kategori menu untuk tampilan kasir POS dan laporan.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={fetchData} className="text-xs gap-1.5 min-h-[40px] rounded-xl">
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-                <span>Refresh</span>
+                <span>Segarkan</span>
               </Button>
               {isAdmin && (
                 <Button
@@ -187,10 +187,10 @@ export default function CategoriesPage() {
           <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
             {/* Header Row */}
             <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-              <div className="col-span-5">CATEGORY DETAILS</div>
-              <div className="col-span-3 text-center">PRODUCTS COUNT</div>
-              <div className="col-span-2 text-center">SORT ORDER</div>
-              <div className="col-span-2 text-right">ACTIONS</div>
+              <div className="col-span-5">NAMA KATEGORI</div>
+              <div className="col-span-3 text-center">JUMLAH PRODUK</div>
+              <div className="col-span-2 text-center">URUTAN</div>
+              <div className="col-span-2 text-right">AKSI</div>
             </div>
 
             {/* Content Rows or Empty State */}
@@ -208,7 +208,7 @@ export default function CategoriesPage() {
                       </div>
                       <div className="col-span-3 text-center font-semibold text-slate-700">
                         <span className="bg-slate-100 px-2 py-0.5 rounded text-[11px]">
-                          {count} Item Produk
+                          {count} Produk
                         </span>
                       </div>
                       <div className="col-span-2 text-center text-slate-400 font-mono text-[11px]">#{idx + 1}</div>
@@ -218,7 +218,7 @@ export default function CategoriesPage() {
                             <button
                               onClick={() => openEditModal(c)}
                               className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                              title="Edit Kategori"
+                              title="Ubah Kategori"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
@@ -231,7 +231,7 @@ export default function CategoriesPage() {
                             </button>
                           </>
                         ) : (
-                          <span className="text-slate-400 text-[10px]">Read-Only</span>
+                          <span className="text-slate-400 text-[10px]">Lihat Saja</span>
                         )}
                       </div>
                     </div>
@@ -243,9 +243,9 @@ export default function CategoriesPage() {
                     <Tag className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-800">Tidak ada kategori ditemukan</h4>
+                    <h4 className="font-bold text-sm text-slate-800">Kategori tidak ditemukan</h4>
                     <p className="text-xs text-slate-400 mt-1 font-medium">
-                      Buat kategori baru untuk mengorganisir produk Anda.
+                      Tambahkan kategori baru untuk mengelompokkan menu produk.
                     </p>
                   </div>
                 </div>
@@ -262,10 +262,10 @@ export default function CategoriesPage() {
         <DialogContent className="sm:max-w-sm rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900">
-              {editingCategory ? "Edit Nama Kategori" : "Tambah Kategori Baru"}
+              {editingCategory ? "Ubah Kategori" : "Tambah Kategori"}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Kategori akan digunakan untuk memfilter produk di POS dan inventori.
+              Nama kategori digunakan untuk menyaring menu di POS dan stok.
             </DialogDescription>
           </DialogHeader>
 
@@ -274,7 +274,7 @@ export default function CategoriesPage() {
               <label className="text-[11px] font-bold text-slate-600 block mb-1">Nama Kategori *</label>
               <Input
                 autoFocus
-                placeholder="cth: Pastry & Bakery"
+                placeholder="Contoh: Minuman Kopi"
                 value={catNameInput}
                 onChange={(e) => setCatNameInput(e.target.value)}
                 className="text-xs font-medium min-h-[38px] rounded-xl"

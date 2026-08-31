@@ -77,7 +77,7 @@ export default function LoginPage() {
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
             PERKARA POS
           </h1>
-          <p className="text-xs text-slate-600 font-medium">Superapp Kasir, Stok, & Manajemen Outlet</p>
+          <p className="text-xs text-slate-600 font-medium">Sistem Kasir, Stok, dan Manajemen Outlet</p>
         </div>
 
         {/* Main Login Card (Clean Light Theme) */}
@@ -85,7 +85,7 @@ export default function LoginPage() {
           <CardHeader className="space-y-1 pb-3 text-center">
             <CardTitle className="text-xl font-bold text-slate-900">Masuk ke Sistem</CardTitle>
             <CardDescription className="text-xs text-slate-500">
-              Masukkan ID Pengguna & Password akun Anda
+              Masukkan ID Pengguna dan kata sandi
             </CardDescription>
           </CardHeader>
 
@@ -103,7 +103,7 @@ export default function LoginPage() {
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-1">
-                  ID Pengguna (Username)
+                  ID Pengguna
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
@@ -120,13 +120,13 @@ export default function LoginPage() {
 
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-1">
-                  Password / PIN
+                  Kata Sandi / PIN
                 </label>
                 <div className="relative">
                   <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
                   <Input 
                     type="password"
-                    placeholder="Masukkan Password"
+                    placeholder="Masukkan kata sandi"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="min-h-[44px] pl-10 bg-slate-50/70 border-slate-200 text-slate-900 placeholder:text-slate-400 text-xs font-medium focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl"
@@ -140,7 +140,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full min-h-[46px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-200 gap-2 text-xs uppercase tracking-wider transition-all rounded-xl cursor-pointer"
               >
-                <span>Masuk Sekarang</span>
+                <span>Masuk</span>
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </form>

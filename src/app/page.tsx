@@ -56,10 +56,10 @@ export default function AdminDashboardPage() {
         <div className="bg-white p-5 rounded-2xl border shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
-              Selamat datang, {user?.name || "refo"}
+              Selamat Datang, {user?.name || "Refo"}
             </h1>
             <p className="text-xs text-slate-500 mt-1 font-medium">
-              Berikut adalah ringkasan performa hari ini untuk <strong className="text-slate-800 font-semibold">{user?.name || "refo"}</strong>.
+              Ringkasan performa penjualan dan operasional hari ini.
             </p>
           </div>
 
@@ -77,14 +77,14 @@ export default function AdminDashboardPage() {
               <Link href="/receipts/upload">
                 <Button size="lg" variant="outline" className="min-h-[44px] bg-white border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-semibold px-4 rounded-xl gap-2 shadow-2xs cursor-pointer">
                   <Camera className="w-4 h-4 text-rose-500" />
-                  <span>Scan Nota</span>
+                  <span>Pindai Nota</span>
                 </Button>
               </Link>
 
               <Link href="/pos">
                 <Button size="lg" className="min-h-[44px] bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold px-4 rounded-xl gap-2 shadow-xs cursor-pointer">
                   <ShoppingCart className="w-4 h-4" />
-                  <span>Buka Terminal POS &rarr;</span>
+                  <span>Buka Kasir POS &rarr;</span>
                 </Button>
               </Link>
             </div>
@@ -110,7 +110,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
             <p className="text-[11px] text-slate-400 font-medium pt-1 border-t border-slate-100">
-              Total penjualan masuk
+              Total transaksi penjualan
             </p>
           </div>
 
@@ -122,7 +122,7 @@ export default function AdminDashboardPage() {
               </div>
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  LABA KOTOR (GROSS)
+                  LABA KOTOR
                 </span>
                 <span className="text-lg font-extrabold text-slate-900">
                   Rp {Number(estimatedProfit || 0).toLocaleString("id-ID")}
@@ -130,7 +130,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
             <p className="text-[11px] text-slate-400 font-medium pt-1 border-t border-slate-100">
-              Setelah potong HPP (COGS)
+              Setelah potongan HPP
             </p>
           </div>
 
@@ -142,7 +142,7 @@ export default function AdminDashboardPage() {
               </div>
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  TOTAL BELANJA (STOK)
+                  PEMBELIAN BAHAN
                 </span>
                 <span className="text-lg font-extrabold text-slate-900">
                   Rp 0
@@ -150,7 +150,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
             <p className="text-[11px] text-slate-400 font-medium pt-1 border-t border-slate-100">
-              Pembelian barang/bahan
+              Pembelian stok bahan baku
             </p>
           </div>
 
@@ -170,7 +170,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
             <p className="text-[11px] text-slate-400 font-medium pt-1 border-t border-slate-100">
-              Opex di luar belanja
+              Pengeluaran operasional harian
             </p>
           </div>
 
@@ -203,21 +203,21 @@ export default function AdminDashboardPage() {
 
               {/* X Axis Date Labels */}
               <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 px-4">
-                <span>11 Aug</span>
-                <span>12 Aug</span>
-                <span>13 Aug</span>
-                <span>14 Aug</span>
-                <span>15 Aug</span>
-                <span>16 Aug</span>
-                <span>17 Aug</span>
+                <span>11 Agu</span>
+                <span>12 Agu</span>
+                <span>13 Agu</span>
+                <span>14 Agu</span>
+                <span>15 Agu</span>
+                <span>16 Agu</span>
+                <span>17 Agu</span>
               </div>
             </div>
 
             {/* Legend */}
             <div className="flex items-center justify-center gap-6 text-[11px] font-medium text-slate-500 pt-2 border-t">
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" /> Belanja Stok</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block" /> Opex</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Pendapatan</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" /> Pembelian Bahan</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block" /> Operasional</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Penjualan</span>
             </div>
           </div>
 
@@ -237,17 +237,17 @@ export default function AdminDashboardPage() {
               <div className="border-b border-slate-200 text-[10px] text-slate-400">0</div>
 
               <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 px-2">
-                <span>11 Aug</span>
-                <span>13 Aug</span>
-                <span>15 Aug</span>
-                <span>17 Aug</span>
+                <span>11 Agu</span>
+                <span>13 Agu</span>
+                <span>15 Agu</span>
+                <span>17 Agu</span>
               </div>
             </div>
           </div>
 
         </div>
 
-        {/* 4. Bottom Section: Transaksi Terakhir & Peringatan Stok Tipis */}
+        {/* 4. Bottom Section: Transaksi Terakhir & Peringatan Stok Minimum */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           
           {/* Left Card: Transaksi Terakhir */}
@@ -267,11 +267,11 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* Right Card: Peringatan Stok Tipis */}
+          {/* Right Card: Peringatan Stok Minimum */}
           <div className="bg-white p-5 rounded-2xl border shadow-2xs space-y-4 min-h-[220px] flex flex-col justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-              <h3 className="font-bold text-sm text-slate-900">Peringatan Stok Tipis</h3>
+              <h3 className="font-bold text-sm text-slate-900">Peringatan Stok Minimum</h3>
             </div>
 
             <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-2">
@@ -279,7 +279,7 @@ export default function AdminDashboardPage() {
                 <Package className="w-6 h-6" />
               </div>
               <h4 className="font-bold text-sm text-slate-900">Stok Aman</h4>
-              <p className="text-xs text-slate-400 font-medium">Semua produk dan bahan baku berada di atas batas minimum.</p>
+              <p className="text-xs text-slate-400 font-medium">Seluruh stok bahan baku aman dan di atas batas minimum.</p>
             </div>
           </div>
 

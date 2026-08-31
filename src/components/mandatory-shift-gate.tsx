@@ -142,12 +142,12 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
           <div className="flex justify-center">
             <span className="bg-amber-50 text-amber-800 border border-amber-200/80 text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-2xs">
               <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
-              Wajib Membuka Shift Kerja
+              Buka Shift Kasir
             </span>
           </div>
 
           <p className="text-xs text-slate-500 font-medium leading-relaxed px-1">
-            Sistem mendeteksi belum ada shift kerja aktif. Silakan tentukan karyawan yang bertugas dan isi nominal kas kasir untuk membuka sistem POS.
+            Pilih staf kasir yang bertugas dan masukkan modal awal kasir untuk memulai transaksi.
           </p>
         </div>
 
@@ -163,9 +163,9 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs font-bold">
               <span className="text-slate-800">
-                Kasir Utama (Buka Shift) <span className="text-rose-500">*</span>
+                Kasir yang Bertugas <span className="text-rose-500">*</span>
               </span>
-              <span className="text-[10px] text-slate-400 font-medium">(Penanggung Jawab Laci)</span>
+              <span className="text-[10px] text-slate-400 font-medium">(Penanggung Jawab)</span>
             </div>
 
             <div className="relative">
@@ -178,7 +178,7 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
                 className="w-full min-h-[46px] px-4 pr-10 rounded-2xl border-2 border-slate-800 text-xs bg-white font-bold text-slate-900 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-900/20 transition-all"
                 required
               >
-                <option value="">-- Pilih Kasir Utama --</option>
+                <option value="">-- Pilih Kasir --</option>
                 {employees.map((emp) => (
                   <option key={emp.id || emp.name} value={emp.name}>
                     {emp.name} ({emp.role ? emp.role.toUpperCase() : "BARISTA"})
@@ -193,7 +193,7 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs font-bold">
               <span className="text-slate-800">
-                PIN Verifikasi Karyawan <span className="text-rose-500">*</span>
+                PIN Kasir <span className="text-rose-500">*</span>
               </span>
               <span className="text-[10px] text-slate-400 font-medium">(4 Digit PIN)</span>
             </div>
@@ -205,7 +205,7 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
                 setInputPin(e.target.value);
                 setErrorMsg("");
               }}
-              placeholder="Masukkan PIN Anda..."
+              placeholder="Masukkan PIN..."
               className="min-h-[46px] px-4 rounded-2xl border-2 border-slate-800 text-sm font-black tracking-widest bg-slate-50 focus:bg-white"
               required
             />
@@ -213,7 +213,7 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
 
           {/* Field 2: Shift Category */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-800 block">Kategori Shift</label>
+            <label className="text-xs font-bold text-slate-800 block">Jenis Shift</label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -244,14 +244,14 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs font-bold">
               <span className="text-slate-800">
-                Nominal Uang Cash di Kasir (Rp) <span className="text-rose-500">*</span>
+                Modal Awal Kasir (Rp) <span className="text-rose-500">*</span>
               </span>
-              <span className="text-[10px] text-slate-400 font-medium">(Wajib Diisi)</span>
+              <span className="text-[10px] text-slate-400 font-medium">(Wajib)</span>
             </div>
             
             <Input
               type="text"
-              placeholder="Contoh: 200.000 (Nominal fisik laci kasir)"
+              placeholder="Contoh: 200.000"
               value={startCashDisplay}
               onChange={handleStartCashChange}
               className="min-h-[46px] rounded-2xl border-slate-200 text-xs font-semibold text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus-visible:ring-slate-900"
@@ -259,7 +259,7 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
             />
             
             <p className="text-[10px] text-slate-400 italic pt-0.5">
-              * Masukkan jumlah fisik uang tunai di laci kasir saat ini.
+              * Masukkan jumlah uang fisik di laci kasir saat ini.
             </p>
           </div>
 
@@ -273,7 +273,7 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
               <span>Membuka Shift...</span>
             ) : (
               <>
-                <span>Mulai & Buka Shift POS</span>
+                <span>Buka Shift Kasir</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

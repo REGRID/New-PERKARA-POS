@@ -193,28 +193,28 @@ export default function PurchasesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Pengadaan & Pembelian Stok Masuk</h2>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Pembelian Bahan Baku</h2>
                 {isAdmin && (
                   <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-bold">
-                    Admin Full Access
+                    Admin
                   </Badge>
                 )}
                 {scannedCount > 0 && (
                   <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                     <Sparkles className="w-3 h-3 text-emerald-600" />
-                    {scannedCount} AI Nota Sync
+                    {scannedCount} Pindai Nota AI
                   </span>
                 )}
               </div>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Log riwayat pembelian bahan baku, kemasan, operasional & hasil scan foto nota toko otomatis.
+                Riwayat pengadaan stok bahan baku, kemasan, dan sinkronisasi nota toko.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={fetchPurchases} className="text-xs gap-1.5 min-h-[40px] rounded-xl cursor-pointer">
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-                <span>Refresh</span>
+                <span>Segarkan</span>
               </Button>
               {isAdmin && (
                 <Button
@@ -222,7 +222,7 @@ export default function PurchasesPage() {
                   className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs px-4 py-2.5 rounded-xl min-h-[40px] gap-2 shadow-xs shrink-0 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Catat Stok Masuk</span>
+                  <span>Catat Pembelian</span>
                 </Button>
               )}
             </div>
@@ -235,12 +235,12 @@ export default function PurchasesPage() {
               <div className="text-lg font-extrabold text-slate-900 mt-0.5">Rp {totalSpent.toLocaleString("id-ID")}</div>
             </div>
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <div className="text-[11px] font-bold text-slate-400 uppercase">Total Item Masuk</div>
-              <div className="text-lg font-extrabold text-slate-900 mt-0.5">{filteredPurchases.length} Transaksi Item</div>
+              <div className="text-[11px] font-bold text-slate-400 uppercase">Total Barang Masuk</div>
+              <div className="text-lg font-extrabold text-slate-900 mt-0.5">{filteredPurchases.length} Transaksi</div>
             </div>
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <div className="text-[11px] font-bold text-slate-400 uppercase">Terhubung AI Nota</div>
-              <div className="text-lg font-extrabold text-emerald-600 mt-0.5">{scannedCount} Item Terverifikasi</div>
+              <div className="text-[11px] font-bold text-slate-400 uppercase">Dari Pindai Nota</div>
+              <div className="text-lg font-extrabold text-emerald-600 mt-0.5">{scannedCount} Barang Terverifikasi</div>
             </div>
           </div>
 
@@ -250,7 +250,7 @@ export default function PurchasesPage() {
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <Input
                 type="text"
-                placeholder="Cari nama barang, Kode SKU, atau Toko/Supplier..."
+                placeholder="Cari nama barang, SKU, atau supplier..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 bg-slate-50 border-slate-200 text-xs font-medium min-h-[38px] rounded-xl w-full"
@@ -278,7 +278,7 @@ export default function PurchasesPage() {
                 className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer"
               >
                 <FilterX className="w-3.5 h-3.5" />
-                <span>Reset Filter</span>
+                <span>Atur Ulang</span>
               </button>
             </div>
           )}
@@ -287,11 +287,11 @@ export default function PurchasesPage() {
           <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
             {/* Header Row */}
             <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-              <div className="col-span-4">ITEM DETAILS</div>
-              <div className="col-span-2 text-center">QUANTITY</div>
-              <div className="col-span-2 text-right">UNIT PRICE</div>
-              <div className="col-span-2 text-right">TOTAL COST</div>
-              <div className="col-span-2 text-right">ACTIONS</div>
+              <div className="col-span-4">NAMA BARANG</div>
+              <div className="col-span-2 text-center">JUMLAH</div>
+              <div className="col-span-2 text-right">HARGA SATUAN</div>
+              <div className="col-span-2 text-right">TOTAL HARGA</div>
+              <div className="col-span-2 text-right">AKSI</div>
             </div>
 
             {/* Content Rows or Empty State */}

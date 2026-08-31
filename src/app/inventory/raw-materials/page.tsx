@@ -303,9 +303,9 @@ export default function RawMaterialsPage() {
               <Store className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Kelola Stok & Refill Gudang</h1>
+              <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Stok Bahan Baku</h1>
               <p className="text-xs text-slate-500 font-medium">
-                {isAdmin ? "Mode Admin: Kelola Stok Berjalan, Stok Gudang Utama, Konversi HPP & Restock" : "Mode Kasir: Input & Verifikasi Stok Fisik Outlet"}
+                {isAdmin ? "Kelola stok fisik bahan baku, konversi HPP, dan batas minimum peringatan." : "Input dan verifikasi stok fisik bahan baku outlet."}
               </p>
             </div>
           </div>
@@ -318,7 +318,7 @@ export default function RawMaterialsPage() {
               className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-semibold text-xs px-3.5 py-2 min-h-[40px] rounded-xl gap-1.5 shadow-2xs cursor-pointer"
             >
               <Send className="w-4 h-4 text-emerald-600" />
-              <span>Kirim Stok WA</span>
+              <span>Kirim Rekap WA</span>
             </Button>
 
             {isAdmin && (
@@ -329,7 +329,7 @@ export default function RawMaterialsPage() {
                   className="border-amber-500 text-amber-700 hover:bg-amber-50 font-semibold text-xs px-3.5 py-2 min-h-[40px] rounded-xl gap-1.5 shadow-2xs cursor-pointer"
                 >
                   <Tag className="w-4 h-4 text-amber-600" />
-                  <span>Kelola Kategori</span>
+                  <span>Kategori Bahan</span>
                 </Button>
 
                 <Button
@@ -337,7 +337,7 @@ export default function RawMaterialsPage() {
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-4 py-2 min-h-[40px] rounded-xl gap-1.5 shadow-xs cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Tambah Bahan Baru</span>
+                  <span>Tambah Bahan</span>
                 </Button>
               </>
             )}
@@ -346,6 +346,7 @@ export default function RawMaterialsPage() {
               variant="outline"
               onClick={fetchIngredients}
               className="p-2.5 min-h-[40px] rounded-xl border-slate-200 hover:bg-slate-50 text-slate-600 cursor-pointer"
+              title="Segarkan Data"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
@@ -363,7 +364,7 @@ export default function RawMaterialsPage() {
             }`}
           >
             <Store className="w-4 h-4" />
-            <span>Stok Toko & Bar</span>
+            <span>Stok Bar</span>
           </button>
 
           <button
@@ -377,7 +378,7 @@ export default function RawMaterialsPage() {
             <SlidersHorizontal className="w-4 h-4" />
             <span>Pengaturan Gudang</span>
             <Badge className="bg-slate-100 text-slate-600 text-[10px] px-2 py-0 border-none font-bold">
-              Tanpa Gudang
+              Lokal Outlet
             </Badge>
           </button>
         </div>
@@ -386,8 +387,8 @@ export default function RawMaterialsPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
             <div>
-              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Total SKU Bahan Baku</span>
-              <div className="text-2xl font-extrabold text-slate-900">{materials.length} SKU</div>
+              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Total Bahan Baku</span>
+              <div className="text-2xl font-extrabold text-slate-900">{materials.length} Bahan</div>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center">
               <Boxes className="w-5 h-5" />
@@ -396,9 +397,9 @@ export default function RawMaterialsPage() {
 
           <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
             <div>
-              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Stok Berjalan (Bar)</span>
+              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Stok Tersedia</span>
               <div className="text-2xl font-extrabold text-slate-900">
-                {materials.filter((m) => (m.floorQuantity || 0) > 0).length} SKU Ready
+                {materials.filter((m) => (m.floorQuantity || 0) > 0).length} Siap
               </div>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center">
@@ -408,8 +409,8 @@ export default function RawMaterialsPage() {
 
           <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
             <div>
-              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Status Outlet</span>
-              <div className="text-xl font-extrabold text-slate-900">Tanpa Gudang Physical</div>
+              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Tipe Penyimpanan</span>
+              <div className="text-xl font-extrabold text-slate-900">Lokal Outlet</div>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center">
               <Warehouse className="w-5 h-5" />
@@ -450,22 +451,22 @@ export default function RawMaterialsPage() {
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
           <div className="border-b pb-4">
             <div className="flex items-center gap-2">
-              <h3 className="font-extrabold text-base text-slate-900">Daftar Stok Bahan & Kemasan</h3>
+              <h3 className="font-extrabold text-base text-slate-900">Daftar Bahan Baku</h3>
               <Badge className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 border-none">
-                Mode Tanpa Gudang (Langsung Stok Bar)
+                Stok Bar
               </Badge>
             </div>
             <p className="text-xs text-slate-500 font-medium mt-1">
-              Semua bahan baku dikelola langsung di Stok Bar tanpa melalui proses refill gudang.
+              Seluruh bahan baku langsung dipantau melalui stok bar outlet.
             </p>
           </div>
 
           {/* Table Container */}
           <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
             <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-              <div className="col-span-6">BAHAN & KEMASAN</div>
-              <div className="col-span-3 text-center">STOK BAR (TOKO)</div>
-              <div className="col-span-3 text-right">OPSI ADMIN</div>
+              <div className="col-span-6">NAMA BAHAN BAKU</div>
+              <div className="col-span-3 text-center">STOK FISIK</div>
+              <div className="col-span-3 text-right">AKSI</div>
             </div>
 
             {/* Group Items by Category */}

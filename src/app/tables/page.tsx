@@ -138,22 +138,22 @@ export default function TablesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Manajemen Meja Outlet & Dine-In</h2>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Manajemen Meja</h2>
                 {isAdmin && (
                   <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-bold">
-                    Admin Full Access
+                    Admin
                   </Badge>
                 )}
               </div>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Kelola nomor meja, kapasitas kursi, dan status okupansi (Kosong, Terisi, Reservasi).
+                Pengaturan nomor meja, kapasitas kursi, dan status meja.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={fetchTables} className="text-xs gap-1.5 min-h-[40px] rounded-xl">
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-                <span>Refresh</span>
+                <span>Segarkan</span>
               </Button>
               {isAdmin && (
                 <Button
@@ -161,7 +161,7 @@ export default function TablesPage() {
                   className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs px-4 py-2.5 rounded-xl min-h-[40px] gap-2 shadow-xs shrink-0 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Tambah Meja Baru</span>
+                  <span>Tambah Meja</span>
                 </Button>
               )}
             </div>
@@ -174,9 +174,9 @@ export default function TablesPage() {
               <div className="text-lg font-extrabold text-slate-900 mt-0.5">{tables.length} Meja</div>
             </div>
             <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-              <div className="text-[11px] font-bold text-slate-400 uppercase">Meja Kosong</div>
+              <div className="text-[11px] font-bold text-slate-400 uppercase">Meja Tersedia</div>
               <div className="text-lg font-extrabold text-emerald-600 mt-0.5">
-                {tables.filter((t) => t.status === "AVAILABLE").length} Siap
+                {tables.filter((t) => t.status === "AVAILABLE").length} Meja
               </div>
             </div>
             <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
@@ -198,7 +198,7 @@ export default function TablesPage() {
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <Input
               type="text"
-              placeholder="Cari label meja..."
+              placeholder="Cari nomor atau label meja..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 bg-slate-50 border-slate-200 text-xs font-medium min-h-[38px] rounded-xl"
@@ -237,7 +237,7 @@ export default function TablesPage() {
                         isOccupied ? "bg-rose-100 text-rose-800" :
                         "bg-amber-100 text-amber-800"
                       }`}>
-                        {isAvail ? "KOSONG" : isOccupied ? "TERISI" : "RESERVASI"}
+                        {isAvail ? "TERSEDIA" : isOccupied ? "TERISI" : "RESERVASI"}
                       </span>
                     </div>
 
@@ -248,7 +248,7 @@ export default function TablesPage() {
                           <button
                             onClick={() => openEditModal(t)}
                             className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                            title="Edit Meja"
+                            title="Ubah Data"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -271,9 +271,9 @@ export default function TablesPage() {
                   <Grid className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-slate-800">Tidak ada meja ditemukan</h4>
+                  <h4 className="font-bold text-sm text-slate-800">Meja tidak ditemukan</h4>
                   <p className="text-xs text-slate-400 mt-1 font-medium">
-                    Tambahkan meja outlet untuk mendukung pesanan dine-in kasir POS.
+                    Tambahkan data meja untuk pemesanan di tempat (dine-in).
                   </p>
                 </div>
               </div>
@@ -289,10 +289,10 @@ export default function TablesPage() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900">
-              {editingTable ? "Edit Informasi Meja" : "Tambah Meja Baru"}
+              {editingTable ? "Ubah Data Meja" : "Tambah Meja"}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Nomor atau label meja akan muncul saat pemilihan meja dine-in di POS.
+              Nomor meja digunakan saat memilih meja pesanan di kasir POS.
             </DialogDescription>
           </DialogHeader>
 
@@ -301,7 +301,7 @@ export default function TablesPage() {
               <label className="text-[11px] font-bold text-slate-600 block mb-1">Nomor / Nama Meja *</label>
               <Input
                 autoFocus
-                placeholder="cth: Meja 05 (Outdoor Area)"
+                placeholder="Contoh: Meja 05 (Outdoor)"
                 value={form.number}
                 onChange={(e) => setForm({ ...form, number: e.target.value })}
                 className="text-xs font-medium min-h-[38px] rounded-xl"
@@ -330,9 +330,9 @@ export default function TablesPage() {
                   className="w-full min-h-[38px] px-3 rounded-xl border border-slate-200 text-xs bg-white font-medium"
                   required
                 >
-                  <option value="AVAILABLE">KOSONG (Tersedia)</option>
-                  <option value="OCCUPIED">TERISI (Ada Pelanggan)</option>
-                  <option value="RESERVED">RESERVASI</option>
+                  <option value="AVAILABLE">Tersedia</option>
+                  <option value="OCCUPIED">Terisi</option>
+                  <option value="RESERVED">Reservasi</option>
                 </select>
               </div>
             </div>
@@ -351,7 +351,7 @@ export default function TablesPage() {
                 disabled={submitting}
                 className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold rounded-xl min-h-[38px]"
               >
-                {submitting ? "Menyimpan..." : "Simpan Meja"}
+                {submitting ? "Menyimpan..." : "Simpan"}
               </Button>
             </DialogFooter>
           </form>

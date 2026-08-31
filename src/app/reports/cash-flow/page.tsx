@@ -175,9 +175,9 @@ export default function CashFlowReportPage() {
               <Wallet className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Kas Shift & Operasional Laci</h1>
+              <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Laporan Arus Kas</h1>
               <p className="text-xs text-slate-500 font-medium">
-                Pencatatan kas masuk & keluar laci kasir dengan verifikasi foto nota & slip bukti kas resmi.
+                Pencatatan kas masuk dan keluar laci kasir dengan verifikasi foto nota dan slip kas.
               </p>
             </div>
           </div>
@@ -189,7 +189,7 @@ export default function CashFlowReportPage() {
               className="min-h-[42px] bg-white border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold px-4 rounded-xl gap-2 shadow-2xs cursor-pointer"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Export CSV Kas</span>
+              <span>Ekspor CSV</span>
             </Button>
 
             <Button
@@ -197,7 +197,7 @@ export default function CashFlowReportPage() {
               className="min-h-[42px] bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 rounded-xl gap-2 shadow-xs cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Input Kas Masuk / Out (Foto Nota)</span>
+              <span>Catat Kas</span>
             </Button>
           </div>
         </div>
@@ -211,7 +211,7 @@ export default function CashFlowReportPage() {
             <div>
               <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                UANG CASH READY DI LACI KASIR (LIVE)
+                UANG TUNAI DI LACI KASIR
               </span>
               <div className="text-3xl font-extrabold tracking-tight mt-1 text-white">
                 Rp {liveReadyCash.toLocaleString("id-ID")}
@@ -232,12 +232,12 @@ export default function CashFlowReportPage() {
             </div>
 
             <div className="bg-slate-800/80 p-3 rounded-2xl border border-slate-700/60 min-w-[120px]">
-              <span className="text-[10px] font-bold text-slate-400 uppercase block">Kas Masuk (IN)</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase block">Kas Masuk</span>
               <span className="text-xs font-bold text-emerald-400 mt-0.5 block">+Rp {totalKasMasuk.toLocaleString("id-ID")}</span>
             </div>
 
             <div className="bg-slate-800/80 p-3 rounded-2xl border border-slate-700/60 min-w-[120px]">
-              <span className="text-[10px] font-bold text-slate-400 uppercase block">Kas Keluar (OUT)</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase block">Kas Keluar</span>
               <span className="text-xs font-bold text-rose-400 mt-0.5 block">-Rp {totalKasKeluar.toLocaleString("id-ID")}</span>
             </div>
           </div>
@@ -247,9 +247,9 @@ export default function CashFlowReportPage() {
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
             <div>
-              <h3 className="font-bold text-sm text-slate-900">Log Kas Masuk & Kas Keluar (Petty Cash)</h3>
+              <h3 className="font-bold text-sm text-slate-900">Log Kas Masuk & Kas Keluar</h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Pengeluaran kas kecil selama shift (pembelian bahan, es batu, parkir, galon, dll) lengkap dengan bukti foto nota.
+                Pengeluaran kas operasional selama shift lengkap dengan bukti foto nota.
               </p>
             </div>
 
@@ -259,7 +259,7 @@ export default function CashFlowReportPage() {
               className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold min-h-[38px] rounded-xl cursor-pointer gap-1.5"
             >
               <Camera className="w-3.5 h-3.5" />
-              <span>+ Input Kas (Foto Nota)</span>
+              <span>+ Catat Kas</span>
             </Button>
           </div>
 

@@ -364,13 +364,13 @@ export default function POSTerminalPage() {
 
           <div>
             <h1 className="text-sm md:text-base font-extrabold flex items-center gap-2 text-white">
-              <span>POS Terminal</span>
+              <span>Kasir POS</span>
               <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] font-bold">
-                Live Terminal
+                Aktif
               </Badge>
             </h1>
             <p className="text-[11px] text-slate-400 font-medium">
-              Petugas: <strong className="text-slate-200">{activeShift?.employeeName || user?.name || "Kasir Outlet"}</strong> ({isAdmin ? "ADMIN" : "KASIR SHIFT"})
+              Kasir: <strong className="text-slate-200">{activeShift?.employeeName || user?.name || "Kasir Outlet"}</strong> ({isAdmin ? "Admin" : "Kasir Shift"})
             </p>
           </div>
         </div>
@@ -386,9 +386,9 @@ export default function POSTerminalPage() {
                 ? "bg-amber-500 hover:bg-amber-600 text-slate-950" 
                 : "bg-indigo-600 hover:bg-indigo-700 text-white"
             }`}
-            title="Klik untuk switch Mode Admin <-> Mode Kasir secara instan"
+            title="Ganti Mode Admin / Kasir"
           >
-            <span>{isAdmin ? "👑 Switch -> KASIR" : "🧑‍🍳 Switch -> ADMIN"}</span>
+            <span>{isAdmin ? "Mode: Admin" : "Mode: Kasir"}</span>
           </Button>
 
           {activeShift && !isAdmin && (
@@ -396,7 +396,7 @@ export default function POSTerminalPage() {
               size="sm"
               onClick={() => setIsCloseShiftOpen(true)}
               className="bg-rose-600 hover:bg-rose-700 text-white min-h-[38px] text-xs font-bold gap-1 px-3 rounded-xl cursor-pointer"
-              title="Tutup Shift Kerja Kasir"
+              title="Tutup Shift Kasir"
             >
               <Clock className="w-3.5 h-3.5" />
               <span>Tutup Shift</span>
@@ -414,10 +414,10 @@ export default function POSTerminalPage() {
             size="sm"
             onClick={() => setIsPettyCashOpen(true)}
             className="min-h-[38px] text-xs font-bold gap-1.5 px-3 rounded-xl cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white"
-            title="Catat Kas Masuk / Kas Keluar dengan Foto Nota"
+            title="Catat Kas Masuk atau Keluar"
           >
             <Camera className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Kas In/Out (Foto Nota)</span>
+            <span className="hidden sm:inline">Kas Masuk/Keluar</span>
           </Button>
 
           <Link href="/reports/cash-flow">
@@ -430,7 +430,7 @@ export default function POSTerminalPage() {
           <Link href="/attendance">
             <Button size="sm" variant="outline" className="min-h-[38px] text-xs gap-1.5 border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700">
               <Clock className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Absen</span>
+              <span className="hidden sm:inline">Absensi</span>
             </Button>
           </Link>
 
@@ -441,7 +441,7 @@ export default function POSTerminalPage() {
             className="min-h-[38px] text-xs gap-1.5 border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-            <span className="hidden md:inline">Sync</span>
+            <span className="hidden md:inline">Segarkan</span>
           </Button>
 
           {/* Fullscreen Mode Button */}
@@ -529,7 +529,7 @@ export default function POSTerminalPage() {
             <div className="flex items-center justify-between border-b pb-2">
               <h2 className="font-bold text-sm flex items-center gap-2 text-foreground">
                 <ShoppingCart className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Keranjang Pesanan</span>
+                <span>Keranjang</span>
               </h2>
               {cart.length > 0 && (
                 <Button 
@@ -539,7 +539,7 @@ export default function POSTerminalPage() {
                   className="min-h-[36px] text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950 text-xs gap-1 font-semibold"
                 >
                   <ShieldAlert className="w-3.5 h-3.5" />
-                  <span>Void Order</span>
+                  <span>Batalkan Semua</span>
                 </Button>
               )}
             </div>
@@ -548,7 +548,7 @@ export default function POSTerminalPage() {
             {cart.length === 0 ? (
               <div className="text-center py-14 text-muted-foreground text-xs space-y-2">
                 <ShoppingCart className="w-8 h-8 mx-auto stroke-1" />
-                <p>Keranjang kosong. Pilih menu di sebelah kiri.</p>
+                <p>Keranjang kosong. Pilih menu untuk menambahkan.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -579,7 +579,7 @@ export default function POSTerminalPage() {
           {/* Cart Footer Summary & Checkout Button */}
           <div className="border-t pt-4 space-y-3">
             <div className="flex justify-between items-center text-sm">
-              <span className="text-muted-foreground font-medium">Subtotal Tagihan:</span>
+              <span className="text-muted-foreground font-medium">Subtotal:</span>
               <strong className="text-xl font-bold text-foreground">Rp {subtotal.toLocaleString("id-ID")}</strong>
             </div>
 
@@ -590,7 +590,7 @@ export default function POSTerminalPage() {
               className="w-full min-h-[50px] font-bold text-base gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
             >
               <CreditCard className="w-5 h-5" />
-              <span>Bayar (Rp {subtotal.toLocaleString("id-ID")})</span>
+              <span>Bayar Rp {subtotal.toLocaleString("id-ID")}</span>
             </Button>
           </div>
 
@@ -602,15 +602,15 @@ export default function POSTerminalPage() {
       <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Pembayaran Transaksi</DialogTitle>
-            <DialogDescription>Total Tagihan: Rp {subtotal.toLocaleString("id-ID")}</DialogDescription>
+            <DialogTitle>Pembayaran</DialogTitle>
+            <DialogDescription>Total: Rp {subtotal.toLocaleString("id-ID")}</DialogDescription>
           </DialogHeader>
 
           {isPaymentSuccess ? (
             <div className="py-8 text-center space-y-3">
               <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto animate-bounce" />
-              <h3 className="text-base font-bold text-emerald-700 dark:text-emerald-400">Pembayaran Sukses & Tersimpan ke DB</h3>
-              <p className="text-xs text-muted-foreground">Struk dicetak ke Printer Bluetooth.</p>
+              <h3 className="text-base font-bold text-emerald-700 dark:text-emerald-400">Pembayaran Berhasil</h3>
+              <p className="text-xs text-muted-foreground">Struk otomatis dicetak.</p>
             </div>
           ) : (
             <div className="space-y-4 py-2">
@@ -634,7 +634,7 @@ export default function POSTerminalPage() {
               {/* Quick Cash Buttons for Cash Payment */}
               {paymentMethod === "CASH" && (
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-muted-foreground block">Pecahan Uang Tunai Cepat:</label>
+                  <label className="text-xs font-semibold text-muted-foreground block">Pilihan Nominal:</label>
                   <div className="grid grid-cols-4 gap-2">
                     {[subtotal, 20000, 50000, 100000].map((amt) => (
                       <Button 
@@ -651,7 +651,7 @@ export default function POSTerminalPage() {
 
                   <Input 
                     type="number" 
-                    placeholder="Nominal Uang Tunai..."
+                    placeholder="Nominal Diterima..."
                     value={amountPaid || ""}
                     onChange={(e) => setAmountPaid(Number(e.target.value))}
                     className="min-h-[44px] mt-2"
@@ -679,7 +679,7 @@ export default function POSTerminalPage() {
                 className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold" 
                 onClick={handleProcessCheckout}
               >
-                {isProcessing ? "Menyimpan ke DB..." : "Proses & Simpan Order"}
+                {isProcessing ? "Memproses Transaksi..." : "Selesaikan Transaksi"}
               </Button>
             </DialogFooter>
           )}
@@ -693,17 +693,17 @@ export default function POSTerminalPage() {
             <>
               <DialogHeader>
                 <DialogTitle className="text-base font-bold text-slate-900">
-                  Kustomisasi Menu: {selectedCustomProduct.name}
+                  Opsi Menu: {selectedCustomProduct.name}
                 </DialogTitle>
                 <DialogDescription className="text-xs">
-                  Pilih opsi takaran (Sugar/Ice), Add-on topping, dan catatan barista.
+                  Tentukan level gula, es, menu tambahan, dan catatan khusus.
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4 py-2 text-xs">
                 {/* Sugar Level */}
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 block">Level Gula / Sweetness:</label>
+                  <label className="font-bold text-slate-700 block">Level Gula:</label>
                   <div className="grid grid-cols-3 gap-2">
                     {["Normal Sugar (100%)", "Less Sugar (70%)", "No Sugar (0%)"].map((s) => (
                       <Button
@@ -723,7 +723,7 @@ export default function POSTerminalPage() {
 
                 {/* Ice Level */}
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 block">Level Es Batu / Ice:</label>
+                  <label className="font-bold text-slate-700 block">Level Es:</label>
                   <div className="grid grid-cols-3 gap-2">
                     {["Normal Ice", "Less Ice", "No Ice"].map((i) => (
                       <Button
@@ -743,7 +743,7 @@ export default function POSTerminalPage() {
 
                 {/* Add-On Toppings */}
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 block">Ekstra Add-On / Topping:</label>
+                  <label className="font-bold text-slate-700 block">Menu Tambahan:</label>
                   <div className="grid grid-cols-2 gap-2">
                     {availableAddonsList.map((addon) => {
                       const isSelected = selectedAddons.some((a) => a.name === addon.name);
@@ -766,9 +766,9 @@ export default function POSTerminalPage() {
 
                 {/* Catatan Barista */}
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700 block">Catatan Khusus Barista:</label>
+                  <label className="font-bold text-slate-700 block">Catatan Khusus:</label>
                   <Input
-                    placeholder="misal: Pisahkan es / Tanpa tutup"
+                    placeholder="Contoh: Pisahkan es / Sedotan kertas"
                     value={customNotes}
                     onChange={(e) => setCustomNotes(e.target.value)}
                     className="min-h-[38px] text-xs"
@@ -781,7 +781,7 @@ export default function POSTerminalPage() {
                   Batal
                 </Button>
                 <Button className="min-h-[40px] bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold" onClick={handleConfirmAddToCart}>
-                  + Tambah ke Keranjang
+                  Tambah ke Keranjang
                 </Button>
               </DialogFooter>
             </>
@@ -793,14 +793,14 @@ export default function POSTerminalPage() {
       <Dialog open={isVoidModalOpen} onOpenChange={setIsVoidModalOpen}>
         <DialogContent className="sm:max-w-xs text-center">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-destructive">PIN Supervisor (Void)</DialogTitle>
-            <DialogDescription className="text-xs">Pembatalan pesanan wajib otorisasi PIN (Default: 9999)</DialogDescription>
+            <DialogTitle className="text-base font-bold text-destructive">PIN Supervisor</DialogTitle>
+            <DialogDescription className="text-xs">Pembatalan transaksi memerlukan verifikasi PIN supervisor.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 py-2">
             <Input 
               type="password"
-              placeholder="PIN Supervisor (9999)..."
+              placeholder="Masukkan PIN Supervisor"
               value={supervisorPin}
               onChange={(e) => setSupervisorPin(e.target.value)}
               className="min-h-[44px] text-center text-lg tracking-widest"
@@ -819,7 +819,7 @@ export default function POSTerminalPage() {
               className="min-h-[44px] w-full text-xs font-semibold" 
               onClick={handleConfirmVoidCart}
             >
-              Batalkan Pesanan
+              Batalkan
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -830,10 +830,10 @@ export default function POSTerminalPage() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900">
-              Closing / Tutup Shift Kasir
+              Tutup Shift Kasir
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Hitung uang fisik di laci kasir untuk mencatat serah terima kas shift.
+              Hitung uang fisik di laci kasir untuk serah terima shift.
             </DialogDescription>
           </DialogHeader>
 
@@ -853,7 +853,7 @@ export default function POSTerminalPage() {
 
             <div>
               <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                Uang Fisik Laci Kasir Saat Ini (Rp) *
+                Uang Fisik di Laci (Rp) *
               </label>
               <Input
                 type="text"
@@ -867,10 +867,10 @@ export default function POSTerminalPage() {
 
             <div>
               <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                Catatan Shift / Keterangan (Opsional)
+                Catatan (Opsional)
               </label>
               <Input
-                placeholder="misal: Kas PAS, bon bensin Rp 20.000"
+                placeholder="Contoh: Kas sesuai, pengeluaran darurat Rp 20.000"
                 value={closingNote}
                 onChange={(e) => setClosingNote(e.target.value)}
                 className="text-xs font-medium min-h-[40px] rounded-xl"
@@ -891,7 +891,7 @@ export default function POSTerminalPage() {
                 disabled={isClosingShift}
                 className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl min-h-[38px]"
               >
-                {isClosingShift ? "Menutup Shift..." : "Konfirmasi Tutup Shift"}
+                {isClosingShift ? "Menutup Shift..." : "Tutup Shift"}
               </Button>
             </DialogFooter>
           </form>

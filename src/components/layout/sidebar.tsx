@@ -66,51 +66,51 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const rawNavigation: NavGroup[] = [
     {
       id: "OPERATIONS",
-      groupName: "OPERATIONS",
+      groupName: "OPERASIONAL",
       items: [
-        { name: "POS Terminal", href: "/pos", icon: ShoppingCart, badge: "Live" },
-        { name: "Transactions", href: "/orders", icon: FileText },
-        { name: "Tables", href: "/tables", icon: Grid },
-        { name: "Customers", href: "/customers", icon: Users },
-        { name: "QR Menu", href: "/qr-menu/outlet-1", icon: CircleDot },
-        { name: "Attendance", href: "/attendance", icon: Clock },
+        { name: "Kasir POS", href: "/pos", icon: ShoppingCart, badge: "Live" },
+        { name: "Transaksi", href: "/orders", icon: FileText },
+        { name: "Meja", href: "/tables", icon: Grid },
+        { name: "Pelanggan", href: "/customers", icon: Users },
+        { name: "Menu QR", href: "/qr-menu/outlet-1", icon: CircleDot },
+        { name: "Absensi & Shift", href: "/attendance", icon: Clock },
       ]
     },
     {
       id: "CATALOG",
-      groupName: "CATALOG",
+      groupName: "KATALOG",
       items: [
-        { name: "Categories", href: "/categories", icon: Tag },
-        { name: "Products", href: "/products", icon: Package },
-        { name: "Add-Ons", href: "/inventory/addons", icon: Layers },
-        { name: "Discounts", href: "/discounts", icon: Percent },
+        { name: "Kategori", href: "/categories", icon: Tag },
+        { name: "Produk", href: "/products", icon: Package },
+        { name: "Menu Tambahan", href: "/inventory/addons", icon: Layers },
+        { name: "Diskon", href: "/discounts", icon: Percent },
       ]
     },
     {
       id: "INVENTORY",
-      groupName: "INVENTORY",
+      groupName: "INVENTARIS & STOK",
       items: [
-        { name: "Raw Materials", href: "/inventory/raw-materials", icon: Boxes },
-        { name: "Purchases", href: "/purchases", icon: ShoppingCart },
-        { name: "Recipes & HPP", href: "/inventory/recipes", icon: ClipboardList },
-        { name: "Scan Receipt AI", href: "/receipts/upload", icon: Camera },
+        { name: "Bahan Baku", href: "/inventory/raw-materials", icon: Boxes },
+        { name: "Pembelian Bahan", href: "/purchases", icon: ShoppingCart },
+        { name: "Resep & HPP", href: "/inventory/recipes", icon: ClipboardList },
+        { name: "Pindai Nota AI", href: "/receipts/upload", icon: Camera },
       ]
     },
     {
       id: "REPORTS",
-      groupName: "REPORTS",
+      groupName: "LAPORAN",
       items: [
         { name: "Kas Shift & Laci", href: "/reports/cash-flow", icon: Wallet },
-        { name: "Daily Recaps", href: "/reports/daily-recaps", icon: ClipboardList },
+        { name: "Rekap Harian", href: "/reports/daily-recaps", icon: ClipboardList },
       ]
     },
     {
       id: "SYSTEM",
-      groupName: "SYSTEM",
+      groupName: "PENGATURAN SISTEM",
       items: [
-        { name: "Employees", href: "/employees", icon: Users },
-        { name: "Payment Methods", href: "/payment-methods", icon: CreditCard },
-        { name: "Settings", href: "/settings", icon: SettingsIcon },
+        { name: "Karyawan", href: "/employees", icon: Users },
+        { name: "Metode Pembayaran", href: "/payment-methods", icon: CreditCard },
+        { name: "Pengaturan", href: "/settings", icon: SettingsIcon },
       ]
     }
   ];
@@ -311,7 +311,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
                   `}
                 >
                   <ShoppingCart className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                  <span className="text-slate-900 dark:text-slate-100">POS Terminal</span>
+                  <span className="text-slate-900 dark:text-slate-100">Kasir POS</span>
                 </Link>
               )
             )}
@@ -402,7 +402,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
               onClick={handleLogout}
               className="w-full text-xs min-h-[36px] justify-between text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-900 cursor-pointer"
             >
-              <span>Keluar (Logout)</span>
+              <span>Keluar</span>
               <LogOut className="w-3.5 h-3.5" />
             </Button>
           </div>

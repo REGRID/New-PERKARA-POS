@@ -235,21 +235,21 @@ export default function AddonStockPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-slate-900">Add-on Terintegrasi Stok Bahan Baku</h1>
+                <h1 className="text-xl font-bold tracking-tight text-slate-900">Menu Tambahan</h1>
                 {isAdmin && (
                   <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-bold">
-                    Admin Full Access
+                    Admin
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-slate-500 font-medium">Setiap opsi ekstra memotong stok bahan baku secara otomatis saat diaktifkan di kasir</p>
+              <p className="text-xs text-slate-500 font-medium">Pilihan topping dan varian tambahan yang memotong stok bahan baku secara otomatis.</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={fetchData} className="text-xs gap-1.5 min-h-[40px] rounded-xl">
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span>Refresh</span>
+              <span>Segarkan</span>
             </Button>
             {isAdmin && (
               <Button
@@ -257,7 +257,7 @@ export default function AddonStockPage() {
                 className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs px-4 py-2 rounded-xl min-h-[40px] gap-2 shadow-xs shrink-0 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                <span>Tambah Kategori Add-on</span>
+                <span>Tambah Kategori</span>
               </Button>
             )}
           </div>
@@ -273,11 +273,11 @@ export default function AddonStockPage() {
                     <div className="flex items-center gap-2">
                       <CardTitle className="text-base font-bold text-slate-900">{category.name}</CardTitle>
                       <Badge variant="outline" className="font-semibold text-[10px] bg-amber-50 text-amber-700 border-amber-200">
-                        Auto Deduct Stock
+                        Potong Stok Otomatis
                       </Badge>
                     </div>
                     <CardDescription className="text-xs mt-0.5 text-slate-500 font-medium">
-                      Pilihan Ekstra Transaksi Kasir & Menu
+                      Pilihan varian menu di kasir POS
                     </CardDescription>
                   </div>
 
@@ -291,7 +291,7 @@ export default function AddonStockPage() {
                           className="text-xs font-semibold rounded-xl min-h-[34px] gap-1 bg-white"
                         >
                           <Plus className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Tambah Item</span>
+                          <span>Tambah Menu</span>
                         </Button>
                         <button
                           onClick={() => openEditCat(category)}

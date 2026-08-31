@@ -186,7 +186,7 @@ export default function OrdersPage() {
                 )}
               </div>
               <p className="text-xs text-slate-500 font-normal mt-0.5">
-                Daftar transaksi kasir, rincian pembayaran, dan cetak ulang nota.
+                Daftar transaksi kasir, rincian pembayaran, dan cetak nota.
               </p>
             </div>
 
@@ -197,7 +197,7 @@ export default function OrdersPage() {
               className="text-xs font-semibold gap-1.5 h-9 rounded-xl cursor-pointer border-slate-200 hover:bg-slate-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span>Refresh</span>
+              <span>Segarkan</span>
             </Button>
           </div>
 
@@ -239,7 +239,7 @@ export default function OrdersPage() {
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <Input
                   type="text"
-                  placeholder="Cari no. nota, nama pelanggan, metode..."
+                  placeholder="Cari no. nota, pelanggan, atau metode..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 bg-slate-50 border-slate-200 text-xs font-medium h-9 rounded-xl w-full focus:bg-white"
@@ -277,7 +277,7 @@ export default function OrdersPage() {
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  Semua Riwayat
+                  Semua
                 </button>
               </div>
 

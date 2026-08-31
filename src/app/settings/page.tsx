@@ -63,48 +63,48 @@ export default function SettingsPage() {
   // Navigation Groups matching Sidebar 1-to-1
   const navGroups: NavConfigGroup[] = [
     {
-      groupName: "OPERATIONS",
+      groupName: "OPERASIONAL",
       items: [
-        { name: "POS Terminal", href: "/pos", icon: ShoppingCart },
-        { name: "Transactions", href: "/orders", icon: FileText },
-        { name: "Tables", href: "/tables", icon: Grid },
-        { name: "Customers", href: "/customers", icon: Users },
-        { name: "QR Menu", href: "/qr-menu/outlet-1", icon: CircleDot },
-        { name: "Attendance", href: "/attendance", icon: Clock },
+        { name: "Kasir POS", href: "/pos", icon: ShoppingCart },
+        { name: "Transaksi", href: "/orders", icon: FileText },
+        { name: "Meja", href: "/tables", icon: Grid },
+        { name: "Pelanggan", href: "/customers", icon: Users },
+        { name: "Menu QR", href: "/qr-menu/outlet-1", icon: CircleDot },
+        { name: "Absensi & Shift", href: "/attendance", icon: Clock },
       ]
     },
     {
-      groupName: "CATALOG",
+      groupName: "KATALOG",
       items: [
-        { name: "Categories", href: "/categories", icon: Tag },
-        { name: "Products", href: "/products", icon: Package },
-        { name: "Add-Ons", href: "/inventory/addons", icon: Layers },
-        { name: "Discounts", href: "/discounts", icon: Percent },
+        { name: "Kategori", href: "/categories", icon: Tag },
+        { name: "Produk", href: "/products", icon: Package },
+        { name: "Menu Tambahan", href: "/inventory/addons", icon: Layers },
+        { name: "Diskon", href: "/discounts", icon: Percent },
       ]
     },
     {
-      groupName: "INVENTORY",
+      groupName: "INVENTARIS & STOK",
       items: [
-        { name: "Raw Materials", href: "/inventory/raw-materials", icon: Boxes },
-        { name: "Purchases", href: "/purchases", icon: ShoppingCart },
-        { name: "Recipes & HPP", href: "/inventory/recipes", icon: ClipboardList },
-        { name: "Scan Receipt AI", href: "/receipts/upload", icon: Camera },
+        { name: "Bahan Baku", href: "/inventory/raw-materials", icon: Boxes },
+        { name: "Pembelian Bahan", href: "/purchases", icon: ShoppingCart },
+        { name: "Resep & HPP", href: "/inventory/recipes", icon: ClipboardList },
+        { name: "Pindai Nota AI", href: "/receipts/upload", icon: Camera },
       ]
     },
     {
-      groupName: "REPORTS",
+      groupName: "LAPORAN",
       items: [
-        { name: "Cash Flow", href: "/reports/cash-flow", icon: TrendingUp },
-        { name: "Daily Recaps", href: "/reports/daily-recaps", icon: ClipboardList },
+        { name: "Arus Kas", href: "/reports/cash-flow", icon: TrendingUp },
+        { name: "Rekap Harian", href: "/reports/daily-recaps", icon: ClipboardList },
       ]
     },
     {
-      groupName: "SYSTEM",
+      groupName: "PENGATURAN SISTEM",
       items: [
-        { name: "Employees (Staf & HR)", href: "/employees", icon: Users },
-        { name: "Payment Methods", href: "/payment-methods", icon: CreditCard },
-        { name: "Expenses (Kas Keluar)", href: "/expenses", icon: DollarSign },
-        { name: "Settings", href: "/settings", icon: SettingsIcon },
+        { name: "Karyawan", href: "/employees", icon: Users },
+        { name: "Metode Pembayaran", href: "/payment-methods", icon: CreditCard },
+        { name: "Biaya Operasional", href: "/expenses", icon: DollarSign },
+        { name: "Pengaturan", href: "/settings", icon: SettingsIcon },
       ]
     }
   ];
@@ -245,20 +245,20 @@ export default function SettingsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
             <div>
               <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">System & App Settings</h2>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Pengaturan Sistem</h2>
                 <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-bold">
-                  Persistent Storage
+                  Admin
                 </Badge>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Kelola profil outlet, tampilan struk kasir, dan atur visibilitas menu navigasi sidebar.
+                Profil outlet, tampilan cetak struk kasir, pajak, dan visibilitas menu navigasi.
               </p>
             </div>
 
             {saved && (
               <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl animate-in fade-in slide-in-from-top-1">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Pengaturan Berhasil Disimpan!</span>
+                <span>Pengaturan berhasil disimpan!</span>
               </div>
             )}
           </div>
@@ -279,7 +279,7 @@ export default function SettingsPage() {
                     value={outletName}
                     onChange={(e) => setOutletName(e.target.value)}
                     className="min-h-[40px] text-xs font-bold text-slate-900 bg-white rounded-xl"
-                    placeholder="cth: PERKARA COFFEE"
+                    placeholder="Contoh: PERKARA COFFEE"
                     required
                   />
                 </div>
@@ -291,7 +291,7 @@ export default function SettingsPage() {
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       className="min-h-[40px] text-xs font-medium bg-white rounded-xl"
-                      placeholder="cth: 0812-3456-7890"
+                      placeholder="Contoh: 0812-3456-7890"
                     />
                   </div>
 
@@ -301,7 +301,7 @@ export default function SettingsPage() {
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       className="min-h-[40px] text-xs font-medium bg-white rounded-xl"
-                      placeholder="cth: Jl. Boulevard Utama No. 8"
+                      placeholder="Contoh: Jl. Boulevard Utama No. 8"
                     />
                   </div>
                 </div>
@@ -312,7 +312,7 @@ export default function SettingsPage() {
             <div className="space-y-4 border-t pt-4">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <Printer className="w-4 h-4 text-indigo-600" />
-                <span>Tampilan Cetak Struk & Pajak POS</span>
+                <span>Tampilan Cetak Struk & Pajak</span>
               </h3>
 
               <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-200/70">

@@ -184,22 +184,22 @@ export default function ProductsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Katalog Produk & Menu Kasir</h2>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Katalog Produk</h2>
                 {isAdmin && (
                   <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-bold">
-                    Admin Full Access
+                    Admin
                   </Badge>
                 )}
               </div>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Kelola nama menu, kategori, harga jual, margin, serta status ketersediaan di kasir POS.
+                Kelola menu produk, kategori, harga jual, estimasi HPP, dan ketersediaan kasir.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={fetchData} className="text-xs gap-1.5 min-h-[40px] rounded-xl">
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-                <span>Refresh</span>
+                <span>Segarkan</span>
               </Button>
               {isAdmin && (
                 <Button
@@ -207,7 +207,7 @@ export default function ProductsPage() {
                   className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs px-4 py-2 rounded-xl min-h-[40px] gap-2 shadow-xs shrink-0 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Tambah Produk Baru</span>
+                  <span>Tambah Produk</span>
                 </Button>
               )}
             </div>
@@ -217,7 +217,7 @@ export default function ProductsPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
               <div className="text-[11px] font-bold text-slate-400 uppercase">Total Produk</div>
-              <div className="text-lg font-extrabold text-slate-900 mt-0.5">{menus.length} Item</div>
+              <div className="text-lg font-extrabold text-slate-900 mt-0.5">{menus.length} Produk</div>
             </div>
             <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
               <div className="text-[11px] font-bold text-slate-400 uppercase">Produk Aktif</div>
@@ -280,11 +280,11 @@ export default function ProductsPage() {
           <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
             {/* Header Row */}
             <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-              <div className="col-span-4">PRODUCT INFO</div>
-              <div className="col-span-2">CATEGORY</div>
-              <div className="col-span-2 text-right">PRICE (IDR)</div>
+              <div className="col-span-4">INFORMASI PRODUK</div>
+              <div className="col-span-2">KATEGORI</div>
+              <div className="col-span-2 text-right">HARGA JUAL (RP)</div>
               <div className="col-span-2 text-center">STATUS</div>
-              <div className="col-span-2 text-right">ACTIONS</div>
+              <div className="col-span-2 text-right">AKSI</div>
             </div>
 
             {/* Content Rows or Empty State */}
@@ -317,7 +317,7 @@ export default function ProductsPage() {
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                           isActive ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
                         }`}>
-                          {isActive ? "AKTIF" : "NON-AKTIF"}
+                          {isActive ? "AKTIF" : "NONAKTIF"}
                         </span>
                       </div>
                       <div className="col-span-2 text-right flex items-center justify-end gap-1">
@@ -326,12 +326,12 @@ export default function ProductsPage() {
                             <button
                               onClick={() => openEditModal(m)}
                               className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                              title="Edit Produk"
+                              title="Ubah Data"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
-                            <button
-                              onClick={() => handleDelete(m.id, m.name)}
+                            <button 
+                              onClick={() => handleDelete(m.id, m.name)} 
                               className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                               title="Hapus Produk"
                             >
@@ -339,7 +339,7 @@ export default function ProductsPage() {
                             </button>
                           </>
                         ) : (
-                          <span className="text-slate-400 text-[10px]">Read-Only</span>
+                          <span className="text-slate-400 text-[10px]">Lihat Saja</span>
                         )}
                       </div>
                     </div>
@@ -351,9 +351,9 @@ export default function ProductsPage() {
                     <Package className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-800">Tidak ada produk ditemukan</h4>
+                    <h4 className="font-bold text-sm text-slate-800">Produk tidak ditemukan</h4>
                     <p className="text-xs text-slate-400 mt-1 font-medium">
-                      Silakan sesuaikan filter pencarian atau tambahkan produk baru.
+                      Sesuaikan kata kunci pencarian atau tambahkan produk baru.
                     </p>
                   </div>
                 </div>
@@ -370,10 +370,10 @@ export default function ProductsPage() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900">
-              {editingProduct ? "Edit Detail Produk" : "Tambah Produk Baru"}
+              {editingProduct ? "Ubah Data Produk" : "Tambah Produk"}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Isi informasi produk untuk ditampilkan pada terminal kasir POS.
+              Data produk ditampilkan di layar kasir POS dan pencatatan transaksi.
             </DialogDescription>
           </DialogHeader>
 
@@ -381,7 +381,7 @@ export default function ProductsPage() {
             <div>
               <label className="text-[11px] font-bold text-slate-600 block mb-1">Nama Produk / Menu *</label>
               <Input
-                placeholder="cth: Caramel Macchiato Ice"
+                placeholder="Contoh: Caramel Macchiato Ice"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="text-xs font-medium min-h-[38px] rounded-xl"
@@ -420,7 +420,7 @@ export default function ProductsPage() {
                 <label className="text-[11px] font-bold text-slate-600 block mb-1">Harga Jual (Rp) *</label>
                 <Input
                   type="number"
-                  placeholder="24000"
+                  placeholder="Contoh: 24000"
                   value={form.price}
                   onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
                   className="text-xs font-bold text-slate-900 min-h-[38px] rounded-xl"
@@ -432,7 +432,7 @@ export default function ProductsPage() {
                 <label className="text-[11px] font-bold text-slate-600 block mb-1">Estimasi HPP (Rp)</label>
                 <Input
                   type="number"
-                  placeholder="8500"
+                  placeholder="Contoh: 8500"
                   value={form.baseHpp}
                   onChange={(e) => setForm({ ...form, baseHpp: Number(e.target.value) })}
                   className="text-xs font-medium text-slate-700 min-h-[38px] rounded-xl"
@@ -443,7 +443,7 @@ export default function ProductsPage() {
             <div className="pt-1 flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
               <div>
                 <div className="font-bold text-slate-900">Status Menu Aktif</div>
-                <div className="text-[10px] text-slate-500">Tampilkan produk ini di layar kasir POS</div>
+                <div className="text-[10px] text-slate-500">Tampilkan produk ini di kasir POS</div>
               </div>
               <input
                 type="checkbox"
@@ -467,7 +467,7 @@ export default function ProductsPage() {
                 disabled={submitting}
                 className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold rounded-xl min-h-[38px]"
               >
-                {submitting ? "Menyimpan..." : "Simpan Produk"}
+                {submitting ? "Menyimpan..." : "Simpan"}
               </Button>
             </DialogFooter>
           </form>

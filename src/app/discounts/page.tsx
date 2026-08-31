@@ -137,22 +137,22 @@ export default function DiscountsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Diskon & Promo Penjualan</h2>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Diskon & Promo</h2>
                 {isAdmin && (
                   <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-bold">
-                    Admin Full Access
+                    Admin
                   </Badge>
                 )}
               </div>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Kelola kupon potongan persentase (%) atau nominal rupiah (Rp) untuk transaksi kasir POS.
+                Pengaturan potongan persentase (%) dan nominal (Rp) untuk kasir POS.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={fetchDiscounts} className="text-xs gap-1.5 min-h-[40px] rounded-xl">
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-                <span>Refresh</span>
+                <span>Segarkan</span>
               </Button>
               {isAdmin && (
                 <Button
@@ -160,7 +160,7 @@ export default function DiscountsPage() {
                   className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs px-4 py-2.5 rounded-xl min-h-[40px] gap-2 shadow-xs shrink-0 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Tambah Promo Diskon</span>
+                  <span>Tambah Diskon</span>
                 </Button>
               )}
             </div>
@@ -171,7 +171,7 @@ export default function DiscountsPage() {
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <Input
               type="text"
-              placeholder="Cari promo diskon..."
+              placeholder="Cari promo atau diskon..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 bg-slate-50 border-slate-200 text-xs font-medium min-h-[38px] rounded-xl"
@@ -182,11 +182,11 @@ export default function DiscountsPage() {
           <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
             {/* Header Row */}
             <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-              <div className="col-span-5">PROMO NAME</div>
-              <div className="col-span-2 text-center">TIPE DISKON</div>
+              <div className="col-span-5">NAMA DISKON</div>
+              <div className="col-span-2 text-center">JENIS DISKON</div>
               <div className="col-span-2 text-right">POTONGAN</div>
               <div className="col-span-1 text-center">STATUS</div>
-              <div className="col-span-2 text-right">ACTIONS</div>
+              <div className="col-span-2 text-right">AKSI</div>
             </div>
 
             {/* Content Rows or Empty State */}
@@ -214,7 +214,7 @@ export default function DiscountsPage() {
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                           isActive ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
                         }`}>
-                          {isActive ? "AKTIF" : "OFF"}
+                          {isActive ? "AKTIF" : "NONAKTIF"}
                         </span>
                       </div>
                       <div className="col-span-2 text-right flex items-center justify-end gap-1">
@@ -223,7 +223,7 @@ export default function DiscountsPage() {
                             <button
                               onClick={() => openEditModal(d)}
                               className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                              title="Edit Diskon"
+                              title="Ubah Diskon"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
@@ -236,7 +236,7 @@ export default function DiscountsPage() {
                             </button>
                           </>
                         ) : (
-                          <span className="text-slate-400 text-[10px]">Read-Only</span>
+                          <span className="text-slate-400 text-[10px]">Lihat Saja</span>
                         )}
                       </div>
                     </div>
@@ -248,9 +248,9 @@ export default function DiscountsPage() {
                     <Percent className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-800">Tidak ada promo diskon</h4>
+                    <h4 className="font-bold text-sm text-slate-800">Diskon tidak ditemukan</h4>
                     <p className="text-xs text-slate-400 mt-1 font-medium">
-                      Buat promo diskon baru untuk memberikan potongan harga kepada pelanggan.
+                      Tambahkan promo diskon baru untuk potongan harga kasir POS.
                     </p>
                   </div>
                 </div>
@@ -267,10 +267,10 @@ export default function DiscountsPage() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900">
-              {editingDiscount ? "Edit Promo Diskon" : "Tambah Promo Diskon Baru"}
+              {editingDiscount ? "Ubah Diskon" : "Tambah Diskon"}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Diskon dapat dipilih langsung oleh kasir saat proses checkout pesanan.
+              Diskon dapat dipilih langsung kasir saat proses checkout pesanan.
             </DialogDescription>
           </DialogHeader>
 
@@ -279,7 +279,7 @@ export default function DiscountsPage() {
               <label className="text-[11px] font-bold text-slate-600 block mb-1">Nama Promo / Diskon *</label>
               <Input
                 autoFocus
-                placeholder="cth: Diskon Mahasiswa 15%"
+                placeholder="Contoh: Diskon Mahasiswa 15%"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="text-xs font-medium min-h-[38px] rounded-xl"
@@ -289,7 +289,7 @@ export default function DiscountsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">Tipe Potongan *</label>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Jenis Potongan *</label>
                 <select
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value })}
@@ -343,7 +343,7 @@ export default function DiscountsPage() {
                 disabled={submitting}
                 className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold rounded-xl min-h-[38px]"
               >
-                {submitting ? "Menyimpan..." : "Simpan Diskon"}
+                {submitting ? "Menyimpan..." : "Simpan"}
               </Button>
             </DialogFooter>
           </form>
