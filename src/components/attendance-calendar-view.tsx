@@ -522,26 +522,25 @@ export function AttendanceCalendarView() {
         {/* Header Karyawan */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
           <div className="flex items-center gap-3.5">
-            <div className="h-12 w-12 rounded-2xl bg-emerald-700 text-white font-black text-base flex items-center justify-center shadow-md">
+            <div className="h-11 w-11 rounded-2xl bg-emerald-700 text-white font-black text-sm flex items-center justify-center shadow-xs">
               {selectedSelfName.charAt(0).toUpperCase()}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-black text-slate-900 tracking-tight">
-                  Halo, {selectedSelfName}
+                <h1 className="text-base font-extrabold text-slate-900">
+                  {selectedSelfName}
                 </h1>
                 <Badge className="bg-slate-100 text-slate-700 border-slate-200 text-[10px] font-bold">
-                  🧑‍🍳 Karyawan
+                  Karyawan
                 </Badge>
               </div>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Portal Absensi &amp; Riwayat Log Histori Pekerjaan Anda
+              <p className="text-xs text-slate-500 font-medium">
+                Absensi dan riwayat shift kerja harian.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap self-end sm:self-auto">
-            {/* Profil Karyawan Selector */}
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-50 p-1.5 px-3 rounded-2xl border border-slate-200">
               <User className="w-3.5 h-3.5 text-slate-400" />
               <span>Profil:</span>
@@ -557,18 +556,17 @@ export function AttendanceCalendarView() {
                   const isEmpActive = activeDutyShifts.some((s) => s.employeeName === emp.name);
                   return (
                     <option key={emp.id || emp.name} value={emp.name}>
-                      {emp.name} ({emp.role ? emp.role.toUpperCase() : "BARISTA"}){isEmpActive ? " • 🟢 Sedang Shift" : ""}
+                      {emp.name} ({emp.role ? emp.role.toUpperCase() : "BARISTA"}){isEmpActive ? " • 🟢 Shift Aktif" : ""}
                     </option>
                   );
                 })}
               </select>
             </div>
 
-            {/* Quick Switch to Admin for testing */}
             <button
               type="button"
               onClick={() => switchRole("admin")}
-              className="text-[11px] text-slate-500 hover:text-slate-900 font-bold px-3 py-2 rounded-2xl bg-slate-100/80 hover:bg-slate-200 border border-slate-200/80 transition-colors"
+              className="text-[11px] text-slate-600 hover:text-slate-900 font-bold px-3 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors"
             >
               Mode Admin &rarr;
             </button>
@@ -585,7 +583,7 @@ export function AttendanceCalendarView() {
                     myActiveShift ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
                   }`}
                 >
-                  <Clock className="w-6 h-6" />
+                  <Clock className="w-5 h-5" />
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -595,16 +593,16 @@ export function AttendanceCalendarView() {
                       }`}
                     />
                     <h3 className="text-sm font-bold text-slate-900">
-                      {myActiveShift ? "Status: Shift Sedang Berjalan" : "Status: Belum Membuka Shift"}
+                      {myActiveShift ? "Shift Aktif" : "Shift Belum Dibuka"}
                     </h3>
                   </div>
                   <p className="text-xs text-slate-500 font-medium">
                     {myActiveShift
-                      ? `Shift dibuka pada ${new Date(myActiveShift.timestamp).toLocaleTimeString("id-ID", {
+                      ? `Mulai ${new Date(myActiveShift.timestamp).toLocaleTimeString("id-ID", {
                           hour: "2-digit",
                           minute: "2-digit",
-                        })} WIB dengan modal kas awal Rp ${(myActiveShift.startingCash || 0).toLocaleString("id-ID")}`
-                      : "Silakan tekan tombol di samping untuk absen masuk dan membuka shift kerja kasir."}
+                        })} WIB • Modal kas awal Rp ${(myActiveShift.startingCash || 0).toLocaleString("id-ID")}`
+                      : "Buka shift kasir untuk mulai bertugas."}
                   </p>
                 </div>
               </div>
@@ -619,10 +617,10 @@ export function AttendanceCalendarView() {
                       setEmpClosingNote("");
                       setIsEmpShiftOutModalOpen(true);
                     }}
-                    className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-11 px-5 rounded-2xl gap-2 cursor-pointer shadow-sm"
+                    className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-10 px-5 rounded-2xl gap-2 cursor-pointer shadow-xs"
                   >
                     <LogOut className="w-4 h-4" />
-                    <span>Tutup Shift &amp; Absen Pulang</span>
+                    <span>Tutup Shift</span>
                   </Button>
                 ) : (
                   <Button
@@ -632,10 +630,10 @@ export function AttendanceCalendarView() {
                       setEmpInputPin("");
                       setIsEmpShiftInModalOpen(true);
                     }}
-                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-11 px-5 rounded-2xl gap-2 cursor-pointer shadow-sm"
+                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-10 px-5 rounded-2xl gap-2 cursor-pointer shadow-xs"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Absen Masuk (Buka Shift)</span>
+                    <span>Buka Shift</span>
                   </Button>
                 )}
               </div>
@@ -656,12 +654,12 @@ export function AttendanceCalendarView() {
           </div>
 
           <div className="bg-white p-4 rounded-3xl border border-slate-200/90 shadow-2xs space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Status Kas Closing</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Kas Sesuai</span>
             <span className="text-2xl font-black text-blue-700">{myPasCount} <span className="text-xs font-semibold text-slate-400">Pas</span></span>
           </div>
 
           <div className="bg-white p-4 rounded-3xl border border-slate-200/90 shadow-2xs space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Transaksi Kas / Belanja</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Transaksi Kas</span>
             <span className="text-2xl font-black text-slate-900">{myTransactions.length} <span className="text-xs font-semibold text-slate-400">Item</span></span>
           </div>
         </div>
@@ -672,10 +670,10 @@ export function AttendanceCalendarView() {
             <div>
               <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4 text-emerald-600" />
-                <span>Histori Log Pekerjaan Saya ({MONTH_NAMES[selectedMonth - 1]} {selectedYear})</span>
+                <span>Riwayat Shift Saya ({MONTH_NAMES[selectedMonth - 1]} {selectedYear})</span>
               </CardTitle>
               <CardDescription className="text-xs text-slate-500 font-normal mt-0.5">
-                Riwayat jam kerja shift, closing kas fisik, dan transaksi kas yang Anda catat.
+                Riwayat jam kerja, modal awal, kas fisik, dan transaksi kas.
               </CardDescription>
             </div>
 
@@ -727,14 +725,14 @@ export function AttendanceCalendarView() {
                               : "bg-slate-800 text-white"
                           }`}
                         >
-                          {isOut ? "SHIFT OUT (TUTUP SHIFT)" : "SHIFT IN (MASUK)"}
+                          {isOut ? "Tutup Shift" : "Masuk Shift"}
                         </Badge>
 
                         <span className="font-bold text-xs text-slate-800">
                           {d.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                         </span>
                         <span className="text-[11px] text-slate-400 font-medium">
-                          Pukul {d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
+                          {d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
                         </span>
                       </div>
 
@@ -745,7 +743,7 @@ export function AttendanceCalendarView() {
                           className="h-7 text-[10px] font-semibold border-slate-300 bg-white rounded-xl self-start sm:self-auto"
                           onClick={() => setViewingReport(log.stockReport || null)}
                         >
-                          <FileText className="h-3 w-3 mr-1 text-slate-500" /> Lihat Struk Closing
+                          <FileText className="h-3 w-3 mr-1 text-slate-500" /> Lihat Struk
                         </Button>
                       )}
                     </div>
@@ -756,19 +754,19 @@ export function AttendanceCalendarView() {
                         <span className="font-bold text-slate-800">Rp {(log.startingCash || 0).toLocaleString("id-ID")}</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 block text-[9px] uppercase font-bold">Fisik Laci</span>
+                        <span className="text-slate-400 block text-[9px] uppercase font-bold">Kas Fisik</span>
                         <span className="font-bold text-slate-800">
                           {isOut ? `Rp ${(log.cashVerified || 0).toLocaleString("id-ID")}` : "-"}
                         </span>
                       </div>
                       <div>
-                        <span className="text-slate-400 block text-[9px] uppercase font-bold">Selisih Kas</span>
+                        <span className="text-slate-400 block text-[9px] uppercase font-bold">Selisih</span>
                         <span
                           className={`font-bold ${
                             disc === 0 ? "text-emerald-700" : disc > 0 ? "text-blue-700" : "text-amber-700"
                           }`}
                         >
-                          {isOut ? (disc === 0 ? "PAS (Rp 0)" : `Rp ${disc.toLocaleString("id-ID")}`) : "-"}
+                          {isOut ? (disc === 0 ? "Pas (Rp 0)" : `Rp ${disc.toLocaleString("id-ID")}`) : "-"}
                         </span>
                       </div>
                       <div>
@@ -781,7 +779,7 @@ export function AttendanceCalendarView() {
                     {log.transactions && log.transactions.length > 0 && (
                       <div className="bg-white/90 rounded-xl p-2.5 space-y-1.5 border border-slate-200">
                         <div className="text-[10px] font-bold text-slate-700 uppercase flex items-center justify-between">
-                          <span>🧾 Transaksi Kas / Belanja yang Anda Catat ({log.transactions.length})</span>
+                          <span>Transaksi Kas ({log.transactions.length})</span>
                         </div>
                         <div className="space-y-1">
                           {log.transactions.map((tx, tIdx) => (
@@ -800,7 +798,7 @@ export function AttendanceCalendarView() {
               })
             ) : (
               <div className="p-12 text-center text-xs text-slate-400 font-medium bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                Belum ada catatan log riwayat shift untuk Anda pada bulan ini.
+                Belum ada riwayat shift untuk bulan ini.
               </div>
             )}
           </CardContent>
@@ -813,10 +811,10 @@ export function AttendanceCalendarView() {
               <DialogHeader>
                 <DialogTitle className="font-bold text-base text-slate-900 flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                  <span>Absen Masuk Shift ({selectedSelfName})</span>
+                  <span>Buka Shift ({selectedSelfName})</span>
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500 font-normal mt-0.5">
-                  Pastikan modal kas awal kasir telah dihitung dan siap digunakan.
+                  Masukkan modal kas awal dan PIN verifikasi.
                 </DialogDescription>
               </DialogHeader>
 
@@ -850,7 +848,7 @@ export function AttendanceCalendarView() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-800 block">Modal Kas Awal di Laci Kasir (Rp)</label>
+                  <label className="text-xs font-bold text-slate-800 block">Modal Awal (Rp)</label>
                   <Input
                     type="number"
                     value={empStartingCash}
@@ -866,14 +864,14 @@ export function AttendanceCalendarView() {
                     <span className="text-slate-800">
                       PIN Verifikasi ({selectedSelfName}) <span className="text-rose-500">*</span>
                     </span>
-                    <span className="text-[10px] text-slate-400 font-medium">(4 Digit PIN)</span>
+                    <span className="text-[10px] text-slate-400 font-medium">(4-6 Digit)</span>
                   </div>
                   <Input
                     type="password"
                     maxLength={6}
                     value={empInputPin}
                     onChange={(e) => setEmpInputPin(e.target.value)}
-                    placeholder="Masukkan PIN Anda..."
+                    placeholder="Masukkan PIN..."
                     className="font-black tracking-widest text-sm h-11 rounded-2xl bg-slate-50 border-slate-200"
                     required
                   />
@@ -893,7 +891,7 @@ export function AttendanceCalendarView() {
                     disabled={isEmpSubmitting}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold"
                   >
-                    {isEmpSubmitting ? "Menyimpan..." : "Konfirmasi Buka Shift"}
+                    {isEmpSubmitting ? "Menyimpan..." : "Konfirmasi"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -908,16 +906,16 @@ export function AttendanceCalendarView() {
               <DialogHeader>
                 <DialogTitle className="font-bold text-base text-slate-900 flex items-center gap-2">
                   <LogOut className="w-5 h-5 text-amber-600" />
-                  <span>Tutup Shift &amp; Absen Pulang ({selectedSelfName})</span>
+                  <span>Tutup Shift ({selectedSelfName})</span>
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500 font-normal mt-0.5">
-                  Hitung seluruh uang tunai fisik yang ada di laci kasir sebelum closing.
+                  Hitung dan masukkan total kas fisik di laci.
                 </DialogDescription>
               </DialogHeader>
 
               <form onSubmit={handleDoEmpShiftOut} className="space-y-4 my-2 text-xs">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-800 block">Total Uang Fisik di Laci Kasir (Rp)</label>
+                  <label className="text-xs font-bold text-slate-800 block">Total Kas Fisik (Rp)</label>
                   <Input
                     type="number"
                     value={empClosingCash}
@@ -929,12 +927,12 @@ export function AttendanceCalendarView() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-800 block">Catatan / Keterangan Shift</label>
+                  <label className="text-xs font-bold text-slate-800 block">Catatan (Opsional)</label>
                   <Input
                     type="text"
                     value={empClosingNote}
                     onChange={(e) => setEmpClosingNote(e.target.value)}
-                    placeholder="Contoh: Shift berjalan lancar, stok aman"
+                    placeholder="Contoh: Shift lancar, stok aman"
                     className="text-xs h-10 rounded-2xl bg-slate-50 border-slate-200"
                   />
                 </div>
@@ -968,7 +966,7 @@ export function AttendanceCalendarView() {
               <DialogHeader>
                 <DialogTitle className="font-bold text-sm text-slate-900 flex items-center gap-2">
                   <FileText className="h-4 w-4 text-emerald-600" />
-                  <span>Struk Laporan Closing Kasir</span>
+                  <span>Struk Closing Shift</span>
                 </DialogTitle>
               </DialogHeader>
               <pre className="font-mono text-[11px] bg-slate-950 text-emerald-400 p-4 rounded-2xl whitespace-pre-wrap leading-relaxed overflow-x-auto">
@@ -976,7 +974,7 @@ export function AttendanceCalendarView() {
               </pre>
               <DialogFooter className="pt-2">
                 <Button variant="outline" size="sm" onClick={() => setViewingReport(null)} className="rounded-xl">
-                  Tutup Struk
+                  Tutup
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -988,9 +986,7 @@ export function AttendanceCalendarView() {
 
   // ==========================================
   // ADMIN VIEW (ROLE: ADMIN / OWNER)
-  // Melihat Kalender Visual Seluruh Karyawan, CRUD Log, & Rincian Global
   // ==========================================
-  // Compute Today's Complete Shift Logs
   const todayDateObj = new Date();
   const todayDayNumber = todayDateObj.getDate();
   const todayIsSameMonthYear = todayDateObj.getMonth() + 1 === selectedMonth && todayDateObj.getFullYear() === selectedYear;
@@ -999,7 +995,7 @@ export function AttendanceCalendarView() {
   return (
     <div className="space-y-6 text-slate-900 select-none">
       
-      {/* 0. LIVE MONITOR: KARYAWAN & SHIFT AKTIF HARI INI (PRIORITAS ADMIN) */}
+      {/* 0. LIVE MONITOR: SHIFT AKTIF HARI INI */}
       <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200/90 shadow-2xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
           <div className="flex items-center gap-3">
@@ -1009,7 +1005,7 @@ export function AttendanceCalendarView() {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
-                  Karyawan &amp; Shift Aktif Hari Ini
+                  Shift Aktif Hari Ini
                 </h2>
                 <Badge
                   className={`text-[10px] font-bold ${
@@ -1018,11 +1014,11 @@ export function AttendanceCalendarView() {
                       : "bg-slate-100 text-slate-600 border-slate-200"
                   }`}
                 >
-                  {activeDutyShifts.length > 0 ? `🟢 ${activeDutyShifts.length} Karyawan Sedang Bertugas` : "⚪ Belum Ada Shift Aktif"}
+                  {activeDutyShifts.length > 0 ? `🟢 ${activeDutyShifts.length} Bertugas` : "Tidak Ada Shift Aktif"}
                 </Badge>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                {todayDateObj.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} &bull; Pantau kasir &amp; tim yang sedang login bertugas.
+                {todayDateObj.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} • Kasir yang sedang aktif bertugas.
               </p>
             </div>
           </div>
@@ -1031,7 +1027,7 @@ export function AttendanceCalendarView() {
             <button
               type="button"
               onClick={() => switchRole("karyawan")}
-              className="text-[11px] text-slate-500 hover:text-slate-900 font-bold px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition-colors"
+              className="text-[11px] text-slate-600 hover:text-slate-900 font-bold px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors"
             >
               Mode Karyawan &rarr;
             </button>
@@ -1075,24 +1071,24 @@ export function AttendanceCalendarView() {
                     </div>
 
                     <Badge className="bg-emerald-600 text-white text-[10px] font-bold">
-                      SEDANG AKTIF
+                      Aktif
                     </Badge>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 bg-white/90 p-2.5 rounded-xl border border-emerald-100 text-xs">
                     <div>
-                      <span className="text-[9px] text-slate-400 font-bold uppercase block">Jam Masuk</span>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase block">Masuk</span>
                       <span className="font-bold text-slate-800">{startTimeStr} WIB</span>
                     </div>
                     <div>
-                      <span className="text-[9px] text-slate-400 font-bold uppercase block">Modal Awal Kas</span>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase block">Modal Awal</span>
                       <span className="font-bold text-emerald-700">Rp {startCash.toLocaleString("id-ID")}</span>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] pt-1">
                     <span className="text-slate-500 font-semibold">
-                      📊 {txCount} Kas &bull; {orderCount} Order POS
+                      {txCount} Kas • {orderCount} Order
                     </span>
                     <Button
                       size="sm"
@@ -1100,7 +1096,7 @@ export function AttendanceCalendarView() {
                       className="h-7 text-[10px] font-bold border-slate-300 bg-white"
                       onClick={() => handleOpenEditAdmin(activeLog)}
                     >
-                      <Edit className="w-3 h-3 mr-1 text-slate-500" /> Edit Shift
+                      <Edit className="w-3 h-3 mr-1 text-slate-500" /> Edit
                     </Button>
                   </div>
                 </div>
@@ -1109,7 +1105,7 @@ export function AttendanceCalendarView() {
           </div>
         ) : (
           <div className="p-6 text-center text-xs text-slate-400 font-medium bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-            Tidak ada kasir atau karyawan yang sedang aktif membuka shift saat ini.
+            Tidak ada kasir yang sedang aktif shift saat ini.
           </div>
         )}
 
@@ -1117,7 +1113,7 @@ export function AttendanceCalendarView() {
         {todayShiftLogs.length > 0 && (
           <div className="flex items-center justify-between pt-2">
             <span className="text-xs text-slate-500 font-semibold">
-              Total Log Absensi Tercatat Hari Ini: <strong>{todayShiftLogs.length} Sesi</strong>
+              Log Hari Ini: <strong>{todayShiftLogs.length} Sesi</strong>
             </span>
             <Button
               size="sm"
@@ -1131,22 +1127,21 @@ export function AttendanceCalendarView() {
                 });
               }}
             >
-              Lihat Seluruh Aktivitas Hari Ini &rarr;
+              Lihat Aktivitas Hari Ini &rarr;
             </Button>
           </div>
         )}
       </div>
 
-      {/* 1. TOP SECTION: REKAP KEHADIRAN KARYAWAN SUMMARY CARDS */}
+      {/* 1. TOP SECTION: REKAP KEHADIRAN KARYAWAN */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BarChart2 className="h-4 w-4 text-emerald-600" />
             <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Rekap Kehadiran Karyawan ({MONTH_NAMES[selectedMonth - 1]} {selectedYear})
+              Rekap Kehadiran ({MONTH_NAMES[selectedMonth - 1]} {selectedYear})
             </h2>
           </div>
-          <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">Klik kartu untuk detail log</span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -1172,7 +1167,7 @@ export function AttendanceCalendarView() {
                   variant="outline"
                   className="text-[11px] font-bold bg-emerald-50 text-emerald-800 border-emerald-300 shrink-0 rounded-full px-2.5 py-0.5"
                 >
-                  {totalDays} Masuk
+                  {totalDays} Hadir
                 </Badge>
               </button>
             );
@@ -1211,7 +1206,7 @@ export function AttendanceCalendarView() {
                 <span>Kalender Absensi ({MONTH_NAMES[selectedMonth - 1]} {selectedYear})</span>
               </CardTitle>
               <CardDescription className="text-[11px] text-slate-500 font-normal mt-0.5">
-                Klik badge nama karyawan untuk melihat rincian. Admin memerlukan PIN untuk edit &amp; hapus.
+                Klik tanggal untuk melihat rincian aktivitas shift.
               </CardDescription>
             </div>
           </div>
@@ -1224,7 +1219,7 @@ export function AttendanceCalendarView() {
               onChange={(e) => setSelectedEmployeeFilter(e.target.value)}
               className="h-8 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-2.5 focus:outline-none"
             >
-              <option value="ALL">ALL (Semua Staf)</option>
+              <option value="ALL">Semua Staf</option>
               {employees.map((e) => (
                 <option key={e.id} value={e.name}>
                   {e.name}
@@ -1271,7 +1266,7 @@ export function AttendanceCalendarView() {
               className="h-8 text-xs font-semibold rounded-xl gap-1 border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer"
             >
               <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Export CSV</span>
+              <span>Ekspor CSV</span>
             </Button>
 
             {/* Clear All Logs */}
@@ -1282,7 +1277,7 @@ export function AttendanceCalendarView() {
               className="h-8 text-xs font-semibold rounded-xl gap-1 border-rose-200 text-rose-700 hover:bg-rose-50 cursor-pointer"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              <span>Bersihkan Semua Log</span>
+              <span>Reset Data</span>
             </Button>
 
             <Button
@@ -1301,22 +1296,22 @@ export function AttendanceCalendarView() {
           
           {/* Legend Indicator */}
           <div className="flex items-center gap-2.5 sm:gap-4 text-xs font-normal text-slate-600 bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 flex-wrap">
-            <span className="font-bold text-slate-800 text-[11px]">Keterangan Badge:</span>
+            <span className="font-bold text-slate-800 text-[11px]">Keterangan:</span>
             <span className="flex items-center gap-1.5 text-[11px] font-medium">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-2xs" /> Kas Laci PAS (Sesuai)
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Kas Sesuai
             </span>
             <span className="flex items-center gap-1.5 text-[11px] font-medium">
-              <span className="h-2.5 w-2.5 rounded-full bg-blue-500 shadow-2xs" /> Kas Laci Lebih
+              <span className="h-2.5 w-2.5 rounded-full bg-blue-500" /> Kas Lebih
             </span>
             <span className="flex items-center gap-1.5 text-[11px] font-medium">
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-500 shadow-2xs" /> Kas Laci Kurang
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Kas Kurang
             </span>
           </div>
 
-          {/* Responsive Calendar Days Table Wrapper (Smooth horizontal scroll on HP) */}
+          {/* Responsive Calendar Days Table Wrapper */}
           <div className="overflow-x-auto custom-scrollbar pb-1">
             <div className="min-w-[620px] space-y-2">
-              {/* Calendar Days Header (Days of week) */}
+              {/* Calendar Days Header */}
               <div className="grid grid-cols-7 gap-1 text-center font-bold text-xs text-slate-600 bg-slate-100/70 py-2.5 rounded-xl border border-slate-200/80">
                 <span className="text-rose-600">Minggu</span>
                 <span>Senin</span>
@@ -1329,7 +1324,6 @@ export function AttendanceCalendarView() {
 
               {/* Calendar Days Grid */}
               <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-                
                 {/* Offset empty placeholders */}
                 {Array.from({ length: firstDayIndex }).map((_, idx) => (
                   <div
@@ -1407,7 +1401,7 @@ export function AttendanceCalendarView() {
                       <div>
                         {hasShifts && (
                           <span className="text-[9px] font-bold text-emerald-600 group-hover:text-emerald-700 transition-colors block text-left">
-                            Klik utk detail &rarr;
+                            Detail &rarr;
                           </span>
                         )}
                       </div>
@@ -1439,16 +1433,16 @@ export function AttendanceCalendarView() {
                   <div>
                     <DialogTitle className="font-bold text-base text-slate-900 flex items-center gap-2">
                       <CalendarIcon className="h-5 w-5 text-emerald-600" />
-                      <span>Detail Shift &amp; Log Aktivitas: {selectedDayDetail.dateStr}</span>
+                      <span>Detail Aktivitas: {selectedDayDetail.dateStr}</span>
                     </DialogTitle>
                     <DialogDescription className="text-xs text-slate-500 font-normal mt-0.5">
-                      Rincian tim bertugas, transaksi kas keluar/masuk, penjualan POS kasir, dan pengadaan stok.
+                      Rincian shift tim, transaksi kas, penjualan POS, dan pengadaan stok.
                     </DialogDescription>
                   </div>
                   
                   {uniqueTeamStaff.length > 1 && (
                     <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-[11px] font-bold self-start sm:self-center">
-                      👥 Tim Shift: {uniqueTeamStaff.length} Orang
+                      Tim: {uniqueTeamStaff.length} Orang
                     </Badge>
                   )}
                 </div>
@@ -1456,7 +1450,7 @@ export function AttendanceCalendarView() {
                 {/* Team Members Header Banner */}
                 <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 mt-2.5 flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-slate-700">Anggota Tim Bertugas:</span>
+                    <span className="text-[11px] font-bold text-slate-700">Tim Bertugas:</span>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {uniqueTeamStaff.map((staffName, sIdx) => (
                         <span
@@ -1471,7 +1465,7 @@ export function AttendanceCalendarView() {
                   </div>
 
                   <span className="text-[10px] text-slate-400 font-semibold">
-                    {selectedDayDetail.dayLogs.length} Sesi Log
+                    {selectedDayDetail.dayLogs.length} Sesi
                   </span>
                 </div>
 
@@ -1484,7 +1478,7 @@ export function AttendanceCalendarView() {
                       dayDetailTab === "TIM_LOG" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    👥 Absensi Tim ({selectedDayDetail.dayLogs.length})
+                    Absensi ({selectedDayDetail.dayLogs.length})
                   </button>
                   <button
                     type="button"
@@ -1493,7 +1487,7 @@ export function AttendanceCalendarView() {
                       dayDetailTab === "TRANSAKSI_KAS" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    🧾 Kas &amp; Nota ({allDayTx.length})
+                    Kas &amp; Nota ({allDayTx.length})
                   </button>
                   <button
                     type="button"
@@ -1502,7 +1496,7 @@ export function AttendanceCalendarView() {
                       dayDetailTab === "PENJUALAN_POS" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    🛍️ Penjualan ({allDayOrders.length})
+                    Penjualan ({allDayOrders.length})
                   </button>
                   <button
                     type="button"
@@ -1511,7 +1505,7 @@ export function AttendanceCalendarView() {
                       dayDetailTab === "MUTASI_STOK" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    📦 Stok ({allDayPurchases.length})
+                    Stok ({allDayPurchases.length})
                   </button>
                 </div>
               </DialogHeader>
@@ -1544,7 +1538,7 @@ export function AttendanceCalendarView() {
                             <div>
                               <h4 className="font-bold text-xs text-slate-900">{log.employeeName}</h4>
                               <p className="text-[10px] text-slate-500">
-                                Waktu: {new Date(log.timestamp).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
+                                {new Date(log.timestamp).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
                               </p>
                             </div>
                           </div>
@@ -1560,7 +1554,7 @@ export function AttendanceCalendarView() {
                                 : "bg-slate-800 text-white"
                             }`}
                           >
-                            {isOut ? "SHIFT OUT (TUTUP)" : "SHIFT IN (MASUK)"}
+                            {isOut ? "Tutup Shift" : "Masuk Shift"}
                           </Badge>
                         </div>
 
@@ -1572,19 +1566,19 @@ export function AttendanceCalendarView() {
                             </span>
                           </div>
                           <div>
-                            <span className="text-slate-400 block text-[9px] uppercase font-bold">Fisik Laci</span>
+                            <span className="text-slate-400 block text-[9px] uppercase font-bold">Kas Fisik</span>
                             <span className="font-bold text-slate-800">
                               {isOut ? `Rp ${(log.cashVerified || 0).toLocaleString("id-ID")}` : "-"}
                             </span>
                           </div>
                           <div>
-                            <span className="text-slate-400 block text-[9px] uppercase font-bold">Selisih Kas</span>
+                            <span className="text-slate-400 block text-[9px] uppercase font-bold">Selisih</span>
                             <span
                               className={`font-bold ${
                                 disc === 0 ? "text-emerald-700" : disc > 0 ? "text-blue-700" : "text-amber-700"
                               }`}
                             >
-                              {isOut ? (disc === 0 ? "PAS (Rp 0)" : `Rp ${disc.toLocaleString("id-ID")}`) : "-"}
+                              {isOut ? (disc === 0 ? "Pas (Rp 0)" : `Rp ${disc.toLocaleString("id-ID")}`) : "-"}
                             </span>
                           </div>
                           <div>
@@ -1604,7 +1598,7 @@ export function AttendanceCalendarView() {
                                 setSelectedDayDetail(null);
                               }}
                             >
-                              <FileText className="h-3 w-3 mr-1 text-slate-500" /> Lihat Struk Laporan
+                              <FileText className="h-3 w-3 mr-1 text-slate-500" /> Lihat Struk
                             </Button>
                           ) : (
                             <span />
@@ -1617,7 +1611,7 @@ export function AttendanceCalendarView() {
                               className="h-7 text-[10px] font-semibold border-slate-300 bg-white"
                               onClick={() => handleOpenEditAdmin(log)}
                             >
-                              <Edit className="h-3 w-3 mr-1 text-slate-500" /> Edit Log
+                              <Edit className="h-3 w-3 mr-1 text-slate-500" /> Edit
                             </Button>
                             <Button
                               size="sm"
@@ -1640,13 +1634,13 @@ export function AttendanceCalendarView() {
                 <div className="space-y-3 my-3">
                   <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200/80 text-xs">
                     <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200">
-                      <span className="text-[10px] font-bold text-emerald-700 uppercase block">+ Total Kas Masuk (IN)</span>
+                      <span className="text-[10px] font-bold text-emerald-700 uppercase block">+ Kas Masuk</span>
                       <span className="text-sm font-extrabold text-emerald-800 mt-0.5 block">
                         Rp {totalKasMasuk.toLocaleString("id-ID")}
                       </span>
                     </div>
                     <div className="bg-amber-50/70 p-2.5 rounded-xl border border-amber-200">
-                      <span className="text-[10px] font-bold text-amber-700 uppercase block">- Total Kas Keluar (OUT)</span>
+                      <span className="text-[10px] font-bold text-amber-700 uppercase block">- Kas Keluar</span>
                       <span className="text-sm font-extrabold text-rose-700 mt-0.5 block">
                         Rp {totalKasKeluar.toLocaleString("id-ID")}
                       </span>
@@ -1665,12 +1659,12 @@ export function AttendanceCalendarView() {
                               <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                                 tx.type === "CASH_IN" || tx.type === "IN" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
                               }`}>
-                                {tx.type === "CASH_IN" || tx.type === "IN" ? "KAS MASUK" : "KAS KELUAR"}
+                                {tx.type === "CASH_IN" || tx.type === "IN" ? "Masuk" : "Keluar"}
                               </span>
                               <span className="font-bold text-slate-900">{tx.note || "Transaksi Kas"}</span>
                             </div>
                             <div className="text-[10px] text-slate-400 mt-0.5">
-                              Pencatat: <strong>{tx.employeeName || "Kasir"}</strong> &bull; {new Date(tx.timestamp || Date.now()).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
+                              Pencatat: <strong>{tx.employeeName || "Kasir"}</strong> • {new Date(tx.timestamp || Date.now()).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
                             </div>
                           </div>
 
@@ -1681,7 +1675,7 @@ export function AttendanceCalendarView() {
                       ))
                     ) : (
                       <div className="p-8 text-center text-xs text-slate-400 font-medium bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                        Tidak ada transaksi kas kecil / belanja nota yang dicatat pada hari ini.
+                        Tidak ada transaksi kas kecil tercatat pada hari ini.
                       </div>
                     )}
                   </div>
@@ -1693,13 +1687,13 @@ export function AttendanceCalendarView() {
                 <div className="space-y-3 my-3">
                   <div className="bg-slate-900 text-white p-4 rounded-2xl flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Total Omset Penjualan POS</span>
+                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Total Omset Penjualan</span>
                       <span className="text-xl font-extrabold text-white mt-0.5 block">
                         Rp {totalOmsetPOS.toLocaleString("id-ID")}
                       </span>
                     </div>
                     <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-xs font-bold">
-                      {allDayOrders.length} Pesanan Terjual
+                      {allDayOrders.length} Pesanan
                     </Badge>
                   </div>
 
@@ -1713,7 +1707,7 @@ export function AttendanceCalendarView() {
                           <div>
                             <span className="font-bold text-slate-900 block">#{ord.orderNumber}</span>
                             <span className="text-[10px] text-slate-400">
-                              {ord.time} WIB &bull; {ord.itemCount} Item &bull; Bayar: <strong className="text-slate-600">{ord.paymentMethod}</strong>
+                              {ord.time} WIB • {ord.itemCount} Item • Bayar: <strong className="text-slate-600">{ord.paymentMethod}</strong>
                             </span>
                           </div>
                           <span className="font-extrabold text-emerald-700 text-xs">
@@ -1723,7 +1717,7 @@ export function AttendanceCalendarView() {
                       ))
                     ) : (
                       <div className="p-8 text-center text-xs text-slate-400 font-medium bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                        Belum ada transaksi penjualan kasir tercatat pada hari ini.
+                        Belum ada transaksi penjualan pada hari ini.
                       </div>
                     )}
                   </div>
@@ -1743,7 +1737,7 @@ export function AttendanceCalendarView() {
                           <div>
                             <span className="font-bold text-slate-900 block">{pur.itemName}</span>
                             <span className="text-[10px] text-slate-400">
-                              Kuantitas: <strong>{pur.quantity}</strong> &bull; Toko / Supplier: {pur.supplierName || "-"}
+                              Qty: <strong>{pur.quantity}</strong> • Supplier: {pur.supplierName || "-"}
                             </span>
                           </div>
                           <span className="font-extrabold text-slate-900 text-xs">
@@ -1753,7 +1747,7 @@ export function AttendanceCalendarView() {
                       ))
                     ) : (
                       <div className="p-8 text-center text-xs text-slate-400 font-medium bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                        Tidak ada pengadaan bahan baku yang dicatat pada hari ini.
+                        Tidak ada pengadaan bahan baku pada hari ini.
                       </div>
                     )}
                   </div>
@@ -1762,7 +1756,7 @@ export function AttendanceCalendarView() {
 
               <DialogFooter className="pt-2 border-t">
                 <Button variant="outline" size="sm" onClick={() => setSelectedDayDetail(null)} className="rounded-xl text-xs">
-                  Tutup Detail
+                  Tutup
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1782,7 +1776,7 @@ export function AttendanceCalendarView() {
                 <div>
                   <div className="font-bold text-sm text-slate-900">{empDetailModalName}</div>
                   <div className="text-xs text-slate-500 font-normal">
-                    Rekap Absensi &amp; Kas Shift ({MONTH_NAMES[selectedMonth - 1]} {selectedYear})
+                    Rekap Absensi ({MONTH_NAMES[selectedMonth - 1]} {selectedYear})
                   </div>
                 </div>
               </DialogTitle>
@@ -1812,7 +1806,7 @@ export function AttendanceCalendarView() {
                       <span className="text-base font-extrabold text-slate-900">{totalShifts} Kali</span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-500 block uppercase font-bold">Kas PAS</span>
+                      <span className="text-[10px] text-slate-500 block uppercase font-bold">Kas Sesuai</span>
                       <span className="text-base font-extrabold text-emerald-700">{totalPas} Kali</span>
                     </div>
                     <div>
@@ -1834,7 +1828,7 @@ export function AttendanceCalendarView() {
                   {/* Chronological List of Logs */}
                   <div className="space-y-2">
                     <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                      Riwayat Log Shift ({empLogs.length})
+                      Riwayat Log ({empLogs.length})
                     </h5>
 
                     {empLogs.length === 0 ? (
@@ -1860,7 +1854,7 @@ export function AttendanceCalendarView() {
                                   log.type === "SHIFT_OUT" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-800"
                                 }`}
                               >
-                                {log.type}
+                                {log.type === "SHIFT_OUT" ? "Tutup" : "Masuk"}
                               </Badge>
                             </div>
                             <span className="text-[10px] text-slate-500 block">{log.cashNote || "Shift Kasir"}</span>
@@ -1868,7 +1862,7 @@ export function AttendanceCalendarView() {
                             {log.transactions && log.transactions.length > 0 && (
                               <div className="mt-2 pt-1.5 border-t border-slate-100 space-y-1">
                                 <span className="text-[9px] font-bold text-slate-600 block uppercase">
-                                  Transaksi Kas / Belanja Shift Ini ({log.transactions.length}):
+                                  Transaksi Kas ({log.transactions.length}):
                                 </span>
                                 {log.transactions.map((tx, tIdx) => (
                                   <div key={tx.id || tIdx} className="flex items-center justify-between text-[10px] bg-slate-50 px-2 py-1 rounded">
@@ -1905,16 +1899,16 @@ export function AttendanceCalendarView() {
             <DialogHeader>
               <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-emerald-600" />
-                <span>{editingLog ? "Edit Log Shift Absensi" : "Tambah Log Absen Manual (Admin)"}</span>
+                <span>{editingLog ? "Edit Log Shift" : "Tambah Log Manual"}</span>
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500 font-normal">
-                Pencatatan atau koreksi data absensi dan status kas laci karyawan.
+                Pencatatan atau koreksi data absensi kasir.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-3.5 my-3">
               <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">Nama Karyawan</label>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">Karyawan</label>
                 <select
                   value={adminEmpName}
                   onChange={(e) => setAdminEmpName(e.target.value)}
@@ -1936,8 +1930,8 @@ export function AttendanceCalendarView() {
                     onChange={(e) => setAdminType(e.target.value as any)}
                     className="h-9 w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 focus:outline-none"
                   >
-                    <option value="SHIFT_IN">SHIFT IN (Masuk)</option>
-                    <option value="SHIFT_OUT">SHIFT OUT (Keluar)</option>
+                    <option value="SHIFT_IN">Masuk (SHIFT IN)</option>
+                    <option value="SHIFT_OUT">Keluar (SHIFT OUT)</option>
                   </select>
                 </div>
 
@@ -1964,7 +1958,7 @@ export function AttendanceCalendarView() {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Fisik Kas Laci (Rp)</label>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Kas Fisik Laci (Rp)</label>
                   <Input
                     type="number"
                     value={adminEndCash}
@@ -1975,11 +1969,11 @@ export function AttendanceCalendarView() {
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">Catatan Log</label>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">Catatan</label>
                 <Input
                   value={adminNote}
                   onChange={(e) => setAdminNote(e.target.value)}
-                  placeholder="misal: Shift pagi lancar / Kas sesuai"
+                  placeholder="Contoh: Shift lancar / Kas sesuai"
                   className="h-9 text-xs font-semibold bg-slate-50 border-slate-200 rounded-xl"
                 />
               </div>
@@ -1995,7 +1989,7 @@ export function AttendanceCalendarView() {
                 disabled={isSavingAdmin}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl"
               >
-                {isSavingAdmin ? "Menyimpan..." : "Simpan Log"}
+                {isSavingAdmin ? "Menyimpan..." : "Simpan"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -2009,7 +2003,7 @@ export function AttendanceCalendarView() {
             <DialogHeader>
               <DialogTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <FileText className="h-4 w-4 text-emerald-600" />
-                <span>Struk Laporan Closing Shift</span>
+                <span>Struk Closing Shift</span>
               </DialogTitle>
             </DialogHeader>
 
@@ -2028,3 +2022,4 @@ export function AttendanceCalendarView() {
     </div>
   );
 }
+
