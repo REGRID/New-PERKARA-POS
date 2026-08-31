@@ -46,13 +46,6 @@ export default function ProductsPage() {
     isActive: true,
   });
 
-  const DEFAULT_FALLBACK_PRODUCTS = [
-    { id: "m1", sku: "SKU-KOPI-001", name: "Es Kopi Susu Gula Aren", category: "Kopi", price: 24000, baseHpp: 8500, margin: 15500, isActive: true },
-    { id: "m2", sku: "SKU-KOPI-002", name: "Americano Iced", category: "Kopi", price: 18000, baseHpp: 4500, margin: 13500, isActive: true },
-    { id: "m3", sku: "SKU-NKOP-003", name: "Matcha Latte Ice", category: "Non-Kopi", price: 26000, baseHpp: 9800, margin: 16200, isActive: true },
-    { id: "m4", sku: "SKU-MAKN-004", name: "Croissant Coklat Premium", category: "Makanan", price: 22000, baseHpp: 9000, margin: 13000, isActive: true },
-  ];
-
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -63,9 +56,9 @@ export default function ProductsPage() {
 
       if (resMenus.ok) {
         const json = await resMenus.json();
-        setMenus(Array.isArray(json) && json.length > 0 ? json : DEFAULT_FALLBACK_PRODUCTS);
+        setMenus(Array.isArray(json) ? json : []);
       } else {
-        setMenus(DEFAULT_FALLBACK_PRODUCTS);
+        setMenus([]);
       }
 
       if (resCats.ok) {
@@ -74,7 +67,7 @@ export default function ProductsPage() {
       }
     } catch (e) {
       console.error(e);
-      setMenus(DEFAULT_FALLBACK_PRODUCTS);
+      setMenus([]);
     } finally {
       setLoading(false);
     }

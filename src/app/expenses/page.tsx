@@ -57,25 +57,19 @@ export default function ExpensesPage() {
     employeeName: "Staf Outlet",
   });
 
-  const DEFAULT_FALLBACK_EXPENSES = [
-    { id: "exp-1", amount: 250000, note: "Tagihan Listrik & Air Outlet (Agustus)", employeeName: "Manajer Outlet", timestamp: new Date("2026-08-25"), isFromScan: false, voucherNumber: "VKAS-101" },
-    { id: "exp-2", amount: 65000, note: "[AI Nota] Toko Bahan Kue - Sirup Aren 1L", employeeName: "Kas Outlet", timestamp: new Date("2026-08-26"), isFromScan: true, voucherNumber: "VKAS-102" },
-    { id: "exp-3", amount: 18000, note: "Es Batu 2 Plastik (Kasbon Kasir)", employeeName: "Cheisa", timestamp: new Date("2026-08-27"), isFromScan: false, voucherNumber: "VKAS-103" },
-  ];
-
   const fetchExpenses = async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/data?type=expenses");
       if (res.ok) {
         const json = await res.json();
-        setExpenses(Array.isArray(json) && json.length > 0 ? json : DEFAULT_FALLBACK_EXPENSES);
+        setExpenses(Array.isArray(json) ? json : []);
       } else {
-        setExpenses(DEFAULT_FALLBACK_EXPENSES);
+        setExpenses([]);
       }
     } catch (e) {
       console.error(e);
-      setExpenses(DEFAULT_FALLBACK_EXPENSES);
+      setExpenses([]);
     } finally {
       setLoading(false);
     }

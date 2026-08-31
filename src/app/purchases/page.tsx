@@ -52,27 +52,19 @@ export default function PurchasesPage() {
     notes: "",
   });
 
-  const DEFAULT_FALLBACK_PURCHASES = [
-    { id: "pur-1", itemName: "[RAW-KOPI-001] Biji Kopi Espresso Blend 1kg", quantity: 5, unitPrice: 180000, totalPrice: 900000, supplierName: "Kopi Nusantara Supplier", purchaseDate: new Date("2026-08-25"), notes: "Stok Masuk Awal (Supplier Kopi)", isFromScan: false },
-    { id: "pur-2", itemName: "[RAW-SUSU-002] Susu UHT Full Cream 1L (Karton/12)", quantity: 2, unitPrice: 210000, totalPrice: 420000, supplierName: "Distributor Susu Diamond", purchaseDate: new Date("2026-08-26"), notes: "Stok Masuk Awal (Distributor)", isFromScan: false },
-    { id: "pur-3", itemName: "[RAW-SIRU-003] Sirup Gula Aren Premium 1L", quantity: 3, unitPrice: 65000, totalPrice: 195000, supplierName: "Toko Bahan Kue", purchaseDate: new Date("2026-08-26"), notes: "Auto-sync dari AI Nota (Toko Bahan Kue) | Kategori: Bahan Baku", isFromScan: true },
-    { id: "pur-4", itemName: "[RAW-MATC-004] Powder Matcha Uji Pure 500g", quantity: 3, unitPrice: 145000, totalPrice: 435000, supplierName: "Matcha Import Store", purchaseDate: new Date("2026-08-27"), notes: "Auto-sync dari AI Nota (Matcha Import) | Kategori: Powder", isFromScan: true },
-    { id: "pur-5", itemName: "[RAW-CUP1-005] Cup Plastik PET 16oz + Lid (1000 pcs)", quantity: 1, unitPrice: 350000, totalPrice: 350000, supplierName: "Kemasan Jaya Grosir", purchaseDate: new Date("2026-08-27"), notes: "Stok Masuk (Kemasan & Cup)", isFromScan: false },
-  ];
-
   const fetchPurchases = async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/data?type=purchases");
       if (res.ok) {
         const json = await res.json();
-        setPurchases(Array.isArray(json) && json.length > 0 ? json : DEFAULT_FALLBACK_PURCHASES);
+        setPurchases(Array.isArray(json) ? json : []);
       } else {
-        setPurchases(DEFAULT_FALLBACK_PURCHASES);
+        setPurchases([]);
       }
     } catch (e) {
       console.error(e);
-      setPurchases(DEFAULT_FALLBACK_PURCHASES);
+      setPurchases([]);
     } finally {
       setLoading(false);
     }

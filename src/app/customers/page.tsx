@@ -38,25 +38,19 @@ export default function CustomersPage() {
     points: 0,
   });
 
-  const DEFAULT_FALLBACK_CUSTOMERS = [
-    { id: "cust-1", name: "Budi Pratama", phone: "081298765432", email: "budi@gmail.com", points: 150 },
-    { id: "cust-2", name: "Siti Rahma", phone: "085612348899", email: "siti.rahma@yahoo.com", points: 80 },
-    { id: "cust-3", name: "Dimas Anggara", phone: "087899001122", email: "dimas@outlook.com", points: 220 },
-  ];
-
   const fetchCustomers = async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/data?type=customers");
       if (res.ok) {
         const json = await res.json();
-        setCustomers(Array.isArray(json) && json.length > 0 ? json : DEFAULT_FALLBACK_CUSTOMERS);
+        setCustomers(Array.isArray(json) ? json : []);
       } else {
-        setCustomers(DEFAULT_FALLBACK_CUSTOMERS);
+        setCustomers([]);
       }
     } catch (e) {
       console.error(e);
-      setCustomers(DEFAULT_FALLBACK_CUSTOMERS);
+      setCustomers([]);
     } finally {
       setLoading(false);
     }

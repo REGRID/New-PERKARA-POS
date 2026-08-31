@@ -36,27 +36,19 @@ export default function TablesPage() {
     status: "AVAILABLE",
   });
 
-  const DEFAULT_FALLBACK_TABLES = [
-    { id: "tbl-1", number: "Meja 01 (Indoor)", capacity: 2, status: "AVAILABLE" },
-    { id: "tbl-2", number: "Meja 02 (Indoor)", capacity: 4, status: "OCCUPIED" },
-    { id: "tbl-3", number: "Meja 03 (Outdoor)", capacity: 4, status: "AVAILABLE" },
-    { id: "tbl-4", number: "Meja 04 (Outdoor)", capacity: 6, status: "AVAILABLE" },
-    { id: "tbl-5", number: "VIP Room 1", capacity: 8, status: "RESERVED" },
-  ];
-
   const fetchTables = async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/data?type=tables");
       if (res.ok) {
         const json = await res.json();
-        setTables(Array.isArray(json) && json.length > 0 ? json : DEFAULT_FALLBACK_TABLES);
+        setTables(Array.isArray(json) ? json : []);
       } else {
-        setTables(DEFAULT_FALLBACK_TABLES);
+        setTables([]);
       }
     } catch (e) {
       console.error(e);
-      setTables(DEFAULT_FALLBACK_TABLES);
+      setTables([]);
     } finally {
       setLoading(false);
     }

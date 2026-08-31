@@ -28,13 +28,6 @@ export default function EmployeesPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const DEFAULT_FALLBACK_EMPLOYEES = [
-    { id: "emp-cheisa", name: "Cheisa", role: "BARISTA", pin: "5555", employmentType: "SHIFT", dailyRate: 35000 },
-    { id: "emp-galang", name: "Galang", role: "BARISTA", pin: "3333", employmentType: "SHIFT", dailyRate: 50000 },
-    { id: "emp-reza", name: "Reza", role: "BARISTA", pin: "1111", employmentType: "SHIFT", dailyRate: 50000 },
-    { id: "emp-ummu", name: "Ummu", role: "BARISTA", pin: "2222", employmentType: "SHIFT", dailyRate: 50000 },
-  ];
-
   const [form, setForm] = useState({
     name: "",
     role: "cashier",
@@ -54,13 +47,9 @@ export default function EmployeesPage() {
       ]);
       if (empRes.ok) {
         const empJson = await empRes.json();
-        if (Array.isArray(empJson) && empJson.length > 0) {
-          setEmployees(empJson);
-        } else {
-          setEmployees(DEFAULT_FALLBACK_EMPLOYEES);
-        }
+        setEmployees(Array.isArray(empJson) ? empJson : []);
       } else {
-        setEmployees(DEFAULT_FALLBACK_EMPLOYEES);
+        setEmployees([]);
       }
 
       if (attRes.ok) {
@@ -76,7 +65,7 @@ export default function EmployeesPage() {
       }
     } catch (e) {
       console.error(e);
-      setEmployees(DEFAULT_FALLBACK_EMPLOYEES);
+      setEmployees([]);
     } finally {
       setLoading(false);
     }

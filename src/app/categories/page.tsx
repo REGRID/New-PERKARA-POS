@@ -32,15 +32,6 @@ export default function CategoriesPage() {
   const [catNameInput, setCatNameInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const DEFAULT_FALLBACK_CATEGORIES = [
-    { id: "cat-1", name: "Kopi" },
-    { id: "cat-2", name: "Non-Kopi" },
-    { id: "cat-3", name: "Makanan" },
-    { id: "cat-4", name: "Bahan Baku" },
-    { id: "cat-5", name: "Kemasan" },
-    { id: "cat-6", name: "Operasional" },
-  ];
-
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -51,9 +42,9 @@ export default function CategoriesPage() {
 
       if (resCats.ok) {
         const json = await resCats.json();
-        setCategories(Array.isArray(json) && json.length > 0 ? json : DEFAULT_FALLBACK_CATEGORIES);
+        setCategories(Array.isArray(json) ? json : []);
       } else {
-        setCategories(DEFAULT_FALLBACK_CATEGORIES);
+        setCategories([]);
       }
 
       if (resMenus.ok) {
@@ -62,7 +53,7 @@ export default function CategoriesPage() {
       }
     } catch (e) {
       console.error(e);
-      setCategories(DEFAULT_FALLBACK_CATEGORIES);
+      setCategories([]);
     } finally {
       setLoading(false);
     }

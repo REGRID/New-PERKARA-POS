@@ -36,13 +36,6 @@ export default function PaymentMethodsPage() {
     isActive: true,
   });
 
-  const DEFAULT_FALLBACK_PAYMENT_METHODS = [
-    { id: "pm-1", name: "Tunai", code: "CASH", type: "CASH", isActive: true },
-    { id: "pm-2", name: "QRIS BCA / Mandiri", code: "QRIS", type: "E_WALLET", isActive: true },
-    { id: "pm-3", name: "EDC Debit / Kredit", code: "EDC", type: "CARD", isActive: true },
-    { id: "pm-4", name: "Transfer Bank", code: "TRANSFER", type: "BANK_TRANSFER", isActive: true },
-  ];
-
   const fetchMethods = async () => {
     try {
       setLoading(true);

@@ -95,8 +95,8 @@ const DEFAULT_SEED_MENUS = [
 export async function getIngredients() {
   try {
     const ingredientModel = db.ingredient || db.Ingredient;
+    const setModel = db.systemSetting || db.SystemSetting;
     let ingredients: any[] = [];
-    let queryFailed = false;
     if (ingredientModel) {
       try {
         ingredients = await ingredientModel.findMany({
@@ -106,20 +106,29 @@ export async function getIngredients() {
           ],
         });
       } catch {
-        queryFailed = true;
         ingredients = [];
       }
     }
 
-    if (!queryFailed && (!ingredients || ingredients.length === 0)) {
+    let hasSeeded = null;
+    if (setModel) {
+      hasSeeded = await setModel.findUnique({ where: { key: "seeded_ingredients" } }).catch(() => null);
+    }
+
+    if (!hasSeeded && (!ingredients || ingredients.length === 0)) {
       if (ingredientModel) {
         for (const seed of DEFAULT_SEED_INGREDIENTS) {
           try {
             const { id, ...dataToInsert } = seed;
             await ingredientModel.create({ data: dataToInsert });
-          } catch {
-            // Silently ignore seed collisions or schema differences
-          }
+          } catch {}
+        }
+        if (setModel) {
+          await setModel.upsert({
+            where: { key: "seeded_ingredients" },
+            update: { value: "true" },
+            create: { key: "seeded_ingredients", value: "true" },
+          }).catch(() => null);
         }
         try {
           ingredients = await ingredientModel.findMany({
@@ -134,13 +143,10 @@ export async function getIngredients() {
       }
     }
 
-    if (!Array.isArray(ingredients) || ingredients.length === 0) {
-      ingredients = DEFAULT_SEED_INGREDIENTS;
-    }
-
-    return ingredients;
-  } catch {
-    return DEFAULT_SEED_INGREDIENTS;
+    return Array.isArray(ingredients) ? ingredients : [];
+  } catch (err) {
+    console.error("Error fetching ingredients:", err);
+    return [];
   }
 }
 
@@ -253,9 +259,23 @@ export async function updateIngredientDetail(data: {
 export async function deleteIngredient(id: string) {
   try {
     const ingredientModel = db.ingredient || db.Ingredient;
-    return await ingredientModel.delete({
-      where: { id },
-    });
+    const setModel = db.systemSetting || db.SystemSetting;
+
+    if (setModel) {
+      await setModel.upsert({
+        where: { key: "seeded_ingredients" },
+        update: { value: "true" },
+        create: { key: "seeded_ingredients", value: "true" },
+      }).catch(() => null);
+    }
+
+    if (ingredientModel) {
+      const existing = await ingredientModel.findUnique({ where: { id } }).catch(() => null);
+      if (existing) {
+        return await ingredientModel.delete({ where: { id } });
+      }
+    }
+    return { success: true };
   } catch (error) {
     console.error("Error deleting ingredient:", error);
     throw error;
@@ -269,8 +289,8 @@ export async function deleteIngredient(id: string) {
 export async function getMenusWithRecipes() {
   try {
     const menuModel = db.menu || db.Menu;
+    const setModel = db.systemSetting || db.SystemSetting;
     let menus: any[] = [];
-    let queryFailed = false;
     if (menuModel) {
       try {
         menus = await menuModel.findMany({
@@ -284,20 +304,29 @@ export async function getMenusWithRecipes() {
           orderBy: { name: "asc" },
         });
       } catch {
-        queryFailed = true;
         menus = [];
       }
     }
 
-    if (!queryFailed && (!menus || menus.length === 0)) {
+    let hasSeeded = null;
+    if (setModel) {
+      hasSeeded = await setModel.findUnique({ where: { key: "seeded_menus" } }).catch(() => null);
+    }
+
+    if (!hasSeeded && (!menus || menus.length === 0)) {
       if (menuModel) {
         for (const seed of DEFAULT_SEED_MENUS) {
           try {
             const { id, ...dataToInsert } = seed;
             await menuModel.create({ data: dataToInsert });
-          } catch {
-            // Silently ignore seed collisions or schema differences
-          }
+          } catch {}
+        }
+        if (setModel) {
+          await setModel.upsert({
+            where: { key: "seeded_menus" },
+            update: { value: "true" },
+            create: { key: "seeded_menus", value: "true" },
+          }).catch(() => null);
         }
         try {
           menus = await menuModel.findMany({
@@ -316,13 +345,10 @@ export async function getMenusWithRecipes() {
       }
     }
 
-    if (!Array.isArray(menus) || menus.length === 0) {
-      menus = DEFAULT_SEED_MENUS;
-    }
-
-    return menus;
-  } catch {
-    return DEFAULT_SEED_MENUS;
+    return Array.isArray(menus) ? menus : [];
+  } catch (err) {
+    console.error("Error fetching menus:", err);
+    return [];
   }
 }
 
@@ -400,10 +426,26 @@ export async function deleteMenu(id: string) {
   try {
     const menuModel = db.menu || db.Menu;
     const recipeModel = db.recipeItem || db.RecipeItem;
-    if (recipeModel) {
-      await recipeModel.deleteMany({ where: { menuId: id } });
+    const setModel = db.systemSetting || db.SystemSetting;
+
+    if (setModel) {
+      await setModel.upsert({
+        where: { key: "seeded_menus" },
+        update: { value: "true" },
+        create: { key: "seeded_menus", value: "true" },
+      }).catch(() => null);
     }
-    return await menuModel.delete({ where: { id } });
+
+    if (recipeModel) {
+      await recipeModel.deleteMany({ where: { menuId: id } }).catch(() => null);
+    }
+    if (menuModel) {
+      const existing = await menuModel.findUnique({ where: { id } }).catch(() => null);
+      if (existing) {
+        return await menuModel.delete({ where: { id } });
+      }
+    }
+    return { success: true };
   } catch (error) {
     console.error("Error deleting menu:", error);
     throw error;
@@ -462,7 +504,13 @@ export async function saveAddonCategory(data: { id?: string; name: string; isReq
 export async function deleteAddonCategory(id: string) {
   try {
     const catModel = db.addonCategory || db.AddonCategory;
-    return await catModel.delete({ where: { id } });
+    if (catModel) {
+      const existing = await catModel.findUnique({ where: { id } }).catch(() => null);
+      if (existing) {
+        return await catModel.delete({ where: { id } });
+      }
+    }
+    return { success: true };
   } catch (err) {
     console.error("Error deleting addon category:", err);
     throw err;
@@ -524,7 +572,13 @@ export async function saveAddonItem(data: {
 export async function deleteAddonItem(id: string) {
   try {
     const itemModel = db.addonItem || db.AddonItem;
-    return await itemModel.delete({ where: { id } });
+    if (itemModel) {
+      const existing = await itemModel.findUnique({ where: { id } }).catch(() => null);
+      if (existing) {
+        return await itemModel.delete({ where: { id } });
+      }
+    }
+    return { success: true };
   } catch (err) {
     console.error("Error deleting addon item:", err);
     throw err;
@@ -541,6 +595,7 @@ const DEFAULT_SEED_EMPLOYEES = [
 export async function getEmployees() {
   try {
     const empModel = db.employee || db.Employee;
+    const setModel = db.systemSetting || db.SystemSetting;
     let employees: any[] = [];
     if (empModel) {
       try {
@@ -550,13 +605,25 @@ export async function getEmployees() {
       }
     }
 
-    if (!employees || employees.length === 0) {
+    let hasSeeded = null;
+    if (setModel) {
+      hasSeeded = await setModel.findUnique({ where: { key: "seeded_employees" } }).catch(() => null);
+    }
+
+    if (!hasSeeded && (!employees || employees.length === 0)) {
       if (empModel) {
         for (const seed of DEFAULT_SEED_EMPLOYEES) {
           try {
             const { id, ...dataToInsert } = seed;
             await empModel.create({ data: dataToInsert });
           } catch {}
+        }
+        if (setModel) {
+          await setModel.upsert({
+            where: { key: "seeded_employees" },
+            update: { value: "true" },
+            create: { key: "seeded_employees", value: "true" },
+          }).catch(() => null);
         }
         try {
           employees = await empModel.findMany({ orderBy: { name: "asc" } });
@@ -566,13 +633,10 @@ export async function getEmployees() {
       }
     }
 
-    if (!Array.isArray(employees) || employees.length === 0) {
-      employees = DEFAULT_SEED_EMPLOYEES;
-    }
-
-    return employees;
-  } catch {
-    return DEFAULT_SEED_EMPLOYEES;
+    return Array.isArray(employees) ? employees : [];
+  } catch (err) {
+    console.error("Error fetching employees:", err);
+    return [];
   }
 }
 
@@ -757,25 +821,34 @@ const DEFAULT_SEED_CATEGORIES = [
 export async function getCategories() {
   try {
     const catModel = db.category || db.Category;
+    const setModel = db.systemSetting || db.SystemSetting;
     let categories: any[] = [];
-    let queryFailed = false;
     if (catModel) {
       try {
         categories = await catModel.findMany({ orderBy: { name: "asc" } });
       } catch {
-        queryFailed = true;
         categories = [];
       }
     }
 
-    if (!queryFailed && (!categories || categories.length === 0)) {
+    let hasSeeded = null;
+    if (setModel) {
+      hasSeeded = await setModel.findUnique({ where: { key: "seeded_categories" } }).catch(() => null);
+    }
+
+    if (!hasSeeded && (!categories || categories.length === 0)) {
       if (catModel) {
         for (const seed of DEFAULT_SEED_CATEGORIES) {
           try {
             await catModel.create({ data: seed });
-          } catch {
-            // Silently ignore seed collisions
-          }
+          } catch {}
+        }
+        if (setModel) {
+          await setModel.upsert({
+            where: { key: "seeded_categories" },
+            update: { value: "true" },
+            create: { key: "seeded_categories", value: "true" },
+          }).catch(() => null);
         }
         try {
           categories = await catModel.findMany({ orderBy: { name: "asc" } });
@@ -785,13 +858,10 @@ export async function getCategories() {
       }
     }
 
-    if (!Array.isArray(categories) || categories.length === 0) {
-      categories = DEFAULT_SEED_CATEGORIES.map((c, i) => ({ id: `cat-${i + 1}`, ...c }));
-    }
-
-    return categories;
-  } catch {
-    return DEFAULT_SEED_CATEGORIES.map((c, i) => ({ id: `cat-${i + 1}`, ...c }));
+    return Array.isArray(categories) ? categories : [];
+  } catch (err) {
+    console.error("Error fetching categories:", err);
+    return [];
   }
 }
 
@@ -814,7 +884,23 @@ export async function saveCategory(data: { id?: string; name: string }) {
 export async function deleteCategory(id: string) {
   try {
     const catModel = db.category || db.Category;
-    return await catModel.delete({ where: { id } });
+    const setModel = db.systemSetting || db.SystemSetting;
+
+    if (setModel) {
+      await setModel.upsert({
+        where: { key: "seeded_categories" },
+        update: { value: "true" },
+        create: { key: "seeded_categories", value: "true" },
+      }).catch(() => null);
+    }
+
+    if (catModel) {
+      const existing = await catModel.findUnique({ where: { id } }).catch(() => null);
+      if (existing) {
+        return await catModel.delete({ where: { id } });
+      }
+    }
+    return { success: true };
   } catch (err) {
     console.error("Error deleting category:", err);
     throw err;
@@ -833,6 +919,7 @@ const DEFAULT_SEED_PURCHASES = [
 export async function getPurchases() {
   try {
     const purModel = db.purchase || db.Purchase;
+    const setModel = db.systemSetting || db.SystemSetting;
     let localPurchases: any[] = [];
     if (purModel) {
       try {
@@ -866,8 +953,7 @@ export async function getPurchases() {
           }))
         );
       }
-    } catch (e) {
-      console.warn("Supabase purchases fetch warning:", e);
+    } catch {
       supabasePurchases = [];
     }
 
@@ -883,14 +969,26 @@ export async function getPurchases() {
       }
     }
 
-    // Auto-seed into DB if empty
-    if (!combined || combined.length === 0) {
+    let hasSeeded = null;
+    if (setModel) {
+      hasSeeded = await setModel.findUnique({ where: { key: "seeded_purchases" } }).catch(() => null);
+    }
+
+    // Auto-seed into DB if never seeded and empty
+    if (!hasSeeded && (!combined || combined.length === 0)) {
       if (purModel) {
         for (const seed of DEFAULT_SEED_PURCHASES) {
           try {
             const { id, isFromScan, ...dataToInsert } = seed;
             await purModel.create({ data: dataToInsert });
           } catch {}
+        }
+        if (setModel) {
+          await setModel.upsert({
+            where: { key: "seeded_purchases" },
+            update: { value: "true" },
+            create: { key: "seeded_purchases", value: "true" },
+          }).catch(() => null);
         }
         try {
           const seededLocal = await purModel.findMany({ orderBy: { purchaseDate: "desc" } });
@@ -899,16 +997,15 @@ export async function getPurchases() {
           }
         } catch {}
       }
-      return DEFAULT_SEED_PURCHASES;
     }
 
     // Sort by purchaseDate descending
     combined.sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime());
 
-    return combined;
+    return combined || [];
   } catch (err) {
     console.error("Error fetching purchases:", err);
-    return DEFAULT_SEED_PURCHASES;
+    return [];
   }
 }
 
@@ -991,7 +1088,23 @@ export async function savePurchase(data: {
 export async function deletePurchase(id: string) {
   try {
     const purModel = db.purchase || db.Purchase;
-    return await purModel.delete({ where: { id } });
+    const setModel = db.systemSetting || db.SystemSetting;
+
+    if (setModel) {
+      await setModel.upsert({
+        where: { key: "seeded_purchases" },
+        update: { value: "true" },
+        create: { key: "seeded_purchases", value: "true" },
+      }).catch(() => null);
+    }
+
+    if (purModel) {
+      const existing = await purModel.findUnique({ where: { id } }).catch(() => null);
+      if (existing) {
+        return await purModel.delete({ where: { id } });
+      }
+    }
+    return { success: true };
   } catch (err) {
     console.error("Error deleting purchase:", err);
     throw err;
@@ -1044,7 +1157,13 @@ export async function saveDiscount(data: { id?: string; name: string; type?: str
 export async function deleteDiscount(id: string) {
   try {
     const discModel = db.discount || db.Discount;
-    return await discModel.delete({ where: { id } });
+    if (discModel) {
+      const existing = await discModel.findUnique({ where: { id } }).catch(() => null);
+      if (existing) {
+        return await discModel.delete({ where: { id } });
+      }
+    }
+    return { success: true };
   } catch (err) {
     console.error("Error deleting discount:", err);
     throw err;
@@ -1086,7 +1205,13 @@ export async function saveDiningTable(data: { id?: string; number: string; capac
 export async function deleteDiningTable(id: string) {
   try {
     const tableModel = db.diningTable || db.DiningTable;
-    return await tableModel.delete({ where: { id } });
+    if (tableModel) {
+      const existing = await tableModel.findUnique({ where: { id } }).catch(() => null);
+      if (existing) {
+        return await tableModel.delete({ where: { id } });
+      }
+    }
+    return { success: true };
   } catch (err) {
     console.error("Error deleting dining table:", err);
     throw err;
@@ -1094,10 +1219,43 @@ export async function deleteDiningTable(id: string) {
 }
 
 // Customers
+const DEFAULT_SEED_CUSTOMERS = [
+  { name: "Budi Pratama", phone: "081298765432", email: "budi@gmail.com", points: 150 },
+  { name: "Siti Rahma", phone: "085612348899", email: "siti.rahma@yahoo.com", points: 80 },
+  { name: "Dimas Anggara", phone: "087899001122", email: "dimas@outlook.com", points: 220 },
+];
+
 export async function getCustomers() {
   try {
     const custModel = db.customer || db.Customer;
-    return custModel ? await custModel.findMany({ orderBy: { name: "asc" } }) : [];
+    const setModel = db.systemSetting || db.SystemSetting;
+
+    if (!custModel) return [];
+
+    let customers = await custModel.findMany({ orderBy: { name: "asc" } }).catch(() => []);
+
+    let hasSeeded = null;
+    if (setModel) {
+      hasSeeded = await setModel.findUnique({ where: { key: "seeded_customers" } }).catch(() => null);
+    }
+
+    if (!hasSeeded && (!customers || customers.length === 0)) {
+      for (const seed of DEFAULT_SEED_CUSTOMERS) {
+        try {
+          await custModel.create({ data: seed });
+        } catch {}
+      }
+      if (setModel) {
+        await setModel.upsert({
+          where: { key: "seeded_customers" },
+          update: { value: "true" },
+          create: { key: "seeded_customers", value: "true" },
+        }).catch(() => null);
+      }
+      customers = await custModel.findMany({ orderBy: { name: "asc" } }).catch(() => []);
+    }
+
+    return Array.isArray(customers) ? customers : [];
   } catch (err) {
     console.error("Error fetching customers:", err);
     return [];
@@ -1107,6 +1265,8 @@ export async function getCustomers() {
 export async function saveCustomer(data: { id?: string; name: string; phone?: string; email?: string; points?: number }) {
   try {
     const custModel = db.customer || db.Customer;
+    if (!custModel) throw new Error("Customer model not found");
+
     if (data.id) {
       const existing = await custModel.findUnique({ where: { id: data.id } }).catch(() => null);
       if (existing) {
@@ -1116,14 +1276,14 @@ export async function saveCustomer(data: { id?: string; name: string; phone?: st
             name: data.name, 
             phone: data.phone || "", 
             email: data.email || "",
-            ...(data.points !== undefined ? { points: Number(data.points) } : {})
+            points: Number(data.points) || 0
           },
         });
       }
     }
+
     return await custModel.create({
       data: { 
-        ...(data.id ? { id: data.id } : {}),
         name: data.name, 
         phone: data.phone || "", 
         email: data.email || "",
@@ -1139,7 +1299,23 @@ export async function saveCustomer(data: { id?: string; name: string; phone?: st
 export async function deleteCustomer(id: string) {
   try {
     const custModel = db.customer || db.Customer;
-    return await custModel.delete({ where: { id } });
+    const setModel = db.systemSetting || db.SystemSetting;
+
+    if (setModel) {
+      await setModel.upsert({
+        where: { key: "seeded_customers" },
+        update: { value: "true" },
+        create: { key: "seeded_customers", value: "true" },
+      }).catch(() => null);
+    }
+
+    if (custModel) {
+      const existing = await custModel.findUnique({ where: { id } }).catch(() => null);
+      if (existing) {
+        return await custModel.delete({ where: { id } });
+      }
+    }
+    return { success: true };
   } catch (err) {
     console.error("Error deleting customer:", err);
     throw err;
@@ -1242,7 +1418,13 @@ export async function saveExpense(data: { id?: string; amount: number; note?: st
 export async function deleteExpense(id: string) {
   try {
     const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
-    return await cashTxModel.delete({ where: { id } });
+    if (cashTxModel) {
+      const existing = await cashTxModel.findUnique({ where: { id } }).catch(() => null);
+      if (existing) {
+        return await cashTxModel.delete({ where: { id } });
+      }
+    }
+    return { success: true };
   } catch (err) {
     console.error("Error deleting expense:", err);
     throw err;
@@ -1640,7 +1822,23 @@ export async function saveEmployee(data: {
 export async function deleteEmployee(id: string) {
   try {
     const empModel = db.employee || db.Employee;
-    return await empModel.delete({ where: { id } });
+    const setModel = db.systemSetting || db.SystemSetting;
+
+    if (setModel) {
+      await setModel.upsert({
+        where: { key: "seeded_employees" },
+        update: { value: "true" },
+        create: { key: "seeded_employees", value: "true" },
+      }).catch(() => null);
+    }
+
+    if (empModel) {
+      const existing = await empModel.findUnique({ where: { id } }).catch(() => null);
+      if (existing) {
+        return await empModel.delete({ where: { id } });
+      }
+    }
+    return { success: true };
   } catch (err) {
     console.error("Error deleting employee:", err);
     throw err;
@@ -1696,7 +1894,13 @@ export async function saveAttendanceRecord(data: {
 export async function deleteAttendanceRecord(id: string) {
   try {
     const attModel = db.attendance || db.Attendance;
-    return await attModel.delete({ where: { id } });
+    if (attModel) {
+      const existing = await attModel.findUnique({ where: { id } }).catch(() => null);
+      if (existing) {
+        return await attModel.delete({ where: { id } });
+      }
+    }
+    return { success: true };
   } catch (err) {
     console.error("Error deleting attendance record:", err);
     throw err;

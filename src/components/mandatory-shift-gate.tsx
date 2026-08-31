@@ -21,30 +21,19 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  const DEFAULT_FALLBACK_EMPLOYEES = [
-    { id: "emp-cheisa", name: "Cheisa", role: "BARISTA", pin: "5555" },
-    { id: "emp-galang", name: "Galang", role: "BARISTA", pin: "3333" },
-    { id: "emp-reza", name: "Reza", role: "BARISTA", pin: "1111" },
-    { id: "emp-ummu", name: "Ummu", role: "BARISTA", pin: "2222" },
-  ];
-
   useEffect(() => {
     const loadEmployees = async () => {
       try {
         const res = await fetch("/api/data?type=employees");
         if (res.ok) {
           const json = await res.json();
-          if (Array.isArray(json) && json.length > 0) {
-            setEmployees(json);
-          } else {
-            setEmployees(DEFAULT_FALLBACK_EMPLOYEES);
-          }
+          setEmployees(Array.isArray(json) ? json : []);
         } else {
-          setEmployees(DEFAULT_FALLBACK_EMPLOYEES);
+          setEmployees([]);
         }
       } catch (e) {
         console.error(e);
-        setEmployees(DEFAULT_FALLBACK_EMPLOYEES);
+        setEmployees([]);
       }
     };
     loadEmployees();

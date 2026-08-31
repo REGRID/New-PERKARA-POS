@@ -44,35 +44,6 @@ export default function AddonStockPage() {
     quantityUsed: 1,
   });
 
-  const DEFAULT_FALLBACK_ADDONS = [
-    {
-      id: "ac1",
-      name: "Topping & Ekstra Shot",
-      isRequired: false,
-      allowMultiple: true,
-      items: [
-        {
-          id: "ai1",
-          name: "Extra Espresso Shot",
-          price: 5000,
-          recipes: [{ ingredient: { name: "Biji Kopi Espresso Blend", unit: "gram" }, quantityUsed: 9 }],
-        },
-        {
-          id: "ai2",
-          name: "Boba Topping",
-          price: 4000,
-          recipes: [{ ingredient: { name: "Sirup Gula Aren", unit: "ml" }, quantityUsed: 30 }],
-        },
-        {
-          id: "ai3",
-          name: "Oat Milk Swap",
-          price: 10000,
-          recipes: [{ ingredient: { name: "Susu UHT Full Cream", unit: "ml" }, quantityUsed: 150 }],
-        }
-      ]
-    }
-  ];
-
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -83,9 +54,9 @@ export default function AddonStockPage() {
 
       if (resAddons.ok) {
         const json = await resAddons.json();
-        setAddonCategories(Array.isArray(json) && json.length > 0 ? json : DEFAULT_FALLBACK_ADDONS);
+        setAddonCategories(Array.isArray(json) ? json : []);
       } else {
-        setAddonCategories(DEFAULT_FALLBACK_ADDONS);
+        setAddonCategories([]);
       }
 
       if (resIngs.ok) {
@@ -94,7 +65,7 @@ export default function AddonStockPage() {
       }
     } catch (e) {
       console.error(e);
-      setAddonCategories(DEFAULT_FALLBACK_ADDONS);
+      setAddonCategories([]);
     } finally {
       setLoading(false);
     }

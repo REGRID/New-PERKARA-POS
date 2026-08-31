@@ -36,25 +36,19 @@ export default function DiscountsPage() {
     isActive: true,
   });
 
-  const DEFAULT_FALLBACK_DISCOUNTS = [
-    { id: "disc-1", name: "Diskon Member VIP 10%", type: "PERCENT", amount: 10, isActive: true },
-    { id: "disc-2", name: "Promo Grand Opening Rp 5.000", type: "FIXED", amount: 5000, isActive: true },
-    { id: "disc-3", name: "Potongan Staf / Karyawan 20%", type: "PERCENT", amount: 20, isActive: true },
-  ];
-
   const fetchDiscounts = async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/data?type=discounts");
       if (res.ok) {
         const json = await res.json();
-        setDiscounts(Array.isArray(json) && json.length > 0 ? json : DEFAULT_FALLBACK_DISCOUNTS);
+        setDiscounts(Array.isArray(json) ? json : []);
       } else {
-        setDiscounts(DEFAULT_FALLBACK_DISCOUNTS);
+        setDiscounts([]);
       }
     } catch (e) {
       console.error(e);
-      setDiscounts(DEFAULT_FALLBACK_DISCOUNTS);
+      setDiscounts([]);
     } finally {
       setLoading(false);
     }
