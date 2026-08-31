@@ -1425,9 +1425,11 @@ export async function getPaymentMethods() {
   }
 }
 
-export async function savePaymentMethod(data: { id?: string; name: string; code: string; type?: string; isActive?: boolean }) {
+export async function savePaymentMethod(data: { id?: string; name: string; code?: string; type?: string; isActive?: boolean }) {
   try {
     const pmModel = db.paymentMethod || db.PaymentMethod;
+    const finalCode = (data.code || data.name || "").trim().toUpperCase().replace(/[^A-Z0-9_]/g, "_").slice(0, 16) || `PM_${Math.floor(100 + Math.random() * 900)}`;
+
     if (pmModel) {
       if (data.id) {
         const existing = await pmModel.findUnique({ where: { id: data.id } }).catch(() => null);
@@ -1436,20 +1438,20 @@ export async function savePaymentMethod(data: { id?: string; name: string; code:
             where: { id: data.id },
             data: { 
               name: data.name, 
-              code: data.code, 
+              code: finalCode, 
               type: data.type || "CASH",
               ...(data.isActive !== undefined ? { isActive: Boolean(data.isActive) } : {})
             },
           });
         }
 
-        const existingByCode = await pmModel.findFirst({ where: { code: data.code } }).catch(() => null);
+        const existingByCode = await pmModel.findFirst({ where: { code: finalCode } }).catch(() => null);
         if (existingByCode) {
           return await pmModel.update({
             where: { id: existingByCode.id },
             data: { 
               name: data.name, 
-              code: data.code, 
+              code: finalCode, 
               type: data.type || "CASH",
               ...(data.isActive !== undefined ? { isActive: Boolean(data.isActive) } : {})
             },
@@ -1461,7 +1463,7 @@ export async function savePaymentMethod(data: { id?: string; name: string; code:
         data: { 
           ...(data.id ? { id: data.id } : {}),
           name: data.name, 
-          code: data.code, 
+          code: finalCode, 
           type: data.type || "CASH",
           isActive: data.isActive !== undefined ? Boolean(data.isActive) : true
         },

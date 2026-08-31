@@ -67,7 +67,8 @@ export default function PaymentMethodsPage() {
 
   const openAddModal = () => {
     setEditingMethod(null);
-    setForm({ name: "", code: "", type: "CASH", isActive: true });
+    const initialCode = `PM_${Math.floor(100 + Math.random() * 900)}`;
+    setForm({ name: "", code: initialCode, type: "CASH", isActive: true });
     setIsModalOpen(true);
   };
 
@@ -75,16 +76,33 @@ export default function PaymentMethodsPage() {
     setEditingMethod(m);
     setForm({
       name: m.name,
-      code: m.code,
+      code: m.code || `PM_${Math.floor(100 + Math.random() * 900)}`,
       type: m.type || "CASH",
       isActive: m.isActive !== false,
     });
     setIsModalOpen(true);
   };
 
+  const handleNameChange = (name: string) => {
+    const autoCode = name
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "_")
+      .replace(/_+/g, "_")
+      .slice(0, 16);
+
+    setForm((prev) => ({
+      ...prev,
+      name,
+      code: autoCode || prev.code || `PM_${Math.floor(100 + Math.random() * 900)}`,
+    }));
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.code.trim()) return;
+    if (!form.name.trim()) return;
+
+    const finalCode = form.code.trim() || form.name.trim().toUpperCase().replace(/[^A-Z0-9]/g, "_").slice(0, 16) || `PM_${Math.floor(100 + Math.random() * 900)}`;
 
     try {
       setSubmitting(true);
@@ -94,6 +112,7 @@ export default function PaymentMethodsPage() {
         body: JSON.stringify({
           id: editingMethod?.id || undefined,
           ...form,
+          code: finalCode,
         }),
       });
 
@@ -316,7 +335,7 @@ export default function PaymentMethodsPage() {
                 autoFocus
                 placeholder="Contoh: QRIS BCA / ShopeePay"
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onChange={(e) => handleNameChange(e.target.value)}
                 className="text-xs font-medium h-9 rounded-xl bg-slate-50 border-slate-200"
                 required
               />
@@ -324,13 +343,15 @@ export default function PaymentMethodsPage() {
 
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">Kode *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-bold text-slate-700">Kode</label>
+                  <span className="text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded">Otomatis</span>
+                </div>
                 <Input
-                  placeholder="Contoh: QRIS_BCA"
+                  placeholder="PM_001"
                   value={form.code}
-                  onChange={(e) => setForm({ ...form, code: e.target.value })}
-                  className="text-xs font-mono h-9 rounded-xl uppercase bg-slate-50 border-slate-200"
-                  required
+                  onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '') })}
+                  className="text-xs font-mono h-9 rounded-xl uppercase bg-slate-100/70 border-slate-200"
                 />
               </div>
 
