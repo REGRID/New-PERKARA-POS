@@ -43,6 +43,7 @@ import {
   getOrdersHistory,
   updateOrderStatus,
   deleteOrder,
+  deleteAllOrders,
   getPaymentMethods,
   savePaymentMethod,
   deletePaymentMethod,
@@ -103,6 +104,7 @@ export async function POST(request: Request) {
     if (type === "checkout") return NextResponse.json(await processOrderCheckout(body));
     if (type === "update_order_status") return NextResponse.json(await updateOrderStatus(body));
     if (type === "delete_order") return NextResponse.json(await deleteOrder(body.id));
+    if (type === "delete_all_orders") return NextResponse.json(await deleteAllOrders());
     
     // Extended Modules POST Handlers
     if (type === "save_employee") return NextResponse.json(await saveEmployee(body));

@@ -45,15 +45,15 @@ export async function getDashboardData() {
       return sum + (totalQty * unitCost);
     }, 0);
 
-    const displayRevenue = totalRevenue > 0 ? totalRevenue : 4850000;
-    const displayOpex = totalOpex > 0 ? totalOpex : (totalPurchasesValue > 0 ? totalPurchasesValue : 1450000);
+    const displayRevenue = totalRevenue;
+    const displayOpex = totalOpex > 0 ? totalOpex : totalPurchasesValue;
 
     return {
       totalRevenue: displayRevenue,
-      totalOrdersCount: totalOrdersCount || 142,
+      totalOrdersCount: totalOrdersCount,
       totalOpex: displayOpex,
       estimatedProfit: displayRevenue - displayOpex,
-      totalStockValue: totalStockValue > 0 ? totalStockValue : 2450000,
+      totalStockValue: totalStockValue,
       totalPurchasesValue,
       ingredientsCount: ingredients.length,
       criticalIngredients,
@@ -1303,6 +1303,7 @@ const DEFAULT_SEED_ORDERS = [
 export async function getOrdersHistory() {
   try {
     const orderModel = db.order || db.Order;
+    const setModel = db.systemSetting || db.SystemSetting;
     let orders: any[] = [];
     if (orderModel) {
       try {
@@ -1315,7 +1316,13 @@ export async function getOrdersHistory() {
       }
     }
 
-    if (!orders || orders.length === 0) {
+    let hasSeeded = null;
+    if (setModel) {
+      hasSeeded = await setModel.findUnique({ where: { key: "seeded_orders" } }).catch(() => null);
+    }
+
+    // Only seed on first run if database has never been seeded and table is empty
+    if (!hasSeeded && (!orders || orders.length === 0)) {
       if (orderModel) {
         for (const seed of DEFAULT_SEED_ORDERS) {
           try {
@@ -1329,6 +1336,13 @@ export async function getOrdersHistory() {
               },
             });
           } catch {}
+        }
+        if (setModel) {
+          await setModel.upsert({
+            where: { key: "seeded_orders" },
+            update: { value: "true" },
+            create: { key: "seeded_orders", value: "true" },
+          }).catch(() => null);
         }
         try {
           orders = await orderModel.findMany({
@@ -1347,7 +1361,6 @@ export async function getOrdersHistory() {
     return [];
   }
 }
-
 
 export async function updateOrderStatus(data: { id: string; orderStatus?: string; paymentStatus?: string }) {
   try {
@@ -1369,12 +1382,54 @@ export async function deleteOrder(id: string) {
   try {
     const orderModel = db.order || db.Order;
     const itemModel = db.orderItem || db.OrderItem;
-    if (itemModel) {
-      await itemModel.deleteMany({ where: { orderId: id } });
+    const setModel = db.systemSetting || db.SystemSetting;
+
+    // Mark as seeded so clearing orders won't trigger re-seed
+    if (setModel) {
+      await setModel.upsert({
+        where: { key: "seeded_orders" },
+        update: { value: "true" },
+        create: { key: "seeded_orders", value: "true" },
+      }).catch(() => null);
     }
-    return await orderModel.delete({ where: { id } });
+
+    if (itemModel) {
+      await itemModel.deleteMany({ where: { orderId: id } }).catch(() => null);
+    }
+    if (orderModel) {
+      await orderModel.delete({ where: { id } }).catch(() => null);
+    }
+    return { success: true };
   } catch (err) {
     console.error("Error deleting order:", err);
+    throw err;
+  }
+}
+
+export async function deleteAllOrders() {
+  try {
+    const orderModel = db.order || db.Order;
+    const itemModel = db.orderItem || db.OrderItem;
+    const setModel = db.systemSetting || db.SystemSetting;
+
+    // Mark as seeded so clearing orders won't trigger re-seed
+    if (setModel) {
+      await setModel.upsert({
+        where: { key: "seeded_orders" },
+        update: { value: "true" },
+        create: { key: "seeded_orders", value: "true" },
+      }).catch(() => null);
+    }
+
+    if (itemModel) {
+      await itemModel.deleteMany({}).catch(() => null);
+    }
+    if (orderModel) {
+      await orderModel.deleteMany({}).catch(() => null);
+    }
+    return { success: true };
+  } catch (err) {
+    console.error("Error deleting all orders:", err);
     throw err;
   }
 }

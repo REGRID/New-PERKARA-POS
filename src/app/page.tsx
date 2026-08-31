@@ -44,9 +44,9 @@ export default function AdminDashboardPage() {
     fetchDashboard();
   }, []);
 
-  const totalRevenue = data?.totalRevenue ?? 4850000;
-  const totalOpex = data?.totalOpex ?? 1450000;
-  const estimatedProfit = data?.estimatedProfit ?? 3400000;
+  const totalRevenue = data?.totalRevenue ?? 0;
+  const totalOpex = data?.totalOpex ?? 0;
+  const estimatedProfit = data?.estimatedProfit ?? 0;
 
   return (
     <AppShell>

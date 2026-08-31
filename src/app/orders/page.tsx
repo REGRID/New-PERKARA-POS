@@ -125,6 +125,28 @@ export default function OrdersPage() {
     }
   };
 
+  const handleDeleteAllOrders = async () => {
+    if (!confirm("Apakah Anda yakin ingin MENGHAPUS SEMUA riwayat transaksi? Tindakan ini tidak dapat dibatalkan.")) return;
+
+    try {
+      setLoading(true);
+      const res = await fetch("/api/data?type=delete_all_orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      if (res.ok) {
+        setIsDetailOpen(false);
+        await fetchOrders();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Filtered Orders calculation
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
@@ -190,15 +212,30 @@ export default function OrdersPage() {
               </p>
             </div>
 
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={fetchOrders} 
-              className="text-xs font-semibold gap-1.5 h-9 rounded-xl cursor-pointer border-slate-200 hover:bg-slate-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span>Segarkan</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              {isAdmin && orders.length > 0 && (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={handleDeleteAllOrders} 
+                  disabled={loading}
+                  className="text-xs font-semibold gap-1.5 h-9 rounded-xl cursor-pointer text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Hapus Semua</span>
+                </Button>
+              )}
+
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={fetchOrders} 
+                className="text-xs font-semibold gap-1.5 h-9 rounded-xl cursor-pointer border-slate-200 hover:bg-slate-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+                <span>Segarkan</span>
+              </Button>
+            </div>
           </div>
 
           {/* Metric Stats Cards */}
