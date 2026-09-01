@@ -25,7 +25,8 @@ import {
   FileText,
   CreditCard,
   Settings as SettingsIcon,
-  Wallet
+  Wallet,
+  ShieldAlert
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       items: [
         { name: "Karyawan", href: "/employees", icon: Users },
         { name: "Metode Pembayaran", href: "/payment-methods", icon: CreditCard },
+        { name: "Log Aktivitas", href: "/activity-log", icon: ShieldAlert },
         { name: "Pengaturan", href: "/settings", icon: SettingsIcon },
       ]
     }

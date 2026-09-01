@@ -16,6 +16,7 @@ const ADMIN_ROUTES = [
   "/reports",
   "/settings",
   "/payment-methods",
+  "/activity-log",
 ];
 
 // Pages accessible by both Admin and Staff (Karyawan)

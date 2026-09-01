@@ -777,7 +777,54 @@ export async function getEmployees() {
 }
 
 // =============================================================================
-// 5. POS CHECKOUT ACTION (AUTO DEDUCT REAL STOCKS & SAVE ORDER & SPLIT PAYMENTS)
+// Helper: Validasi Ulang Harga & Total Transaksi di Server
+async function validateAndRecalculateOrder(orderData: {
+  items: Array<{ menuId?: string; menuName: string; quantity: number; price: number }>;
+  discount?: number;
+  totalAmount: number;
+}) {
+  const menuModel = db.menu || db.Menu;
+  let recalculatedSubtotal = 0;
+
+  for (const item of orderData.items) {
+    if (!item.menuId) {
+      // Item tanpa menuId (misal produk custom)
+      recalculatedSubtotal += Number(item.price) * Number(item.quantity);
+      continue;
+    }
+
+    const menu = await menuModel.findUnique({ where: { id: item.menuId } });
+    if (!menu) {
+      throw new Error(`Menu "${item.menuName}" tidak ditemukan di database.`);
+    }
+
+    const expectedPrice = Number(menu.price);
+    const sentPrice = Number(item.price);
+
+    // Toleransi kecil pembulatan
+    if (Math.abs(expectedPrice - sentPrice) > 1) {
+      throw new Error(
+        `Harga "${item.menuName}" tidak sesuai (sistem: Rp${expectedPrice}, diterima: Rp${sentPrice}). Transaksi dibatalkan demi keamanan.`
+      );
+    }
+
+    recalculatedSubtotal += expectedPrice * Number(item.quantity);
+  }
+
+  const discount = Number(orderData.discount) || 0;
+  const expectedTotal = recalculatedSubtotal - discount;
+  const sentTotal = Number(orderData.totalAmount);
+
+  if (Math.abs(expectedTotal - sentTotal) > 1) {
+    throw new Error(
+      `Total transaksi tidak sesuai perhitungan sistem (seharusnya Rp${expectedTotal}, diterima Rp${sentTotal}).`
+    );
+  }
+
+  return { recalculatedSubtotal, expectedTotal };
+}
+
+// 5. POS CHECKOUT ACTION (VALIDATE PRICES & PRE-CHECK STOCKS & ATOMIC TRANSACTION)
 // =============================================================================
 export async function processOrderCheckout(orderData: {
   orderNumber: string;
@@ -803,126 +850,165 @@ export async function processOrderCheckout(orderData: {
   }>;
 }) {
   try {
-    const orderModel = db.order || db.Order;
-    const ingredientModel = db.ingredient || db.Ingredient;
-    const recipeModel = db.recipeItem || db.RecipeItem;
-    const shiftModel = db.shiftLog || db.shiftlog || db.ShiftLog;
+    // 1. Validasi ulang harga dan total dari server sebelum transaksi
+    await validateAndRecalculateOrder(orderData);
 
-    // Find active shift if not provided
-    let activeShiftId = orderData.shiftLogId;
-    if (!activeShiftId && shiftModel) {
-      try {
-        const foundShift = await shiftModel.findFirst({
-          where: { status: "OPEN" },
-          orderBy: { startTime: "desc" },
-        });
-        if (foundShift) activeShiftId = foundShift.id;
-      } catch {}
-    }
+    const result = await db.$transaction(async (tx: any) => {
+      const orderModel = tx.order || tx.Order;
+      const ingredientModel = tx.ingredient || tx.Ingredient;
+      const recipeModel = tx.recipeItem || tx.RecipeItem;
+      const shiftModel = tx.shiftLog || tx.shiftlog || tx.ShiftLog;
+      const orderPaymentModel = tx.orderPayment || tx.OrderPayment;
+      const stockMovementModel = tx.stockMovement || tx.StockMovement;
 
-    // Format paymentMethod string if split
-    let finalPaymentMethod = orderData.paymentMethod || "CASH";
-    if (orderData.splitPayments && orderData.splitPayments.length > 0) {
-      const splitDesc = orderData.splitPayments
-        .map((p) => `${p.method}: Rp ${Number(p.amount).toLocaleString("id-ID")}`)
-        .join(" + ");
-      finalPaymentMethod = `SPLIT (${splitDesc})`;
-    }
-
-    const order = await orderModel.create({
-      data: {
-        orderNumber: orderData.orderNumber,
-        channel: orderData.channel || "DINE_IN",
-        customerName: orderData.customerName || "Pelanggan Toko",
-        tableNumber: orderData.tableNumber || undefined,
-        employeeName: orderData.employeeName || "Kasir Outlet",
-        shiftLogId: activeShiftId || undefined,
-        subtotal: Number(orderData.subtotal) || 0,
-        discount: Number(orderData.discount) || 0,
-        totalAmount: Number(orderData.totalAmount) || 0,
-        cashPaid: orderData.cashPaid ? Number(orderData.cashPaid) : undefined,
-        cashChange: orderData.cashChange ? Number(orderData.cashChange) : undefined,
-        paymentMethod: finalPaymentMethod,
-        paymentStatus: "PAID",
-        orderStatus: "COMPLETED",
-        items: {
-          create: orderData.items.map((item) => ({
-            menuId: item.menuId,
-            menuName: item.menuName,
-            variantName: item.variantName || "Regular",
-            price: Number(item.price) || 0,
-            quantity: Number(item.quantity) || 1,
-            subtotal: Number(item.subtotal) || 0,
-          })),
-        },
-      },
-    });
-
-    // Save payments into OrderPayment model
-    const orderPaymentModel = db.orderPayment || db.OrderPayment;
-    if (orderPaymentModel) {
-      if (orderData.splitPayments && orderData.splitPayments.length > 0) {
-        for (const sp of orderData.splitPayments) {
-          if (Number(sp.amount) > 0) {
-            await orderPaymentModel.create({
-              data: {
-                orderId: order.id,
-                methodName: sp.method || "CASH",
-                amount: Number(sp.amount),
-              },
-            }).catch(() => null);
-          }
-        }
-      } else {
-        await orderPaymentModel.create({
-          data: {
-            orderId: order.id,
-            methodName: orderData.paymentMethod || "CASH",
-            amount: Number(orderData.totalAmount) || 0,
-          },
-        }).catch(() => null);
+      // Find active shift if not provided
+      let activeShiftId = orderData.shiftLogId;
+      if (!activeShiftId && shiftModel) {
+        try {
+          const foundShift = await shiftModel.findFirst({
+            where: { status: "OPEN" },
+            orderBy: { startTime: "desc" },
+          });
+          if (foundShift) activeShiftId = foundShift.id;
+        } catch {}
       }
-    }
 
-    // Auto-deduct stock if recipes exist & record StockMovement
-    const stockMovementModel = db.stockMovement || db.StockMovement;
-    if (recipeModel && ingredientModel) {
-      for (const item of orderData.items) {
-        if (item.menuId) {
+      // Format paymentMethod string if split
+      let finalPaymentMethod = orderData.paymentMethod || "CASH";
+      if (orderData.splitPayments && orderData.splitPayments.length > 0) {
+        const splitDesc = orderData.splitPayments
+          .map((p) => `${p.method}: Rp ${Number(p.amount).toLocaleString("id-ID")}`)
+          .join(" + ");
+        finalPaymentMethod = `SPLIT (${splitDesc})`;
+      }
+
+      // TAHAP 1: Kumpulkan semua kebutuhan bahan baku dan cek kecukupan stok
+      if (recipeModel && ingredientModel) {
+        const deductionPlan: Array<{
+          ingredientId: string;
+          ingredientName: string;
+          totalDeduct: number;
+          currentStock: number;
+        }> = [];
+
+        for (const item of orderData.items) {
+          if (!item.menuId) continue;
           const recipes = await recipeModel.findMany({
             where: { menuId: item.menuId },
           });
 
           for (const rec of recipes) {
             const totalDeduct = (Number(rec.quantityUsed) || 1) * item.quantity;
-            const updatedIng = await ingredientModel.update({
-              where: { id: rec.ingredientId },
-              data: {
-                floorQuantity: {
-                  decrement: totalDeduct,
-                },
-              },
-            }).catch(() => null);
-
-            if (stockMovementModel && updatedIng) {
-              await stockMovementModel.create({
-                data: {
-                  ingredientId: rec.ingredientId,
-                  type: "SALE",
-                  quantity: -totalDeduct,
-                  balanceAfter: Number(updatedIng.floorQuantity) || 0,
-                  referenceId: order.orderNumber,
-                  employeeName: orderData.employeeName || "Kasir Outlet",
-                  note: `Penjualan POS #${order.orderNumber} (${item.menuName} x${item.quantity})`,
-                },
-              }).catch(() => null);
+            const existingPlan = deductionPlan.find((p) => p.ingredientId === rec.ingredientId);
+            if (existingPlan) {
+              existingPlan.totalDeduct += totalDeduct;
+            } else {
+              const ing = await ingredientModel.findUnique({ where: { id: rec.ingredientId } });
+              deductionPlan.push({
+                ingredientId: rec.ingredientId,
+                ingredientName: ing?.name || rec.ingredientId,
+                totalDeduct,
+                currentStock: Number(ing?.floorQuantity) || 0,
+              });
             }
           }
         }
-      }
-    }
 
-    return { success: true, order };
+        // TAHAP 2: Validasi kecukupan stok — GAGALKAN checkout kalau ada yang kurang
+        const insufficient = deductionPlan.filter((p) => p.currentStock < p.totalDeduct);
+        if (insufficient.length > 0) {
+          const list = insufficient
+            .map((p) => `${p.ingredientName} (stok: ${p.currentStock}, butuh: ${p.totalDeduct})`)
+            .join(", ");
+          throw new Error(`Stok bahan baku tidak cukup: ${list}`);
+        }
+
+        // TAHAP 3: Eksekusi pengurangan stok & pencatatan StockMovement
+        for (const plan of deductionPlan) {
+          const updatedIng = await ingredientModel.update({
+            where: { id: plan.ingredientId },
+            data: {
+              floorQuantity: {
+                decrement: plan.totalDeduct,
+              },
+            },
+          });
+
+          if (stockMovementModel && updatedIng) {
+            await stockMovementModel.create({
+              data: {
+                ingredientId: plan.ingredientId,
+                type: "SALE",
+                quantity: -plan.totalDeduct,
+                balanceAfter: Number(updatedIng.floorQuantity) || 0,
+                referenceId: orderData.orderNumber,
+                employeeName: orderData.employeeName || "Kasir Outlet",
+                note: `Penjualan POS #${orderData.orderNumber}`,
+              },
+            });
+          }
+        }
+      }
+
+      // Buat Order di database
+      const order = await orderModel.create({
+        data: {
+          orderNumber: orderData.orderNumber,
+          channel: orderData.channel || "DINE_IN",
+          customerName: orderData.customerName || "Pelanggan Toko",
+          tableNumber: orderData.tableNumber || undefined,
+          employeeName: orderData.employeeName || "Kasir Outlet",
+          shiftLogId: activeShiftId || undefined,
+          subtotal: Number(orderData.subtotal) || 0,
+          discount: Number(orderData.discount) || 0,
+          totalAmount: Number(orderData.totalAmount) || 0,
+          cashPaid: orderData.cashPaid ? Number(orderData.cashPaid) : undefined,
+          cashChange: orderData.cashChange ? Number(orderData.cashChange) : undefined,
+          paymentMethod: finalPaymentMethod,
+          paymentStatus: "PAID",
+          orderStatus: "COMPLETED",
+          items: {
+            create: orderData.items.map((item) => ({
+              menuId: item.menuId,
+              menuName: item.menuName,
+              variantName: item.variantName || "Regular",
+              price: Number(item.price) || 0,
+              quantity: Number(item.quantity) || 1,
+              subtotal: Number(item.subtotal) || 0,
+            })),
+          },
+        },
+      });
+
+      // Simpan payments into OrderPayment model
+      if (orderPaymentModel) {
+        if (orderData.splitPayments && orderData.splitPayments.length > 0) {
+          for (const sp of orderData.splitPayments) {
+            if (Number(sp.amount) > 0) {
+              await orderPaymentModel.create({
+                data: {
+                  orderId: order.id,
+                  methodName: sp.method || "CASH",
+                  amount: Number(sp.amount),
+                },
+              });
+            }
+          }
+        } else {
+          await orderPaymentModel.create({
+            data: {
+              orderId: order.id,
+              methodName: orderData.paymentMethod || "CASH",
+              amount: Number(orderData.totalAmount) || 0,
+            },
+          });
+        }
+      }
+
+      return { order };
+    });
+
+    return { success: true, order: result.order };
   } catch (error) {
     console.error("Error processing order checkout:", error);
     throw error;
@@ -1484,157 +1570,161 @@ export async function savePurchase(data: {
   notes?: string;
 }) {
   try {
-    const purModel = db.purchase || db.Purchase;
-    const ingredientModel = db.ingredient || db.Ingredient;
-    const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
-    const stockMovementModel = db.stockMovement || db.StockMovement;
-
     const qty = Number(data.quantity) || 1;
     const price = Number(data.unitPrice) || 0;
     const totalPrice = qty * price;
     const status = data.status || "RECEIVED";
     const paymentStatus = data.paymentStatus || "PAID";
 
-    let purchaseRecord: any = null;
+    const result = await db.$transaction(async (tx: any) => {
+      const purModel = tx.purchase || tx.Purchase;
+      const ingredientModel = tx.ingredient || tx.Ingredient;
+      const cashTxModel = tx.cashTransaction || tx.cashtransaction || tx.CashTransaction;
+      const stockMovementModel = tx.stockMovement || tx.StockMovement;
 
-    if (data.id) {
-      // Edit existing purchase
-      purchaseRecord = await purModel.update({
-        where: { id: data.id },
-        data: {
-          ingredientId: data.ingredientId || undefined,
-          vendorId: data.vendorId || undefined,
-          itemName: data.itemName,
-          quantity: qty,
-          unitPrice: price,
-          totalPrice: totalPrice,
-          supplierName: data.supplierName || "-",
-          status,
-          paymentStatus,
-          approvedBy: data.approvedBy || undefined,
-          notes: data.notes || "",
-        },
-      });
-    } else {
-      // 1. Create new Purchase record
-      purchaseRecord = await purModel.create({
-        data: {
-          ingredientId: data.ingredientId || undefined,
-          vendorId: data.vendorId || undefined,
-          itemName: data.itemName,
-          quantity: qty,
-          unitPrice: price,
-          totalPrice: totalPrice,
-          supplierName: data.supplierName || "-",
-          status,
-          paymentStatus,
-          approvedBy: data.approvedBy || undefined,
-          notes: data.notes || "",
-        },
-      });
-    }
+      let purchaseRecord: any = null;
 
-    // 2. Auto-sync to Raw Materials Inventory (Ingredient) ONLY if status is RECEIVED
-    if (status === "RECEIVED" && ingredientModel) {
-      if (data.ingredientId) {
-        // PRECISE ID-BASED SYNC
-        const matched = await ingredientModel.findUnique({
-          where: { id: data.ingredientId },
-        }).catch(() => null);
+      if (data.id) {
+        // Edit existing purchase
+        purchaseRecord = await purModel.update({
+          where: { id: data.id },
+          data: {
+            ingredientId: data.ingredientId || undefined,
+            vendorId: data.vendorId || undefined,
+            itemName: data.itemName,
+            quantity: qty,
+            unitPrice: price,
+            totalPrice: totalPrice,
+            supplierName: data.supplierName || "-",
+            status,
+            paymentStatus,
+            approvedBy: data.approvedBy || undefined,
+            notes: data.notes || "",
+          },
+        });
+      } else {
+        // 1. Create new Purchase record
+        purchaseRecord = await purModel.create({
+          data: {
+            ingredientId: data.ingredientId || undefined,
+            vendorId: data.vendorId || undefined,
+            itemName: data.itemName,
+            quantity: qty,
+            unitPrice: price,
+            totalPrice: totalPrice,
+            supplierName: data.supplierName || "-",
+            status,
+            paymentStatus,
+            approvedBy: data.approvedBy || undefined,
+            notes: data.notes || "",
+          },
+        });
+      }
 
-        if (matched) {
-          const conversion = Number(matched.conversionRatio) || 1;
-          const addedFloorQty = qty * conversion;
-          const newHargaBeli = price > 0 ? price : Number(matched.hargaBeli || 0);
-          const newCostPerUseUnit = conversion > 0 ? newHargaBeli / conversion : 0;
-
-          const updated = await ingredientModel.update({
-            where: { id: matched.id },
-            data: {
-              floorQuantity: { increment: addedFloorQty },
-              hargaBeli: newHargaBeli,
-              costPerUseUnit: newCostPerUseUnit,
-            },
+      // 2. Auto-sync to Raw Materials Inventory (Ingredient) ONLY if status is RECEIVED
+      if (status === "RECEIVED" && ingredientModel) {
+        if (data.ingredientId) {
+          // PRECISE ID-BASED SYNC
+          const matched = await ingredientModel.findUnique({
+            where: { id: data.ingredientId },
           });
 
-          if (stockMovementModel) {
+          if (matched) {
+            const conversion = Number(matched.conversionRatio) || 1;
+            const addedFloorQty = qty * conversion;
+            const newHargaBeli = price > 0 ? price : Number(matched.hargaBeli || 0);
+            const newCostPerUseUnit = conversion > 0 ? newHargaBeli / conversion : 0;
+
+            const updated = await ingredientModel.update({
+              where: { id: matched.id },
+              data: {
+                floorQuantity: { increment: addedFloorQty },
+                hargaBeli: newHargaBeli,
+                costPerUseUnit: newCostPerUseUnit,
+              },
+            });
+
+            if (stockMovementModel) {
+              await stockMovementModel.create({
+                data: {
+                  ingredientId: matched.id,
+                  type: "PURCHASE",
+                  quantity: addedFloorQty,
+                  balanceAfter: (Number(updated.floorQuantity) || 0) + (Number(updated.warehouseQuantity) || 0),
+                  referenceId: purchaseRecord.id,
+                  employeeName: data.approvedBy || "Sistem Pengadaan",
+                  note: `Pembelian: ${matched.name} (${qty} ${matched.buyUnit || matched.unit}) dari ${data.supplierName || "-"}`,
+                },
+              });
+            }
+          }
+        } else {
+          // Name-based fallback if no ingredientId specified
+          const matched = await ingredientModel.findFirst({
+            where: { name: { contains: data.itemName } },
+          });
+
+          let targetIngId = matched?.id;
+          let balanceAfter = 0;
+
+          if (matched) {
+            const updated = await ingredientModel.update({
+              where: { id: matched.id },
+              data: {
+                floorQuantity: { increment: qty },
+                hargaBeli: price > 0 ? price : matched.hargaBeli,
+              },
+            });
+            targetIngId = updated.id;
+            balanceAfter = (Number(updated.floorQuantity) || 0) + (Number(updated.warehouseQuantity) || 0);
+          } else {
+            const created = await ingredientModel.create({
+              data: {
+                name: data.itemName,
+                category: "Bahan Baku",
+                buyUnit: "pcs",
+                unit: "pcs",
+                conversionRatio: 1,
+                floorQuantity: qty,
+                hargaBeli: price,
+              },
+            });
+            targetIngId = created.id;
+            balanceAfter = qty;
+          }
+
+          if (stockMovementModel && targetIngId) {
             await stockMovementModel.create({
               data: {
-                ingredientId: matched.id,
+                ingredientId: targetIngId,
                 type: "PURCHASE",
-                quantity: addedFloorQty,
-                balanceAfter: (Number(updated.floorQuantity) || 0) + (Number(updated.warehouseQuantity) || 0),
+                quantity: qty,
+                balanceAfter,
                 referenceId: purchaseRecord.id,
                 employeeName: data.approvedBy || "Sistem Pengadaan",
-                note: `Pembelian: ${matched.name} (${qty} ${matched.buyUnit || matched.unit}) dari ${data.supplierName || "-"}`,
+                note: `Pembelian Manual: ${data.itemName} (${qty} item) dari ${data.supplierName || "-"}`,
               },
-            }).catch(() => null);
+            });
           }
         }
-      } else {
-        // Name-based fallback if no ingredientId specified
-        const matched = await ingredientModel.findFirst({
-          where: { name: { contains: data.itemName } },
-        });
-
-        let targetIngId = matched?.id;
-        let balanceAfter = 0;
-
-        if (matched) {
-          const updated = await ingredientModel.update({
-            where: { id: matched.id },
-            data: {
-              floorQuantity: { increment: qty },
-              hargaBeli: price > 0 ? price : matched.hargaBeli,
-            },
-          });
-          targetIngId = updated.id;
-          balanceAfter = (Number(updated.floorQuantity) || 0) + (Number(updated.warehouseQuantity) || 0);
-        } else {
-          const created = await ingredientModel.create({
-            data: {
-              name: data.itemName,
-              category: "Bahan Baku",
-              buyUnit: "pcs",
-              unit: "pcs",
-              conversionRatio: 1,
-              floorQuantity: qty,
-              hargaBeli: price,
-            },
-          });
-          targetIngId = created.id;
-          balanceAfter = qty;
-        }
-
-        if (stockMovementModel && targetIngId) {
-          await stockMovementModel.create({
-            data: {
-              ingredientId: targetIngId,
-              type: "PURCHASE",
-              quantity: qty,
-              balanceAfter,
-              referenceId: purchaseRecord.id,
-              employeeName: data.approvedBy || "Sistem Pengadaan",
-              note: `Pembelian Manual: ${data.itemName} (${qty} item) dari ${data.supplierName || "-"}`,
-            },
-          }).catch(() => null);
-        }
       }
-    }
 
-    // 3. Auto-sync to Cash Flow (CashTransaction) if PAID & recordCashOut is true
-    if (paymentStatus === "PAID" && data.recordCashOut !== false && cashTxModel && totalPrice > 0) {
-      await cashTxModel.create({
-        data: {
-          type: "CASH_OUT",
-          amount: totalPrice,
-          note: `Pengadaan: ${data.itemName} (${qty} x Rp ${price.toLocaleString("id-ID")}) [${data.supplierName || 'Vendor'}]`,
-          employeeName: data.approvedBy || "Sistem Pengadaan",
-        },
-      }).catch(() => null);
-    }
+      // 3. Auto-sync to Cash Flow (CashTransaction) if PAID & recordCashOut is true
+      if (paymentStatus === "PAID" && data.recordCashOut !== false && cashTxModel && totalPrice > 0) {
+        await cashTxModel.create({
+          data: {
+            type: "CASH_OUT",
+            amount: totalPrice,
+            note: `Pengadaan: ${data.itemName} (${qty} x Rp ${price.toLocaleString("id-ID")}) [${data.supplierName || 'Vendor'}]`,
+            employeeName: data.approvedBy || "Sistem Pengadaan",
+          },
+        });
+      }
 
-    return purchaseRecord;
+      return purchaseRecord;
+    });
+
+    return result;
   } catch (err) {
     console.error("Error saving purchase:", err);
     throw err;
@@ -2369,11 +2459,7 @@ export async function voidOrderWithAuditLog(data: {
   restoreStock?: boolean;
 }) {
   try {
-    const orderModel = db.order || db.Order;
-    const auditModel = db.cancellationAuditLog || db.CancellationAuditLog;
     const empModel = db.employee || db.Employee;
-    const ingredientModel = db.ingredient || db.Ingredient;
-    const recipeModel = db.recipeItem || db.RecipeItem;
 
     let approverName = data.approvedBy || "Supervisor";
     let isAuthorized = false;
@@ -2403,92 +2489,101 @@ export async function voidOrderWithAuditLog(data: {
       throw new Error("PIN Supervisor salah. Silakan periksa kembali PIN Anda.");
     }
 
-    const order = await orderModel.findUnique({
-      where: { id: data.orderId },
-      include: { items: true },
-    });
+    const result = await db.$transaction(async (tx: any) => {
+      const orderModel = tx.order || tx.Order;
+      const auditModel = tx.cancellationAuditLog || tx.CancellationAuditLog;
+      const ingredientModel = tx.ingredient || tx.Ingredient;
+      const recipeModel = tx.recipeItem || tx.RecipeItem;
+      const stockMovementModel = tx.stockMovement || tx.StockMovement;
 
-    if (!order) {
-      throw new Error("Order tidak ditemukan");
-    }
+      const order = await orderModel.findUnique({
+        where: { id: data.orderId },
+        include: { items: true },
+      });
 
-    // Format structured reason
-    const finalReason = data.reason === "Lainnya" && data.customReason 
-      ? `Lainnya: ${data.customReason}` 
-      : data.reason || "Salah input kasir / salah menu";
+      if (!order) {
+        throw new Error("Order tidak ditemukan");
+      }
 
-    // Update order status
-    const updatedOrder = await orderModel.update({
-      where: { id: data.orderId },
-      data: {
-        orderStatus: "CANCELLED",
-        paymentStatus: "CANCELLED",
-      },
-    });
+      // Format structured reason
+      const finalReason = data.reason === "Lainnya" && data.customReason 
+        ? `Lainnya: ${data.customReason}` 
+        : data.reason || "Salah input kasir / salah menu";
 
-    // Create record in CancellationAuditLog with snapshot
-    const itemsSnapshot = JSON.stringify(
-      (order.items || []).map((it: any) => ({
-        menuName: it.menuName,
-        variantName: it.variantName || "Regular",
-        quantity: it.quantity,
-        price: it.price,
-        subtotal: it.subtotal || it.price * it.quantity,
-      }))
-    );
-
-    if (auditModel) {
-      await auditModel.create({
+      // Update order status
+      const updatedOrder = await orderModel.update({
+        where: { id: data.orderId },
         data: {
-          orderId: order.id,
-          cashierName: order.employeeName || "Kasir Outlet",
-          approvedBy: approverName,
-          reason: finalReason,
-          itemsSnapshot,
-          amount: Number(order.totalAmount) || 0,
+          orderStatus: "CANCELLED",
+          paymentStatus: "CANCELLED",
         },
-      }).catch((e: any) => console.warn("Failed creating audit log:", e));
-    }
+      });
 
-    // Restore stock if requested and recipes exist & log StockMovement
-    const stockMovementModel = db.stockMovement || db.StockMovement;
-    if (data.restoreStock !== false && recipeModel && ingredientModel && order.items) {
-      for (const item of order.items) {
-        if (item.menuId) {
-          const recipes = await recipeModel.findMany({
-            where: { menuId: item.menuId },
-          }).catch(() => []);
+      // Create record in CancellationAuditLog with snapshot
+      const itemsSnapshot = JSON.stringify(
+        (order.items || []).map((it: any) => ({
+          menuName: it.menuName,
+          variantName: it.variantName || "Regular",
+          quantity: it.quantity,
+          price: it.price,
+          subtotal: it.subtotal || it.price * it.quantity,
+        }))
+      );
 
-          for (const rec of recipes) {
-            const totalAdd = (Number(rec.quantityUsed) || 1) * (Number(item.quantity) || 1);
-            const updatedIng = await ingredientModel.update({
-              where: { id: rec.ingredientId },
-              data: {
-                floorQuantity: {
-                  increment: totalAdd,
-                },
-              },
-            }).catch(() => null);
+      if (auditModel) {
+        await auditModel.create({
+          data: {
+            orderId: order.id,
+            cashierName: order.employeeName || "Kasir Outlet",
+            approvedBy: approverName,
+            reason: finalReason,
+            itemsSnapshot,
+            amount: Number(order.totalAmount) || 0,
+          },
+        });
+      }
 
-            if (stockMovementModel && updatedIng) {
-              await stockMovementModel.create({
+      // Restore stock if requested and recipes exist & log StockMovement
+      if (data.restoreStock !== false && recipeModel && ingredientModel && order.items) {
+        for (const item of order.items) {
+          if (item.menuId) {
+            const recipes = await recipeModel.findMany({
+              where: { menuId: item.menuId },
+            });
+
+            for (const rec of recipes) {
+              const totalAdd = (Number(rec.quantityUsed) || 1) * (Number(item.quantity) || 1);
+              const updatedIng = await ingredientModel.update({
+                where: { id: rec.ingredientId },
                 data: {
-                  ingredientId: rec.ingredientId,
-                  type: "CANCEL_RETURN",
-                  quantity: totalAdd,
-                  balanceAfter: Number(updatedIng.floorQuantity) || 0,
-                  referenceId: order.orderNumber,
-                  employeeName: approverName,
-                  note: `Pengembalian Stok Void Order #${order.orderNumber} (${item.menuName})`,
+                  floorQuantity: {
+                    increment: totalAdd,
+                  },
                 },
-              }).catch(() => null);
+              });
+
+              if (stockMovementModel && updatedIng) {
+                await stockMovementModel.create({
+                  data: {
+                    ingredientId: rec.ingredientId,
+                    type: "CANCEL_RETURN",
+                    quantity: totalAdd,
+                    balanceAfter: Number(updatedIng.floorQuantity) || 0,
+                    referenceId: order.orderNumber,
+                    employeeName: approverName,
+                    note: `Pengembalian Stok Void Order #${order.orderNumber} (${item.menuName})`,
+                  },
+                });
+              }
             }
           }
         }
       }
-    }
 
-    return { success: true, order: updatedOrder, approverName };
+      return { order: updatedOrder };
+    });
+
+    return { success: true, order: result.order, approverName };
   } catch (err) {
     console.error("Error voiding order:", err);
     throw err;
@@ -2517,14 +2612,7 @@ export async function refundOrder(data: {
   shiftLogId?: string;
 }) {
   try {
-    const orderModel = db.order || db.Order;
-    const auditModel = db.cancellationAuditLog || db.CancellationAuditLog;
     const empModel = db.employee || db.Employee;
-    const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
-    const shiftModel = db.shiftLog || db.shiftlog || db.ShiftLog;
-    const ingredientModel = db.ingredient || db.Ingredient;
-    const recipeModel = db.recipeItem || db.RecipeItem;
-    const stockMovementModel = db.stockMovement || db.StockMovement;
 
     let approverName = data.approvedBy || "Supervisor";
     let isAuthorized = false;
@@ -2554,127 +2642,143 @@ export async function refundOrder(data: {
       throw new Error("PIN Supervisor salah. Silakan periksa kembali PIN Anda.");
     }
 
-    const order = await orderModel.findUnique({
-      where: { id: data.orderId },
-      include: { items: true },
-    });
+    const result = await db.$transaction(async (tx: any) => {
+      const orderModel = tx.order || tx.Order;
+      const auditModel = tx.cancellationAuditLog || tx.CancellationAuditLog;
+      const cashTxModel = tx.cashTransaction || tx.cashtransaction || tx.CashTransaction;
+      const shiftModel = tx.shiftLog || tx.shiftlog || tx.ShiftLog;
+      const ingredientModel = tx.ingredient || tx.Ingredient;
+      const recipeModel = tx.recipeItem || tx.RecipeItem;
+      const stockMovementModel = tx.stockMovement || tx.StockMovement;
 
-    if (!order) {
-      throw new Error("Transaksi order tidak ditemukan");
-    }
+      const order = await orderModel.findUnique({
+        where: { id: data.orderId },
+        include: { items: true },
+      });
 
-    // Determine refund items and total amount
-    const itemsToRefund = data.refundItems && data.refundItems.length > 0 
-      ? data.refundItems 
-      : (order.items || []).map((it: any) => ({
-          orderItemId: it.id,
-          menuId: it.menuId,
-          menuName: it.menuName,
-          variantName: it.variantName,
-          quantity: it.quantity,
-          unitPrice: it.price,
-          subtotal: it.subtotal || it.price * it.quantity,
-        }));
-
-    const calculatedRefundAmount = itemsToRefund.reduce((sum: number, it: any) => sum + (Number(it.subtotal) || 0), 0);
-    const refundAmount = calculatedRefundAmount > 0 
-      ? calculatedRefundAmount 
-      : (Number(data.amount) > 0 ? Number(data.amount) : Number(order.totalAmount || 0));
-
-    const isPartial = itemsToRefund.length < (order.items || []).length;
-    const finalReason = data.reason === "Lainnya" && data.customReason 
-      ? `Lainnya: ${data.customReason}` 
-      : data.reason || "Komplain pelanggan";
-
-    // Update order status
-    const updatedOrder = await orderModel.update({
-      where: { id: data.orderId },
-      data: {
-        paymentStatus: isPartial ? "REFUNDED" : "REFUNDED",
-        orderStatus: "REFUNDED",
-      },
-    });
-
-    // Create Audit Log
-    const itemsSnapshot = JSON.stringify(itemsToRefund);
-    if (auditModel) {
-      await auditModel.create({
-        data: {
-          orderId: order.id,
-          cashierName: order.employeeName || "Kasir Outlet",
-          approvedBy: approverName,
-          reason: `[REFUND ${isPartial ? "PARSIAL" : "TOTAL"} - ${data.refundMethod === "CASH" ? "Kas Tunai" : "Non-Tunai"}] ${finalReason}`,
-          itemsSnapshot,
-          amount: refundAmount,
-        },
-      }).catch((e: any) => console.warn("Failed creating refund audit log:", e));
-    }
-
-    // If refund was paid out from cash drawer, record CASH_OUT in CashTransaction for active shift
-    if (data.refundMethod === "CASH" && cashTxModel) {
-      let activeShiftId = data.shiftLogId || order.shiftLogId;
-      if (!activeShiftId && shiftModel) {
-        const activeShift = await shiftModel.findFirst({
-          where: { status: "OPEN" },
-          orderBy: { startTime: "desc" },
-        }).catch(() => null);
-        if (activeShift) activeShiftId = activeShift.id;
+      if (!order) {
+        throw new Error("Transaksi order tidak ditemukan");
       }
 
-      await cashTxModel.create({
+      // Determine refund items and total amount
+      const itemsToRefund = data.refundItems && data.refundItems.length > 0 
+        ? data.refundItems 
+        : (order.items || []).map((it: any) => ({
+            orderItemId: it.id,
+            menuId: it.menuId,
+            menuName: it.menuName,
+            variantName: it.variantName,
+            quantity: it.quantity,
+            unitPrice: it.price,
+            subtotal: it.subtotal || it.price * it.quantity,
+          }));
+
+      const calculatedRefundAmount = itemsToRefund.reduce((sum: number, it: any) => sum + (Number(it.subtotal) || 0), 0);
+      const refundAmount = calculatedRefundAmount > 0 
+        ? calculatedRefundAmount 
+        : (Number(data.amount) > 0 ? Number(data.amount) : Number(order.totalAmount || 0));
+
+      const isPartial = itemsToRefund.length < (order.items || []).length;
+      const finalReason = data.reason === "Lainnya" && data.customReason 
+        ? `Lainnya: ${data.customReason}` 
+        : data.reason || "Komplain pelanggan";
+
+      // Update order status
+      const updatedOrder = await orderModel.update({
+        where: { id: data.orderId },
         data: {
-          type: "CASH_OUT",
-          amount: refundAmount,
-          note: `Refund Kasir Order #${order.orderNumber} (${finalReason})`,
-          employeeName: approverName,
-          shiftLogId: activeShiftId || undefined,
+          paymentStatus: "REFUNDED",
+          orderStatus: "REFUNDED",
         },
-      }).catch((e: any) => console.warn("Failed creating cash out for refund:", e));
-    }
+      });
 
-    // Restore stock for refunded items & record StockMovement
-    if (data.restoreStock !== false && recipeModel && ingredientModel && itemsToRefund.length > 0) {
-      for (const item of itemsToRefund) {
-        if (item.menuId) {
-          const recipes = await recipeModel.findMany({
-            where: { menuId: item.menuId },
-          }).catch(() => []);
+      // Create Audit Log
+      const itemsSnapshot = JSON.stringify(itemsToRefund);
+      if (auditModel) {
+        await auditModel.create({
+          data: {
+            orderId: order.id,
+            cashierName: order.employeeName || "Kasir Outlet",
+            approvedBy: approverName,
+            reason: `[REFUND ${isPartial ? "PARSIAL" : "TOTAL"} - ${data.refundMethod === "CASH" ? "Kas Tunai" : "Non-Tunai"}] ${finalReason}`,
+            itemsSnapshot,
+            amount: refundAmount,
+          },
+        });
+      }
 
-          for (const rec of recipes) {
-            const totalAdd = (Number(rec.quantityUsed) || 1) * (Number(item.quantity) || 1);
-            const updatedIng = await ingredientModel.update({
-              where: { id: rec.ingredientId },
-              data: {
-                floorQuantity: {
-                  increment: totalAdd,
-                },
-              },
-            }).catch(() => null);
+      // If refund was paid out from cash drawer, record CASH_OUT in CashTransaction for active shift
+      if (data.refundMethod === "CASH" && cashTxModel) {
+        let activeShiftId = data.shiftLogId || order.shiftLogId;
+        if (!activeShiftId && shiftModel) {
+          const activeShift = await shiftModel.findFirst({
+            where: { status: "OPEN" },
+            orderBy: { startTime: "desc" },
+          });
+          if (activeShift) activeShiftId = activeShift.id;
+        }
 
-            if (stockMovementModel && updatedIng) {
-              await stockMovementModel.create({
+        await cashTxModel.create({
+          data: {
+            type: "CASH_OUT",
+            amount: refundAmount,
+            note: `Refund Kasir Order #${order.orderNumber} (${finalReason})`,
+            employeeName: approverName,
+            shiftLogId: activeShiftId || undefined,
+          },
+        });
+      }
+
+      // Restore stock for refunded items & record StockMovement
+      if (data.restoreStock !== false && recipeModel && ingredientModel && itemsToRefund.length > 0) {
+        for (const item of itemsToRefund) {
+          if (item.menuId) {
+            const recipes = await recipeModel.findMany({
+              where: { menuId: item.menuId },
+            });
+
+            for (const rec of recipes) {
+              const totalAdd = (Number(rec.quantityUsed) || 1) * (Number(item.quantity) || 1);
+              const updatedIng = await ingredientModel.update({
+                where: { id: rec.ingredientId },
                 data: {
-                  ingredientId: rec.ingredientId,
-                  type: "REFUND_RETURN",
-                  quantity: totalAdd,
-                  balanceAfter: Number(updatedIng.floorQuantity) || 0,
-                  referenceId: order.orderNumber,
-                  employeeName: approverName,
-                  note: `Pengembalian Stok Refund Order #${order.orderNumber} (${item.menuName} x${item.quantity})`,
+                  floorQuantity: {
+                    increment: totalAdd,
+                  },
                 },
-              }).catch(() => null);
+              });
+
+              if (stockMovementModel && updatedIng) {
+                await stockMovementModel.create({
+                  data: {
+                    ingredientId: rec.ingredientId,
+                    type: "REFUND_RETURN",
+                    quantity: totalAdd,
+                    balanceAfter: Number(updatedIng.floorQuantity) || 0,
+                    referenceId: order.orderNumber,
+                    employeeName: approverName,
+                    note: `Pengembalian Stok Refund Order #${order.orderNumber} (${item.menuName} x${item.quantity})`,
+                  },
+                });
+              }
             }
           }
         }
       }
-    }
+
+      return {
+        order: updatedOrder,
+        refundAmount,
+        refundedItems: itemsToRefund
+      };
+    });
 
     return { 
       success: true, 
-      order: updatedOrder, 
-      refundAmount, 
+      order: result.order, 
+      refundAmount: result.refundAmount, 
       approverName, 
-      refundedItems: itemsToRefund 
+      refundedItems: result.refundedItems 
     };
   } catch (err) {
     console.error("Error processing refund:", err);
@@ -2979,6 +3083,8 @@ export async function saveEmployee(data: {
   try {
     const empModel = db.employee || db.Employee;
     const rate = Number(data.shiftRate || data.dailyRate || 75000);
+    const pin = (data.pin || "").trim();
+
     if (data.id) {
       const existing = await empModel.findUnique({ where: { id: data.id } }).catch(() => null);
       if (existing) {
@@ -2986,7 +3092,7 @@ export async function saveEmployee(data: {
           where: { id: data.id },
           data: {
             name: data.name,
-            pin: data.pin || "1234",
+            pin: pin || existing.pin,
             role: data.role || "cashier",
             employmentType: "SHIFT",
             dailyRate: rate,
@@ -2995,11 +3101,16 @@ export async function saveEmployee(data: {
         });
       }
     }
+
+    if (!pin) {
+      throw new Error("PIN karyawan wajib diisi (4-6 digit angka).");
+    }
+
     return await empModel.create({
       data: {
         ...(data.id ? { id: data.id } : {}),
         name: data.name,
-        pin: data.pin || "1234",
+        pin,
         role: data.role || "cashier",
         employmentType: "SHIFT",
         dailyRate: rate,

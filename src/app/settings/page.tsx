@@ -29,7 +29,8 @@ import {
   DollarSign,
   Receipt,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  ShieldAlert
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -106,6 +107,7 @@ export default function SettingsPage() {
         { name: "Karyawan", href: "/employees", icon: Users },
         { name: "Metode Pembayaran", href: "/payment-methods", icon: CreditCard },
         { name: "Biaya Operasional", href: "/expenses", icon: DollarSign },
+        { name: "Log Aktivitas", href: "/activity-log", icon: ShieldAlert },
         { name: "Pengaturan", href: "/settings", icon: SettingsIcon },
       ]
     }
