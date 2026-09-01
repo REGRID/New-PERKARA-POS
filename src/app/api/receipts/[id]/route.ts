@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { prisma as db } from "@/lib/prisma";
 import { getAdminUserFromRequest, requireRole } from "@/lib/authHelper";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -8,13 +9,60 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (errorResponse) return errorResponse;
 
     const { id } = await params;
-    const { data: receipt, error } = await supabase
-      .from("receipts")
-      .select("*, items:receipt_items(*)")
-      .eq("id", id)
-      .single();
+    let receipt: any = null;
 
-    if (error || !receipt) {
+    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+    if (isSupabaseConfigured) {
+      try {
+        const { data: supaReceipt, error } = await supabase
+          .from("receipts")
+          .select("*, items:receipt_items(*)")
+          .eq("id", id)
+          .single();
+        if (!error && supaReceipt) {
+          receipt = supaReceipt;
+        }
+      } catch (e) {
+        console.warn("Supabase single receipt fetch warning:", e);
+      }
+    }
+
+    if (!receipt) {
+      try {
+        const localReceipt = await db.receipt.findUnique({
+          where: { id },
+          include: { items: true },
+        });
+
+        if (localReceipt) {
+          receipt = {
+            id: localReceipt.id,
+            merchantName: localReceipt.vendorName || "Merchant",
+            date: localReceipt.receiptDate ? new Date(localReceipt.receiptDate).toISOString() : new Date().toISOString(),
+            subtotal: localReceipt.totalAmount,
+            taxAmount: 0,
+            totalAmount: localReceipt.totalAmount,
+            paymentMethod: "CASH",
+            paymentStatus: localReceipt.status,
+            imageUrl: localReceipt.imageUrl,
+            createdAt: localReceipt.createdAt.toISOString(),
+            updatedAt: localReceipt.createdAt.toISOString(),
+            items: (localReceipt.items || []).map((it) => ({
+              id: it.id,
+              name: it.itemName,
+              category: "Bahan Baku",
+              subCategory: null,
+              price: it.unitPrice,
+              quantity: it.quantity,
+            })),
+          };
+        }
+      } catch (dbErr) {
+        console.warn("Prisma single receipt fallback query error:", dbErr);
+      }
+    }
+
+    if (!receipt) {
       return NextResponse.json({ error: "Nota tidak ditemukan" }, { status: 404 });
     }
 
