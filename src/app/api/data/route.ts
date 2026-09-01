@@ -90,6 +90,10 @@ const ADMIN_ONLY_ACTIONS = new Set([
   "save_payment_method",
   "delete_payment_method",
   "save_setting",
+  "save_table",
+  "delete_table",
+  "delete_addon_category",
+  "delete_addon_item",
 ]);
 
 export async function GET(request: Request) {

@@ -420,6 +420,9 @@ export async function saveMenuSettings(data: {
   name: string;
   category: string;
   price: number;
+  baseHpp?: number;
+  sku?: string;
+  margin?: number;
   isActive?: boolean;
   recipeIngredients: Array<{
     ingredientId: string;
@@ -440,6 +443,9 @@ export async function saveMenuSettings(data: {
           name: data.name,
           category: data.category,
           price: Number(data.price),
+          baseHpp: data.baseHpp !== undefined ? Number(data.baseHpp) : undefined,
+          sku: data.sku || undefined,
+          margin: data.margin !== undefined ? Number(data.margin) : undefined,
           isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
         },
       });
@@ -457,6 +463,9 @@ export async function saveMenuSettings(data: {
           name: data.name,
           category: data.category,
           price: Number(data.price),
+          baseHpp: Number(data.baseHpp) || 0,
+          sku: data.sku || null,
+          margin: Number(data.margin) || 0,
           isActive: true,
         },
       });

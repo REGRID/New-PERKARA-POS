@@ -119,6 +119,8 @@ export default function ProductsPage() {
           name: form.name,
           category: form.category,
           price: Number(form.price),
+          baseHpp: Number(form.baseHpp) || 0,
+          sku: form.sku || undefined,
           isActive: form.isActive,
           recipeIngredients: editingProduct?.recipeItems?.map((r: any) => ({
             ingredientId: r.ingredientId,
