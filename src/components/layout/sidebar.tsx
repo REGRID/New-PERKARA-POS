@@ -80,10 +80,11 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       id: "CATALOG",
       groupName: "KATALOG",
       items: [
-        { name: "Kategori", href: "/categories", icon: Tag },
-        { name: "Produk", href: "/products", icon: Package },
-        { name: "Menu Tambahan", href: "/inventory/addons", icon: Layers },
-        { name: "Diskon", href: "/discounts", icon: Percent },
+        { name: "Semua Produk", href: "/products", icon: Package },
+        { name: "Kategori", href: "/products?tab=categories", icon: Tag },
+        { name: "Topping & Add-on", href: "/products?tab=addons", icon: Layers },
+        { name: "Diskon & Promo", href: "/products?tab=discounts", icon: Percent },
+        { name: "Resep & HPP", href: "/products?tab=recipes", icon: ClipboardList },
       ]
     },
     {
@@ -342,7 +343,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
                 {isOpen && (
                   <div className="space-y-0.5 pt-0.5 pl-1 transition-all">
                     {visibleItems.map((item) => {
-                      const isActive = pathname === item.href;
+                      const isActive = pathname === item.href || (item.href.startsWith("/products") && pathname === "/products" && !item.href.includes("?"));
                       const Icon = item.icon;
                       return (
                         <Link

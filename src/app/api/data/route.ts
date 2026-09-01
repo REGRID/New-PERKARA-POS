@@ -15,6 +15,9 @@ import {
   updateIngredientDetail,
   deleteIngredient,
   saveMenuSettings,
+  quickUpdateMenu,
+  bulkUpdateMenus,
+  bulkDeleteMenus,
   deleteMenu,
   getAddonCategories,
   saveAddonCategory,
@@ -75,6 +78,9 @@ const ADMIN_ONLY_ACTIONS = new Set([
   "delete_employee",
   "delete_attendance",
   "save_menu_settings",
+  "quick_update_menu",
+  "bulk_update_menus",
+  "bulk_delete_menus",
   "delete_menu",
   "delete_ingredient",
   "save_category",
@@ -183,6 +189,9 @@ export async function POST(request: Request) {
     
     // 4. Menus & Addons
     if (type === "save_menu_settings") return NextResponse.json(await saveMenuSettings(body));
+    if (type === "quick_update_menu") return NextResponse.json(await quickUpdateMenu(body.id, body));
+    if (type === "bulk_update_menus") return NextResponse.json(await bulkUpdateMenus(body.ids, body.updates));
+    if (type === "bulk_delete_menus") return NextResponse.json(await bulkDeleteMenus(body.ids));
     if (type === "delete_menu") return NextResponse.json(await deleteMenu(body.id));
     if (type === "save_addon_category") return NextResponse.json(await saveAddonCategory(body));
     if (type === "delete_addon_category") return NextResponse.json(await deleteAddonCategory(body.id));

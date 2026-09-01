@@ -524,6 +524,85 @@ export async function deleteMenu(id: string) {
   }
 }
 
+export async function quickUpdateMenu(id: string, data: { price?: number; isActive?: boolean; category?: string; name?: string }) {
+  try {
+    const menuModel = db.menu || db.Menu;
+    if (!menuModel) return { success: false };
+
+    const updateData: any = {};
+    if (data.price !== undefined) updateData.price = Number(data.price);
+    if (data.isActive !== undefined) updateData.isActive = Boolean(data.isActive);
+    if (data.category !== undefined) updateData.category = String(data.category);
+    if (data.name !== undefined) updateData.name = String(data.name);
+
+    const updated = await menuModel.update({
+      where: { id },
+      data: updateData,
+    });
+    return { success: true, menu: updated };
+  } catch (error) {
+    console.error("Error in quickUpdateMenu:", error);
+    throw error;
+  }
+}
+
+export async function bulkUpdateMenus(ids: string[], updates: { category?: string; isActive?: boolean; priceChangePercent?: number }) {
+  try {
+    const menuModel = db.menu || db.Menu;
+    if (!menuModel || !ids || ids.length === 0) return { success: false, count: 0 };
+
+    if (updates.category !== undefined) {
+      await menuModel.updateMany({
+        where: { id: { in: ids } },
+        data: { category: updates.category },
+      });
+    }
+
+    if (updates.isActive !== undefined) {
+      await menuModel.updateMany({
+        where: { id: { in: ids } },
+        data: { isActive: Boolean(updates.isActive) },
+      });
+    }
+
+    if (updates.priceChangePercent !== undefined && updates.priceChangePercent !== 0) {
+      const items = await menuModel.findMany({ where: { id: { in: ids } } });
+      for (const item of items) {
+        const factor = 1 + (updates.priceChangePercent / 100);
+        const newPrice = Math.round((item.price * factor) / 500) * 500;
+        await menuModel.update({
+          where: { id: item.id },
+          data: { price: Math.max(0, newPrice) },
+        });
+      }
+    }
+
+    return { success: true, count: ids.length };
+  } catch (error) {
+    console.error("Error in bulkUpdateMenus:", error);
+    throw error;
+  }
+}
+
+export async function bulkDeleteMenus(ids: string[]) {
+  try {
+    const menuModel = db.menu || db.Menu;
+    const recipeModel = db.recipeItem || db.RecipeItem;
+    if (!ids || ids.length === 0) return { success: false };
+
+    if (recipeModel) {
+      await recipeModel.deleteMany({ where: { menuId: { in: ids } } }).catch(() => null);
+    }
+    if (menuModel) {
+      await menuModel.deleteMany({ where: { id: { in: ids } } });
+    }
+    return { success: true, count: ids.length };
+  } catch (error) {
+    console.error("Error in bulkDeleteMenus:", error);
+    throw error;
+  }
+}
+
 // Add-ons Management
 export async function getAddonCategories() {
   try {
