@@ -76,7 +76,6 @@ export default function SettingsPage() {
       groupName: "OPERASIONAL",
       items: [
         { name: "Kasir POS", href: "/pos", icon: ShoppingCart },
-        { name: "Manajemen Menu", href: "/products", icon: Package },
         { name: "Transaksi", href: "/orders", icon: FileText },
         { name: "Meja", href: "/tables", icon: Grid },
         { name: "Pelanggan", href: "/customers", icon: Users },
@@ -87,6 +86,7 @@ export default function SettingsPage() {
     {
       groupName: "INVENTARIS & STOK",
       items: [
+        { name: "Manajemen Menu", href: "/products", icon: Package },
         { name: "Bahan Baku", href: "/inventory/raw-materials", icon: Boxes },
         { name: "Pembelian Bahan", href: "/purchases", icon: ShoppingCart },
         { name: "Resep & HPP", href: "/inventory/recipes", icon: ClipboardList },
