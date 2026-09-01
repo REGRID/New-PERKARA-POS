@@ -76,7 +76,7 @@ export default function SettingsPage() {
       groupName: "OPERASIONAL",
       items: [
         { name: "Kasir POS", href: "/pos", icon: ShoppingCart },
-        { name: "Katalog Menu", href: "/products", icon: Package },
+        { name: "Manajemen Menu", href: "/products", icon: Package },
         { name: "Transaksi", href: "/orders", icon: FileText },
         { name: "Meja", href: "/tables", icon: Grid },
         { name: "Pelanggan", href: "/customers", icon: Users },

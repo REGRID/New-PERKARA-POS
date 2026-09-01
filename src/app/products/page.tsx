@@ -677,7 +677,7 @@ function ProductsContent() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
             <div>
               <div className="flex items-center gap-2.5">
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Katalog &amp; Manajemen Menu</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Manajemen Menu</h2>
                 {isAdmin && (
                   <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-bold">
                     Admin

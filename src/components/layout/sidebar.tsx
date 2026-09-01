@@ -69,7 +69,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       groupName: "OPERASIONAL",
       items: [
         { name: "Kasir POS", href: "/pos", icon: ShoppingCart, badge: "Live" },
-        { name: "Katalog Menu", href: "/products", icon: Package },
+        { name: "Manajemen Menu", href: "/products", icon: Package },
         { name: "Transaksi", href: "/orders", icon: FileText },
         { name: "Meja", href: "/tables", icon: Grid },
         { name: "Pelanggan", href: "/customers", icon: Users },
