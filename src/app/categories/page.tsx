@@ -87,6 +87,7 @@ export default function CategoriesPage() {
         body: JSON.stringify({
           id: editingCategory?.id || undefined,
           name: catNameInput.trim(),
+          oldName: editingCategory?.name || undefined,
         }),
       });
 

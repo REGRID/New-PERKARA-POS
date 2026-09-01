@@ -550,9 +550,11 @@ function ProductsContent() {
         body: JSON.stringify({
           id: editingCat?.id || undefined,
           name: catNameInput.trim(),
+          oldName: editingCat?.name || undefined,
         }),
       });
       setIsCatModalOpen(false);
+      setEditingCat(null);
       setCatNameInput("");
       await fetchData();
     } catch (e) {

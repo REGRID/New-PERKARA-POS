@@ -1251,16 +1251,77 @@ export async function getCategories() {
   }
 }
 
-export async function saveCategory(data: { id?: string; name: string }) {
+export async function saveCategory(data: { id?: string; name: string; oldName?: string }) {
   try {
-    const catModel = db.category || db.Category;
-    if (data.id) {
+    const catModel = db.customCategory || db.CustomCategory || db.category || db.Category;
+    const menuModel = db.menu || db.Menu;
+    const newName = data.name.trim();
+
+    let oldName = data.oldName?.trim();
+
+    if (catModel && data.id && !data.id.startsWith("menu-cat-") && !data.id.startsWith("cat-")) {
       const existing = await catModel.findUnique({ where: { id: data.id } }).catch(() => null);
       if (existing) {
-        return await catModel.update({ where: { id: data.id }, data: { name: data.name } });
+        if (!oldName) oldName = existing.name;
+        const updatedCat = await catModel.update({
+          where: { id: data.id },
+          data: { name: newName },
+        });
+
+        // Cascade rename to all menus with oldName
+        if (menuModel && oldName && oldName.toLowerCase().trim() !== newName.toLowerCase().trim()) {
+          const allMenus = await menuModel.findMany({ select: { id: true, category: true } });
+          for (const m of allMenus) {
+            if (m.category && m.category.toLowerCase().trim() === oldName.toLowerCase().trim()) {
+              await menuModel.update({ where: { id: m.id }, data: { category: newName } });
+            }
+          }
+        }
+        return updatedCat;
       }
     }
-    return await catModel.create({ data: { ...(data.id ? { id: data.id } : {}), name: data.name } });
+
+    // If ID was not found or was a synthetic ID, search by oldName
+    if (catModel && oldName) {
+      const existingByName = await catModel.findFirst({
+        where: { name: oldName },
+      }).catch(() => null);
+
+      if (existingByName) {
+        const updatedCat = await catModel.update({
+          where: { id: existingByName.id },
+          data: { name: newName },
+        });
+
+        if (menuModel && oldName.toLowerCase().trim() !== newName.toLowerCase().trim()) {
+          const allMenus = await menuModel.findMany({ select: { id: true, category: true } });
+          for (const m of allMenus) {
+            if (m.category && m.category.toLowerCase().trim() === oldName.toLowerCase().trim()) {
+              await menuModel.update({ where: { id: m.id }, data: { category: newName } });
+            }
+          }
+        }
+        return updatedCat;
+      }
+    }
+
+    // Cascade to menus anyway if oldName was provided
+    if (menuModel && oldName && oldName.toLowerCase().trim() !== newName.toLowerCase().trim()) {
+      const allMenus = await menuModel.findMany({ select: { id: true, category: true } });
+      for (const m of allMenus) {
+        if (m.category && m.category.toLowerCase().trim() === oldName.toLowerCase().trim()) {
+          await menuModel.update({ where: { id: m.id }, data: { category: newName } });
+        }
+      }
+    }
+
+    if (catModel) {
+      return await catModel.create({
+        data: { name: newName },
+      });
+    }
+
+    return { success: true, name: newName };
   } catch (err) {
     console.error("Error saving category:", err);
     throw err;
@@ -1269,7 +1330,8 @@ export async function saveCategory(data: { id?: string; name: string }) {
 
 export async function deleteCategory(id: string) {
   try {
-    const catModel = db.category || db.Category;
+    const catModel = db.customCategory || db.CustomCategory || db.category || db.Category;
+    const menuModel = db.menu || db.Menu;
     const setModel = db.systemSetting || db.SystemSetting;
 
     if (setModel) {
@@ -1281,9 +1343,21 @@ export async function deleteCategory(id: string) {
     }
 
     if (catModel) {
-      const existing = await catModel.findUnique({ where: { id } }).catch(() => null);
+      let existing = null;
+      if (id && !id.startsWith("menu-cat-") && !id.startsWith("cat-")) {
+        existing = await catModel.findUnique({ where: { id } }).catch(() => null);
+      }
+
       if (existing) {
-        return await catModel.delete({ where: { id } });
+        if (menuModel && existing.name) {
+          const allMenus = await menuModel.findMany({ select: { id: true, category: true } });
+          for (const m of allMenus) {
+            if (m.category && m.category.toLowerCase().trim() === existing.name.toLowerCase().trim()) {
+              await menuModel.update({ where: { id: m.id }, data: { category: "Lainnya" } });
+            }
+          }
+        }
+        return await catModel.delete({ where: { id: existing.id } });
       }
     }
     return { success: true };
