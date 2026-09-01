@@ -182,31 +182,50 @@ function ProductsContent() {
 
   // Dynamic robust category extraction
   const displayCategories = useMemo(() => {
-    const catMap = new Map<string, { id?: string; name: string; count: number }>();
+    const catMap = new Map<string, { id: string; name: string; count: number }>();
     
-    // Add all database categories
-    categories.forEach((c) => {
+    // 1. Add all database categories
+    categories.forEach((c, idx) => {
       if (c && c.name) {
-        catMap.set(c.name.toLowerCase().trim(), { id: c.id, name: c.name.trim(), count: 0 });
-      }
-    });
-
-    // Also include any category from menus
-    menus.forEach((m) => {
-      if (m.category && m.category.trim()) {
-        const key = m.category.toLowerCase().trim();
+        const key = c.name.toLowerCase().trim();
         if (!catMap.has(key)) {
-          catMap.set(key, { id: `cat-${key}`, name: m.category.trim(), count: 0 });
+          catMap.set(key, {
+            id: c.id ? String(c.id) : `db-cat-${idx}-${key}`,
+            name: c.name.trim(),
+            count: 0,
+          });
         }
       }
     });
 
-    // Compute live count accurately
-    return Array.from(catMap.values()).map((cat) => {
+    // 2. Also include any category from menus
+    menus.forEach((m, idx) => {
+      if (m.category && m.category.trim()) {
+        const key = m.category.toLowerCase().trim();
+        if (!catMap.has(key)) {
+          catMap.set(key, {
+            id: `menu-cat-${idx}-${key}`,
+            name: m.category.trim(),
+            count: 0,
+          });
+        }
+      }
+    });
+
+    // 3. Compute live count accurately with guaranteed unique keys
+    const seenIds = new Set<string>();
+    return Array.from(catMap.values()).map((cat, idx) => {
       const count = menus.filter(
         (m) => (m.category || "").toLowerCase().trim() === cat.name.toLowerCase().trim()
       ).length;
-      return { ...cat, count };
+      
+      let uniqueId = cat.id || `cat-entry-${idx}`;
+      if (seenIds.has(uniqueId)) {
+        uniqueId = `${uniqueId}-${idx}`;
+      }
+      seenIds.add(uniqueId);
+
+      return { ...cat, id: uniqueId, count };
     });
   }, [categories, menus]);
 
@@ -985,11 +1004,11 @@ function ProductsContent() {
                   >
                     Semua Kategori ({menus.length})
                   </button>
-                  {displayCategories.map((c) => {
+                  {displayCategories.map((c, idx) => {
                     const isSelected = selectedCategory.toLowerCase().trim() === c.name.toLowerCase().trim();
                     return (
                       <button
-                        key={c.id || c.name}
+                        key={`cat-pill-${c.id || idx}`}
                         onClick={() => setSelectedCategory(c.name)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                           isSelected
@@ -1259,7 +1278,7 @@ function ProductsContent() {
                       {displayCategories.map((cat, idx) => {
                         const count = cat.count;
                         return (
-                          <div key={cat.id || cat.name} className="grid grid-cols-12 gap-3 px-4 py-3.5 items-center hover:bg-slate-50/60">
+                          <div key={`cat-table-row-${cat.id || idx}`} className="grid grid-cols-12 gap-3 px-4 py-3.5 items-center hover:bg-slate-50/60">
                             <div className="col-span-1 font-mono text-slate-400">{idx + 1}</div>
                             <div className="col-span-6 font-bold text-slate-900 flex items-center gap-2">
                               <Tag className="w-3.5 h-3.5 text-indigo-600" />
