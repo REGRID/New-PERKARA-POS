@@ -43,6 +43,9 @@ import {
   getOrdersHistory,
   updateOrderStatus,
   deleteOrder,
+  voidOrderWithAuditLog,
+  refundOrder,
+  getCancellationAuditLogs,
   getPaymentMethods,
   savePaymentMethod,
   deletePaymentMethod,
@@ -67,6 +70,7 @@ export async function GET(request: Request) {
     if (type === "customers") return NextResponse.json(await getCustomers());
     if (type === "expenses") return NextResponse.json(await getExpenses());
     if (type === "orders_history") return NextResponse.json(await getOrdersHistory());
+    if (type === "cancellation_logs") return NextResponse.json(await getCancellationAuditLogs());
     if (type === "payment_methods") return NextResponse.json(await getPaymentMethods());
     if (type === "settings") return NextResponse.json(await getSystemSettings());
 
@@ -103,6 +107,8 @@ export async function POST(request: Request) {
     if (type === "checkout") return NextResponse.json(await processOrderCheckout(body));
     if (type === "update_order_status") return NextResponse.json(await updateOrderStatus(body));
     if (type === "delete_order") return NextResponse.json(await deleteOrder(body.id));
+    if (type === "void_order") return NextResponse.json(await voidOrderWithAuditLog(body));
+    if (type === "refund_order") return NextResponse.json(await refundOrder(body));
     
     // Extended Modules POST Handlers
     if (type === "save_employee") return NextResponse.json(await saveEmployee(body));

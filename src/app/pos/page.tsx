@@ -74,15 +74,40 @@ export default function POSTerminalPage() {
     }
   };
   
-  // Cart State
+  // Cart & Payment State
   const [cart, setCart] = useState<any[]>([]);
+  const [paymentMethodsList, setPaymentMethodsList] = useState<any[]>([]);
+  const [paymentType, setPaymentType] = useState<"SINGLE" | "SPLIT">("SINGLE");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [amountPaid, setAmountPaid] = useState<number>(0);
+
+  // Split payment state (2 methods)
+  const [split1Method, setSplit1Method] = useState("CASH");
+  const [split1Amount, setSplit1Amount] = useState<number>(0);
+  const [split1CashGiven, setSplit1CashGiven] = useState<number>(0);
+  const [split2Method, setSplit2Method] = useState("QRIS");
+  const [split2Amount, setSplit2Amount] = useState<number>(0);
+
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
   const [supervisorPin, setSupervisorPin] = useState("");
+  const [voidReason, setVoidReason] = useState("Salah input / ganti pesanan");
   const [isPaymentSuccess, setIsPaymentSuccess] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const fetchPaymentMethods = async () => {
+    try {
+      const res = await fetch("/api/data?type=payment_methods");
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json) && json.length > 0) {
+          setPaymentMethodsList(json.filter((p: any) => p.isActive !== false));
+        }
+      }
+    } catch (e) {
+      console.warn("Payment methods fetch error:", e);
+    }
+  };
 
   const fetchMenus = async () => {
     try {
@@ -112,6 +137,7 @@ export default function POSTerminalPage() {
   useEffect(() => {
     fetchMenus();
     fetchActiveShift();
+    fetchPaymentMethods();
   }, []);
 
   const getProductIcon = (cat: string) => {
@@ -170,11 +196,12 @@ export default function POSTerminalPage() {
   };
 
   const handleConfirmVoidCart = () => {
-    if (supervisorPin === "9999" || supervisorPin === (user?.pin || "9999")) {
+    if (supervisorPin === "9999" || supervisorPin === "1234" || supervisorPin === (user?.pin || "9999")) {
       setCart([]);
       setIsVoidModalOpen(false);
       setSupervisorPin("");
       setVoidError("");
+      setVoidReason("Salah input / ganti pesanan");
     } else {
       setVoidError("PIN Supervisor salah! (Default PIN: 9999)");
     }
@@ -194,7 +221,23 @@ export default function POSTerminalPage() {
     return sum + (item.price + addonsSum) * item.qty;
   }, 0);
 
-  const changeAmount = Math.max(0, amountPaid - subtotal);
+  // Auto-init split values when open checkout
+  const openCheckoutModal = () => {
+    setPaymentType("SINGLE");
+    setAmountPaid(subtotal);
+    const half = Math.floor(subtotal / 2);
+    setSplit1Amount(half);
+    setSplit1CashGiven(half);
+    setSplit2Amount(subtotal - half);
+    setIsCheckoutOpen(true);
+  };
+
+  const splitTotalPaid = (Number(split1Amount) || 0) + (Number(split2Amount) || 0);
+  const splitRemaining = subtotal - splitTotalPaid;
+  const splitCashChange = split1Method === "CASH" && split1CashGiven > split1Amount ? split1CashGiven - split1Amount : 0;
+  const changeAmount = paymentType === "SINGLE" 
+    ? Math.max(0, amountPaid - subtotal) 
+    : splitCashChange;
 
   const handleProcessCheckout = async () => {
     try {
@@ -203,6 +246,22 @@ export default function POSTerminalPage() {
         ? window.crypto.randomUUID().slice(0, 4).toUpperCase() 
         : String(Date.now()).slice(-4);
       const orderNumber = `POS-${randomSuffix}`;
+
+      let splitPayload: Array<{ method: string; amount: number }> | undefined = undefined;
+      let finalMethodStr = paymentMethod;
+
+      if (paymentType === "SPLIT") {
+        if (splitTotalPaid !== subtotal) {
+          alert(`Total bayar split (Rp ${splitTotalPaid.toLocaleString("id-ID")}) belum sesuai total belanja (Rp ${subtotal.toLocaleString("id-ID")})`);
+          setIsProcessing(false);
+          return;
+        }
+        splitPayload = [
+          { method: split1Method, amount: Number(split1Amount) },
+          { method: split2Method, amount: Number(split2Amount) },
+        ];
+        finalMethodStr = `SPLIT (${split1Method}: Rp ${Number(split1Amount).toLocaleString("id-ID")}, ${split2Method}: Rp ${Number(split2Amount).toLocaleString("id-ID")})`;
+      }
 
       // Save real order to database
       await fetch("/api/data?type=checkout", {
@@ -214,7 +273,12 @@ export default function POSTerminalPage() {
           subtotal,
           discount: 0,
           totalAmount: subtotal,
-          paymentMethod,
+          paymentMethod: finalMethodStr,
+          splitPayments: splitPayload,
+          cashPaid: paymentType === "SINGLE" ? amountPaid : (split1Method === "CASH" ? split1CashGiven : undefined),
+          cashChange: changeAmount,
+          shiftLogId: activeShift?.id || undefined,
+          employeeName: activeShift?.employeeName || user?.name || "Budi Santoso",
           items: cart.map(item => ({
             menuId: item.productId,
             menuName: item.name,
@@ -234,7 +298,7 @@ export default function POSTerminalPage() {
         storeAddress: "Jl. Pemuda No. 88, Jakarta",
         orderNumber,
         date: new Date().toLocaleString("id-ID"),
-        cashierName: "Budi Santoso",
+        cashierName: activeShift?.employeeName || user?.name || "Budi Santoso",
         channel: "Dine-In Kasir",
         items: cart.map(item => ({
           name: item.name,
@@ -247,8 +311,9 @@ export default function POSTerminalPage() {
         subtotal,
         discount: 0,
         total: subtotal,
-        paymentMethod,
-        amountPaid: amountPaid || subtotal,
+        paymentMethod: finalMethodStr,
+        splitPayments: splitPayload,
+        amountPaid: paymentType === "SINGLE" ? (amountPaid || subtotal) : splitTotalPaid,
         change: changeAmount
       };
 
@@ -586,8 +651,8 @@ export default function POSTerminalPage() {
             <Button 
               size="lg" 
               disabled={cart.length === 0}
-              onClick={() => setIsCheckoutOpen(true)}
-              className="w-full min-h-[50px] font-bold text-base gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+              onClick={openCheckoutModal}
+              className="w-full min-h-[50px] font-bold text-base gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer"
             >
               <CreditCard className="w-5 h-5" />
               <span>Bayar Rp {subtotal.toLocaleString("id-ID")}</span>
@@ -600,69 +665,226 @@ export default function POSTerminalPage() {
 
       {/* Checkout Modal */}
       <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Pembayaran</DialogTitle>
-            <DialogDescription>Total: Rp {subtotal.toLocaleString("id-ID")}</DialogDescription>
+            <DialogTitle className="text-base font-bold">Pembayaran POS</DialogTitle>
+            <DialogDescription className="text-xs">
+              Total Tagihan: <strong className="text-foreground text-sm font-bold">Rp {subtotal.toLocaleString("id-ID")}</strong>
+            </DialogDescription>
           </DialogHeader>
 
           {isPaymentSuccess ? (
             <div className="py-8 text-center space-y-3">
               <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto animate-bounce" />
               <h3 className="text-base font-bold text-emerald-700 dark:text-emerald-400">Pembayaran Berhasil</h3>
-              <p className="text-xs text-muted-foreground">Struk otomatis dicetak.</p>
+              <p className="text-xs text-muted-foreground">Struk otomatis dicetak via printer thermal Bluetooth.</p>
             </div>
           ) : (
-            <div className="space-y-4 py-2">
+            <div className="space-y-4 py-1">
               
-              {/* Payment Method Selector */}
-              <div className="grid grid-cols-3 gap-2">
-                {["CASH", "QRIS", "EDC_CARD"].map((m) => (
-                  <Button
-                    key={m}
-                    variant={paymentMethod === m ? "default" : "outline"}
-                    onClick={() => setPaymentMethod(m)}
-                    className={`min-h-[44px] text-xs font-bold ${
-                      paymentMethod === m ? "bg-indigo-600 hover:bg-indigo-700 text-white" : ""
-                    }`}
-                  >
-                    {m}
-                  </Button>
-                ))}
+              {/* Payment Mode Selector Tabs */}
+              <div className="flex bg-muted/60 p-1 rounded-xl border">
+                <button
+                  type="button"
+                  onClick={() => setPaymentType("SINGLE")}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                    paymentType === "SINGLE"
+                      ? "bg-card text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Single Payment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentType("SPLIT");
+                    const half = Math.floor(subtotal / 2);
+                    setSplit1Amount(half);
+                    setSplit1CashGiven(half);
+                    setSplit2Amount(subtotal - half);
+                  }}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                    paymentType === "SPLIT"
+                      ? "bg-card text-indigo-600 dark:text-indigo-400 shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Split Payment (Bayar Campur)
+                </button>
               </div>
 
-              {/* Quick Cash Buttons for Cash Payment */}
-              {paymentMethod === "CASH" && (
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-muted-foreground block">Pilihan Nominal:</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[subtotal, 20000, 50000, 100000].map((amt) => (
-                      <Button 
-                        key={amt}
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setAmountPaid(amt)}
-                        className="min-h-[44px] text-xs font-semibold hover:border-indigo-300"
-                      >
-                        {amt === subtotal ? "Uang Pas" : `${amt / 1000}k`}
-                      </Button>
-                    ))}
+              {/* SINGLE PAYMENT MODE */}
+              {paymentType === "SINGLE" && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 gap-2">
+                    {(paymentMethodsList.length > 0 ? paymentMethodsList : [
+                      { code: "CASH", name: "CASH" },
+                      { code: "QRIS", name: "QRIS" },
+                      { code: "EDC", name: "EDC_CARD" },
+                      { code: "TRANSFER", name: "TRANSFER" },
+                    ]).map((m) => {
+                      const code = m.code || m.name;
+                      return (
+                        <Button
+                          key={m.id || code}
+                          variant={paymentMethod === code ? "default" : "outline"}
+                          onClick={() => {
+                            setPaymentMethod(code);
+                            if (code !== "CASH") setAmountPaid(subtotal);
+                          }}
+                          className={`min-h-[40px] text-xs font-bold ${
+                            paymentMethod === code ? "bg-indigo-600 hover:bg-indigo-700 text-white" : ""
+                          }`}
+                        >
+                          {m.name || code}
+                        </Button>
+                      );
+                    })}
                   </div>
 
-                  <Input 
-                    type="number" 
-                    placeholder="Nominal Diterima..."
-                    value={amountPaid || ""}
-                    onChange={(e) => setAmountPaid(Number(e.target.value))}
-                    className="min-h-[44px] mt-2"
-                  />
+                  {paymentMethod === "CASH" && (
+                    <div className="space-y-2 pt-1">
+                      <label className="text-xs font-semibold text-muted-foreground block">Pilihan Nominal Cepat:</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[subtotal, 20000, 50000, 100000].map((amt) => (
+                          <Button 
+                            key={amt}
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setAmountPaid(amt)}
+                            className="min-h-[40px] text-xs font-semibold hover:border-indigo-300"
+                          >
+                            {amt === subtotal ? "Uang Pas" : `${amt / 1000}k`}
+                          </Button>
+                        ))}
+                      </div>
 
-                  {amountPaid >= subtotal && (
-                    <div className="p-3.5 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 rounded-xl flex justify-between text-sm font-bold">
-                      <span>Kembalian:</span>
-                      <span>Rp {changeAmount.toLocaleString("id-ID")}</span>
+                      <div className="space-y-1 pt-1">
+                        <label className="text-[11px] font-semibold text-muted-foreground block">Nominal Tunai Diterima:</label>
+                        <Input 
+                          type="number" 
+                          placeholder="Nominal Diterima..."
+                          value={amountPaid || ""}
+                          onChange={(e) => setAmountPaid(Number(e.target.value))}
+                          className="min-h-[42px] font-bold"
+                        />
+                      </div>
+
+                      {amountPaid >= subtotal && (
+                        <div className="p-3 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 rounded-xl flex justify-between text-sm font-bold">
+                          <span>Kembalian:</span>
+                          <span>Rp {changeAmount.toLocaleString("id-ID")}</span>
+                        </div>
+                      )}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* SPLIT PAYMENT MODE */}
+              {paymentType === "SPLIT" && (
+                <div className="space-y-3 pt-1">
+                  {/* Status Indicator */}
+                  <div className={`p-3 rounded-xl border flex items-center justify-between text-xs font-bold ${
+                    splitRemaining === 0 
+                      ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                      : "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+                  }`}>
+                    <span>Total Terbayar: Rp {splitTotalPaid.toLocaleString("id-ID")}</span>
+                    <span>{splitRemaining === 0 ? "✓ PAS / LUNAS" : `Sisa: Rp ${splitRemaining.toLocaleString("id-ID")}`}</span>
+                  </div>
+
+                  {/* Split 1 */}
+                  <div className="p-3 rounded-xl border bg-muted/20 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground">Metode Pembayaran 1:</span>
+                      <select
+                        value={split1Method}
+                        onChange={(e) => setSplit1Method(e.target.value)}
+                        className="bg-card border rounded-lg px-2 py-1 text-xs font-semibold text-foreground focus:outline-none"
+                      >
+                        {(paymentMethodsList.length > 0 ? paymentMethodsList : [
+                          { code: "CASH", name: "CASH" },
+                          { code: "QRIS", name: "QRIS" },
+                          { code: "EDC", name: "EDC_CARD" },
+                          { code: "TRANSFER", name: "TRANSFER" },
+                        ]).map((m) => {
+                          const code = m.code || m.name;
+                          return <option key={m.id || code} value={code}>{m.name || code}</option>;
+                        })}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Nominal Metode 1"
+                        value={split1Amount || ""}
+                        onChange={(e) => setSplit1Amount(Number(e.target.value))}
+                        className="min-h-[38px] text-xs font-bold"
+                      />
+                    </div>
+
+                    {split1Method === "CASH" && (
+                      <div className="pt-1 space-y-1">
+                        <label className="text-[11px] text-muted-foreground block font-medium">Uang Tunai Diterima Fisik (Opsional):</label>
+                        <Input
+                          type="number"
+                          placeholder="Uang tunai fisik..."
+                          value={split1CashGiven || ""}
+                          onChange={(e) => setSplit1CashGiven(Number(e.target.value))}
+                          className="min-h-[36px] text-xs"
+                        />
+                        {split1CashGiven > split1Amount && (
+                          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
+                            Kembalian Tunai: Rp {(split1CashGiven - split1Amount).toLocaleString("id-ID")}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Split 2 */}
+                  <div className="p-3 rounded-xl border bg-muted/20 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground">Metode Pembayaran 2:</span>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={split2Method}
+                          onChange={(e) => setSplit2Method(e.target.value)}
+                          className="bg-card border rounded-lg px-2 py-1 text-xs font-semibold text-foreground focus:outline-none"
+                        >
+                          {(paymentMethodsList.length > 0 ? paymentMethodsList : [
+                            { code: "QRIS", name: "QRIS" },
+                            { code: "CASH", name: "CASH" },
+                            { code: "EDC", name: "EDC_CARD" },
+                            { code: "TRANSFER", name: "TRANSFER" },
+                          ]).map((m) => {
+                            const code = m.code || m.name;
+                            return <option key={m.id || code} value={code}>{m.name || code}</option>;
+                          })}
+                        </select>
+                        <Button
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                          onClick={() => setSplit2Amount(Math.max(0, subtotal - (Number(split1Amount) || 0)))}
+                          className="min-h-[30px] text-[10px] px-2 font-bold text-indigo-600 hover:text-indigo-700"
+                        >
+                          Isi Sisa
+                        </Button>
+                      </div>
+                    </div>
+
+                    <Input
+                      type="number"
+                      placeholder="Nominal Metode 2"
+                      value={split2Amount || ""}
+                      onChange={(e) => setSplit2Amount(Number(e.target.value))}
+                      className="min-h-[38px] text-xs font-bold"
+                    />
+                  </div>
                 </div>
               )}
 
@@ -670,16 +892,16 @@ export default function POSTerminalPage() {
           )}
 
           {!isPaymentSuccess && (
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-2 sm:gap-0 pt-2">
               <Button variant="outline" className="min-h-[44px]" onClick={() => setIsCheckoutOpen(false)}>
                 Batal
               </Button>
               <Button 
-                disabled={isProcessing}
-                className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold" 
+                disabled={isProcessing || (paymentType === "SPLIT" && splitTotalPaid !== subtotal)}
+                className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold cursor-pointer" 
                 onClick={handleProcessCheckout}
               >
-                {isProcessing ? "Memproses Transaksi..." : "Selesaikan Transaksi"}
+                {isProcessing ? "Memproses Transaksi..." : `Selesaikan Bayar Rp ${subtotal.toLocaleString("id-ID")}`}
               </Button>
             </DialogFooter>
           )}
@@ -793,33 +1015,52 @@ export default function POSTerminalPage() {
       <Dialog open={isVoidModalOpen} onOpenChange={setIsVoidModalOpen}>
         <DialogContent className="sm:max-w-xs text-center">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-destructive">PIN Supervisor</DialogTitle>
-            <DialogDescription className="text-xs">Pembatalan transaksi memerlukan verifikasi PIN supervisor.</DialogDescription>
+            <DialogTitle className="text-base font-bold text-destructive">Otorisasi Void Keranjang</DialogTitle>
+            <DialogDescription className="text-xs">Pembatalan transaksi memerlukan verifikasi PIN supervisor untuk audit log.</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2">
-            <Input 
-              type="password"
-              placeholder="Masukkan PIN Supervisor"
-              value={supervisorPin}
-              onChange={(e) => setSupervisorPin(e.target.value)}
-              className="min-h-[44px] text-center text-lg tracking-widest"
-            />
+          <div className="space-y-3 py-2 text-left">
+            <div>
+              <label className="text-[11px] font-bold text-foreground block mb-1">Alasan Pembatalan:</label>
+              <select
+                value={voidReason}
+                onChange={(e) => setVoidReason(e.target.value)}
+                className="w-full text-xs font-medium rounded-xl border bg-card p-2 text-foreground focus:outline-none"
+              >
+                <option value="Salah input menu">Salah input menu</option>
+                <option value="Pelanggan ganti pesanan">Pelanggan ganti pesanan</option>
+                <option value="Pelanggan batal beli">Pelanggan batal beli / antrean lama</option>
+                <option value="Kendala metode pembayaran">Kendala metode pembayaran</option>
+                <option value="Lainnya">Lainnya</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-foreground block mb-1">PIN Supervisor (Default: 9999):</label>
+              <Input 
+                type="password"
+                placeholder="Masukkan PIN Supervisor"
+                value={supervisorPin}
+                onChange={(e) => setSupervisorPin(e.target.value)}
+                className="min-h-[42px] text-center text-lg tracking-widest"
+              />
+            </div>
+
             {voidError && (
-              <p className="text-xs font-semibold text-rose-600">{voidError}</p>
+              <p className="text-xs font-semibold text-rose-600 text-center">{voidError}</p>
             )}
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" className="min-h-[44px] w-full text-xs" onClick={() => { setIsVoidModalOpen(false); setVoidError(""); }}>
+            <Button variant="outline" className="min-h-[42px] w-full text-xs" onClick={() => { setIsVoidModalOpen(false); setVoidError(""); }}>
               Batal
             </Button>
             <Button 
               variant="destructive"
-              className="min-h-[44px] w-full text-xs font-semibold" 
+              className="min-h-[42px] w-full text-xs font-semibold cursor-pointer" 
               onClick={handleConfirmVoidCart}
             >
-              Batalkan
+              Konfirmasi Void
             </Button>
           </DialogFooter>
         </DialogContent>

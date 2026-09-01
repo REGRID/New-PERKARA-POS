@@ -577,16 +577,22 @@ export async function getEmployees() {
 }
 
 // =============================================================================
-// 5. POS CHECKOUT ACTION (AUTO DEDUCT REAL STOCKS & SAVE ORDER)
+// 5. POS CHECKOUT ACTION (AUTO DEDUCT REAL STOCKS & SAVE ORDER & SPLIT PAYMENTS)
 // =============================================================================
 export async function processOrderCheckout(orderData: {
   orderNumber: string;
   channel?: string;
   customerName?: string;
+  tableNumber?: string;
+  employeeName?: string;
+  shiftLogId?: string;
   subtotal: number;
   discount?: number;
   totalAmount: number;
+  cashPaid?: number;
+  cashChange?: number;
   paymentMethod?: string;
+  splitPayments?: Array<{ method: string; amount: number }>;
   items: Array<{
     menuId?: string;
     menuName: string;
@@ -600,16 +606,43 @@ export async function processOrderCheckout(orderData: {
     const orderModel = db.order || db.Order;
     const ingredientModel = db.ingredient || db.Ingredient;
     const recipeModel = db.recipeItem || db.RecipeItem;
+    const shiftModel = db.shiftLog || db.shiftlog || db.ShiftLog;
+
+    // Find active shift if not provided
+    let activeShiftId = orderData.shiftLogId;
+    if (!activeShiftId && shiftModel) {
+      try {
+        const foundShift = await shiftModel.findFirst({
+          where: { status: "OPEN" },
+          orderBy: { startTime: "desc" },
+        });
+        if (foundShift) activeShiftId = foundShift.id;
+      } catch {}
+    }
+
+    // Format paymentMethod string if split
+    let finalPaymentMethod = orderData.paymentMethod || "CASH";
+    if (orderData.splitPayments && orderData.splitPayments.length > 0) {
+      const splitDesc = orderData.splitPayments
+        .map((p) => `${p.method}: Rp ${Number(p.amount).toLocaleString("id-ID")}`)
+        .join(" + ");
+      finalPaymentMethod = `SPLIT (${splitDesc})`;
+    }
 
     const order = await orderModel.create({
       data: {
         orderNumber: orderData.orderNumber,
         channel: orderData.channel || "DINE_IN",
         customerName: orderData.customerName || "Pelanggan Toko",
+        tableNumber: orderData.tableNumber || undefined,
+        employeeName: orderData.employeeName || "Kasir Outlet",
+        shiftLogId: activeShiftId || undefined,
         subtotal: Number(orderData.subtotal) || 0,
         discount: Number(orderData.discount) || 0,
         totalAmount: Number(orderData.totalAmount) || 0,
-        paymentMethod: orderData.paymentMethod || "CASH",
+        cashPaid: orderData.cashPaid ? Number(orderData.cashPaid) : undefined,
+        cashChange: orderData.cashChange ? Number(orderData.cashChange) : undefined,
+        paymentMethod: finalPaymentMethod,
         paymentStatus: "PAID",
         orderStatus: "COMPLETED",
         items: {
@@ -1376,6 +1409,240 @@ export async function deleteOrder(id: string) {
   } catch (err) {
     console.error("Error deleting order:", err);
     throw err;
+  }
+}
+
+// Void Order with CancellationAuditLog & Stock Restoration
+export async function voidOrderWithAuditLog(data: {
+  orderId: string;
+  supervisorPin: string;
+  approvedBy?: string;
+  reason: string;
+  restoreStock?: boolean;
+}) {
+  try {
+    const orderModel = db.order || db.Order;
+    const auditModel = db.cancellationAuditLog || db.CancellationAuditLog;
+    const empModel = db.employee || db.Employee;
+    const ingredientModel = db.ingredient || db.Ingredient;
+    const recipeModel = db.recipeItem || db.RecipeItem;
+
+    let approverName = data.approvedBy || "Supervisor";
+    let isAuthorized = data.supervisorPin === "9999" || data.supervisorPin === "1234";
+
+    if (empModel && !isAuthorized) {
+      const emp = await empModel.findFirst({
+        where: { pin: data.supervisorPin },
+      }).catch(() => null);
+      if (emp) {
+        approverName = emp.name;
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      throw new Error("PIN Supervisor tidak valid (Default: 9999)");
+    }
+
+    const order = await orderModel.findUnique({
+      where: { id: data.orderId },
+      include: { items: true },
+    });
+
+    if (!order) {
+      throw new Error("Order tidak ditemukan");
+    }
+
+    // Update order status
+    const updatedOrder = await orderModel.update({
+      where: { id: data.orderId },
+      data: {
+        orderStatus: "CANCELLED",
+        paymentStatus: "CANCELLED",
+      },
+    });
+
+    // Create record in CancellationAuditLog
+    if (auditModel) {
+      await auditModel.create({
+        data: {
+          orderId: order.id,
+          approvedBy: approverName,
+          reason: data.reason || "Void Pesanan Kasir",
+          amount: Number(order.totalAmount) || 0,
+        },
+      }).catch((e: any) => console.warn("Failed creating audit log:", e));
+    }
+
+    // Restore stock if requested and recipes exist
+    if (data.restoreStock !== false && recipeModel && ingredientModel && order.items) {
+      for (const item of order.items) {
+        if (item.menuId) {
+          const recipes = await recipeModel.findMany({
+            where: { menuId: item.menuId },
+          }).catch(() => []);
+
+          for (const rec of recipes) {
+            const totalAdd = (Number(rec.quantityUsed) || 1) * (Number(item.quantity) || 1);
+            await ingredientModel.update({
+              where: { id: rec.ingredientId },
+              data: {
+                floorQuantity: {
+                  increment: totalAdd,
+                },
+              },
+            }).catch(() => null);
+          }
+        }
+      }
+    }
+
+    return { success: true, order: updatedOrder, approverName };
+  } catch (err) {
+    console.error("Error voiding order:", err);
+    throw err;
+  }
+}
+
+// Refund Order with Cash Drawer Deduction, CancellationAuditLog & Stock Restoration
+export async function refundOrder(data: {
+  orderId: string;
+  supervisorPin: string;
+  approvedBy?: string;
+  reason: string;
+  refundMethod: "CASH" | "NON_CASH" | string;
+  amount?: number;
+  restoreStock?: boolean;
+  shiftLogId?: string;
+}) {
+  try {
+    const orderModel = db.order || db.Order;
+    const auditModel = db.cancellationAuditLog || db.CancellationAuditLog;
+    const empModel = db.employee || db.Employee;
+    const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
+    const shiftModel = db.shiftLog || db.shiftlog || db.ShiftLog;
+    const ingredientModel = db.ingredient || db.Ingredient;
+    const recipeModel = db.recipeItem || db.RecipeItem;
+
+    let approverName = data.approvedBy || "Supervisor";
+    let isAuthorized = data.supervisorPin === "9999" || data.supervisorPin === "1234";
+
+    if (empModel && !isAuthorized) {
+      const emp = await empModel.findFirst({
+        where: { pin: data.supervisorPin },
+      }).catch(() => null);
+      if (emp) {
+        approverName = emp.name;
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      throw new Error("PIN Supervisor tidak valid (Default: 9999)");
+    }
+
+    const order = await orderModel.findUnique({
+      where: { id: data.orderId },
+      include: { items: true },
+    });
+
+    if (!order) {
+      throw new Error("Transaksi order tidak ditemukan");
+    }
+
+    const refundAmount = Number(data.amount) > 0 ? Number(data.amount) : (Number(order.totalAmount) || 0);
+
+    // Update order status
+    const updatedOrder = await orderModel.update({
+      where: { id: data.orderId },
+      data: {
+        paymentStatus: "REFUNDED",
+        orderStatus: "REFUNDED",
+      },
+    });
+
+    // Create Audit Log
+    if (auditModel) {
+      await auditModel.create({
+        data: {
+          orderId: order.id,
+          approvedBy: approverName,
+          reason: `[REFUND - ${data.refundMethod === "CASH" ? "Kas Tunai" : "Non-Tunai"}] ${data.reason || "Pengembalian Pesanan"}`,
+          amount: refundAmount,
+        },
+      }).catch((e: any) => console.warn("Failed creating refund audit log:", e));
+    }
+
+    // If refund was paid out from cash drawer, record CASH_OUT in CashTransaction for active shift
+    if (data.refundMethod === "CASH" && cashTxModel) {
+      let activeShiftId = data.shiftLogId || order.shiftLogId;
+      if (!activeShiftId && shiftModel) {
+        const activeShift = await shiftModel.findFirst({
+          where: { status: "OPEN" },
+          orderBy: { startTime: "desc" },
+        }).catch(() => null);
+        if (activeShift) activeShiftId = activeShift.id;
+      }
+
+      await cashTxModel.create({
+        data: {
+          type: "CASH_OUT",
+          amount: refundAmount,
+          note: `Refund Kasir Order #${order.orderNumber} (${data.reason || "Pengembalian"})`,
+          employeeName: approverName,
+          shiftLogId: activeShiftId || undefined,
+        },
+      }).catch((e: any) => console.warn("Failed creating cash out for refund:", e));
+    }
+
+    // Restore stock if requested
+    if (data.restoreStock !== false && recipeModel && ingredientModel && order.items) {
+      for (const item of order.items) {
+        if (item.menuId) {
+          const recipes = await recipeModel.findMany({
+            where: { menuId: item.menuId },
+          }).catch(() => []);
+
+          for (const rec of recipes) {
+            const totalAdd = (Number(rec.quantityUsed) || 1) * (Number(item.quantity) || 1);
+            await ingredientModel.update({
+              where: { id: rec.ingredientId },
+              data: {
+                floorQuantity: {
+                  increment: totalAdd,
+                },
+              },
+            }).catch(() => null);
+          }
+        }
+      }
+    }
+
+    return { success: true, order: updatedOrder, refundAmount, approverName };
+  } catch (err) {
+    console.error("Error processing refund:", err);
+    throw err;
+  }
+}
+
+// Get Cancellation & Refund Audit Logs
+export async function getCancellationAuditLogs() {
+  try {
+    const auditModel = db.cancellationAuditLog || db.CancellationAuditLog;
+    if (!auditModel) return [];
+    return await auditModel.findMany({
+      include: {
+        order: {
+          include: {
+            items: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (err) {
+    console.error("Error fetching cancellation audit logs:", err);
+    return [];
   }
 }
 

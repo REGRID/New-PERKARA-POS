@@ -21,8 +21,26 @@ export interface PrintableReceiptData {
   discount: number;
   total: number;
   paymentMethod: string;
+  splitPayments?: Array<{ method: string; amount: number }>;
   amountPaid: number;
   change: number;
+}
+
+export interface PrintableRefundData {
+  storeName: string;
+  storeAddress?: string;
+  orderNumber: string;
+  refundDate: string;
+  approvedBy: string;
+  reason: string;
+  refundMethod: string;
+  refundAmount: number;
+  items?: Array<{
+    name: string;
+    variantName?: string;
+    qty: number;
+    subtotal: number;
+  }>;
 }
 
 class BluetoothPrinterDriver {
@@ -115,8 +133,18 @@ class BluetoothPrinterDriver {
     commands.push(...encoder.encode(`TOTAL    : Rp ${data.total.toLocaleString("id-ID")}\n`));
     commands.push(ESC, 0x45, 0);
 
-    commands.push(...encoder.encode(`Bayar (${data.paymentMethod}): Rp ${data.amountPaid.toLocaleString("id-ID")}\n`));
-    commands.push(...encoder.encode(`Kembali  : Rp ${data.change.toLocaleString("id-ID")}\n`));
+    if (data.splitPayments && data.splitPayments.length > 0) {
+      commands.push(...encoder.encode(`Bayar (SPLIT):\n`));
+      for (const sp of data.splitPayments) {
+        commands.push(...encoder.encode(` - ${sp.method}: Rp ${sp.amount.toLocaleString("id-ID")}\n`));
+      }
+    } else {
+      commands.push(...encoder.encode(`Bayar (${data.paymentMethod}): Rp ${data.amountPaid.toLocaleString("id-ID")}\n`));
+    }
+
+    if (data.change > 0) {
+      commands.push(...encoder.encode(`Kembali  : Rp ${data.change.toLocaleString("id-ID")}\n`));
+    }
     commands.push(...encoder.encode("--------------------------------\n"));
 
     // Footer Center
@@ -126,14 +154,68 @@ class BluetoothPrinterDriver {
 
     if (isConnected && this.characteristic) {
       const dataBuffer = new Uint8Array(commands);
-      // Chunk sending for bluetooth buffer limit
       const chunkSize = 512;
       for (let i = 0; i < dataBuffer.length; i += chunkSize) {
         const chunk = dataBuffer.slice(i, i + chunkSize);
         await this.characteristic.writeValue(chunk);
       }
     } else {
-      // Fallback: Web browser print window
+      window.print();
+    }
+  }
+
+  public async printRefundReceipt(data: PrintableRefundData): Promise<void> {
+    const isConnected = this.characteristic || (await this.connect());
+    
+    const ESC = 0x1b;
+    const GS = 0x1d;
+    const encoder = new TextEncoder();
+    const commands: number[] = [];
+
+    commands.push(ESC, 0x40);
+
+    // Center alignment
+    commands.push(ESC, 0x61, 1);
+    commands.push(GS, 0x21, 0x11);
+    commands.push(...encoder.encode(`${data.storeName}\n`));
+    commands.push(GS, 0x21, 0x00);
+    commands.push(...encoder.encode("*** BUKTI REFUND / RETUR ***\n"));
+    commands.push(...encoder.encode("--------------------------------\n"));
+
+    // Left alignment
+    commands.push(ESC, 0x61, 0);
+    commands.push(...encoder.encode(`No. Nota  : ${data.orderNumber}\n`));
+    commands.push(...encoder.encode(`Tgl Refund: ${data.refundDate}\n`));
+    commands.push(...encoder.encode(`Disetujui : ${data.approvedBy}\n`));
+    commands.push(...encoder.encode(`Metode    : ${data.refundMethod}\n`));
+    commands.push(...encoder.encode(`Alasan    : ${data.reason}\n`));
+    commands.push(...encoder.encode("--------------------------------\n"));
+
+    if (data.items && data.items.length > 0) {
+      commands.push(...encoder.encode("Item Diretur:\n"));
+      for (const item of data.items) {
+        commands.push(...encoder.encode(`- ${item.name} (${item.qty}x)\n`));
+      }
+      commands.push(...encoder.encode("--------------------------------\n"));
+    }
+
+    commands.push(ESC, 0x45, 1);
+    commands.push(...encoder.encode(`TOTAL REFUND: Rp ${data.refundAmount.toLocaleString("id-ID")}\n`));
+    commands.push(ESC, 0x45, 0);
+    commands.push(...encoder.encode("--------------------------------\n"));
+
+    commands.push(ESC, 0x61, 1);
+    commands.push(...encoder.encode("Dana Telah Dikembalikan ke Pelanggan\n\n\n\n"));
+    commands.push(GS, 0x56, 66, 0);
+
+    if (isConnected && this.characteristic) {
+      const dataBuffer = new Uint8Array(commands);
+      const chunkSize = 512;
+      for (let i = 0; i < dataBuffer.length; i += chunkSize) {
+        const chunk = dataBuffer.slice(i, i + chunkSize);
+        await this.characteristic.writeValue(chunk);
+      }
+    } else {
       window.print();
     }
   }
