@@ -180,6 +180,36 @@ function ProductsContent() {
     }
   }, [categories]);
 
+  // Dynamic robust category extraction
+  const displayCategories = useMemo(() => {
+    const catMap = new Map<string, { id?: string; name: string; count: number }>();
+    
+    // Add all database categories
+    categories.forEach((c) => {
+      if (c && c.name) {
+        catMap.set(c.name.toLowerCase().trim(), { id: c.id, name: c.name.trim(), count: 0 });
+      }
+    });
+
+    // Also include any category from menus
+    menus.forEach((m) => {
+      if (m.category && m.category.trim()) {
+        const key = m.category.toLowerCase().trim();
+        if (!catMap.has(key)) {
+          catMap.set(key, { id: `cat-${key}`, name: m.category.trim(), count: 0 });
+        }
+      }
+    });
+
+    // Compute live count accurately
+    return Array.from(catMap.values()).map((cat) => {
+      const count = menus.filter(
+        (m) => (m.category || "").toLowerCase().trim() === cat.name.toLowerCase().trim()
+      ).length;
+      return { ...cat, count };
+    });
+  }, [categories, menus]);
+
   // =========================================================================
   // 3. COMPUTED METRICS & FILTERED PRODUCTS
   // =========================================================================
@@ -191,7 +221,9 @@ function ProductsContent() {
         (m.sku && m.sku.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (m.category && m.category.toLowerCase().includes(searchQuery.toLowerCase()));
 
-      const matchesCat = selectedCategory === "ALL" || m.category === selectedCategory;
+      const matchesCat = 
+        selectedCategory === "ALL" || 
+        (m.category || "").toLowerCase().trim() === selectedCategory.toLowerCase().trim();
 
       const matchesStatus = 
         selectedStatus === "ALL" ||
@@ -953,19 +985,19 @@ function ProductsContent() {
                   >
                     Semua Kategori ({menus.length})
                   </button>
-                  {categories.map((c) => {
-                    const count = menus.filter((m) => m.category === c.name).length;
+                  {displayCategories.map((c) => {
+                    const isSelected = selectedCategory.toLowerCase().trim() === c.name.toLowerCase().trim();
                     return (
                       <button
                         key={c.id || c.name}
                         onClick={() => setSelectedCategory(c.name)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                          selectedCategory === c.name
+                          isSelected
                             ? "bg-slate-900 text-white shadow-2xs"
                             : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                         }`}
                       >
-                        {c.name} ({count})
+                        {c.name} ({c.count})
                       </button>
                     );
                   })}
@@ -1224,8 +1256,8 @@ function ProductsContent() {
                       <div className="col-span-2 text-right">Aksi</div>
                     </div>
                     <div className="divide-y divide-slate-100 text-xs">
-                      {categories.map((cat, idx) => {
-                        const count = menus.filter((m) => m.category === cat.name).length;
+                      {displayCategories.map((cat, idx) => {
+                        const count = cat.count;
                         return (
                           <div key={cat.id || cat.name} className="grid grid-cols-12 gap-3 px-4 py-3.5 items-center hover:bg-slate-50/60">
                             <div className="col-span-1 font-mono text-slate-400">{idx + 1}</div>
@@ -1242,12 +1274,14 @@ function ProductsContent() {
                               <button
                                 onClick={() => { setEditingCat(cat); setCatNameInput(cat.name); setIsCatModalOpen(true); }}
                                 className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer"
+                                title="Edit Nama Kategori"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button
-                                onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                                onClick={() => handleDeleteCategory(cat.id || "", cat.name)}
                                 className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                                title="Hapus Kategori"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1559,7 +1593,7 @@ function ProductsContent() {
                       onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
                       className="w-full min-h-[38px] px-3 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700"
                     >
-                      {categories.map((c) => (
+                      {displayCategories.map((c) => (
                         <option key={c.id || c.name} value={c.name}>
                           {c.name}
                         </option>
@@ -1752,7 +1786,7 @@ function ProductsContent() {
                   className="w-full min-h-[38px] px-3 bg-white border border-slate-200 rounded-xl text-xs font-semibold"
                 >
                   <option value="">-- Pilih Kategori --</option>
-                  {categories.map((c) => (
+                  {displayCategories.map((c) => (
                     <option key={c.id || c.name} value={c.name}>{c.name}</option>
                   ))}
                 </select>

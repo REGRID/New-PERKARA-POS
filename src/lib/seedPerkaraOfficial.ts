@@ -493,6 +493,25 @@ export async function seedOfficialPerkaraData(forceReset = false) {
     }
 
     // =========================================================================
+    // 2.5. MASTER KATEGORI RESMI
+    // =========================================================================
+    const officialCategories = [
+      { name: "Menu Kopi" },
+      { name: "Menu Non Kopi" },
+      { name: "Mocktail" },
+      { name: "Makanan & Snack" },
+    ];
+
+    if (catModel) {
+      for (const c of officialCategories) {
+        const existing = await catModel.findFirst({ where: { name: c.name } }).catch(() => null);
+        if (!existing) {
+          await catModel.create({ data: { name: c.name } });
+        }
+      }
+    }
+
+    // =========================================================================
     // 3. DAFTAR MENU RESMI PERKARA COFFEE & RESEP DETAIL
     // =========================================================================
     const officialMenus = [
