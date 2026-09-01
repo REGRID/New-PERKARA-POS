@@ -45,6 +45,40 @@ export async function getDashboardData() {
       return sum + (totalQty * unitCost);
     }, 0);
 
+    // Aggregate Payment Methods Breakdown (including split payments)
+    const orderPaymentModel = db.orderPayment || db.OrderPayment;
+    let paymentBreakdown: { [method: string]: number } = {
+      CASH: 0,
+      QRIS: 0,
+      EDC_CARD: 0,
+      TRANSFER: 0,
+      OTHER: 0,
+    };
+
+    if (orderPaymentModel) {
+      const allPayments = await orderPaymentModel.findMany().catch(() => []);
+      if (allPayments && allPayments.length > 0) {
+        for (const p of allPayments) {
+          const m = (p.methodName || "CASH").toUpperCase();
+          const amt = Number(p.amount) || 0;
+          if (m.includes("CASH") || m.includes("TUNAI")) paymentBreakdown.CASH += amt;
+          else if (m.includes("QRIS")) paymentBreakdown.QRIS += amt;
+          else if (m.includes("EDC") || m.includes("CARD") || m.includes("DEBIT") || m.includes("KREDIT")) paymentBreakdown.EDC_CARD += amt;
+          else if (m.includes("TRANSFER") || m.includes("BANK")) paymentBreakdown.TRANSFER += amt;
+          else paymentBreakdown.OTHER += amt;
+        }
+      } else {
+        for (const o of orders) {
+          const m = (o.paymentMethod || "CASH").toUpperCase();
+          const amt = Number(o.totalAmount) || 0;
+          if (m.includes("CASH") || m.includes("TUNAI")) paymentBreakdown.CASH += amt;
+          else if (m.includes("QRIS")) paymentBreakdown.QRIS += amt;
+          else if (m.includes("EDC") || m.includes("CARD")) paymentBreakdown.EDC_CARD += amt;
+          else paymentBreakdown.OTHER += amt;
+        }
+      }
+    }
+
     const displayRevenue = totalRevenue > 0 ? totalRevenue : 4850000;
     const displayOpex = totalOpex > 0 ? totalOpex : (totalPurchasesValue > 0 ? totalPurchasesValue : 1450000);
 
@@ -60,6 +94,7 @@ export async function getDashboardData() {
       allIngredients: ingredients,
       recentPurchases: purchases.slice(0, 5),
       employees,
+      paymentBreakdown,
       activeShift: activeShift || {
         employeeName: employees[0]?.name || "Budi Santoso",
         status: "OPEN",
@@ -685,6 +720,32 @@ export async function processOrderCheckout(orderData: {
       },
     });
 
+    // Save payments into OrderPayment model
+    const orderPaymentModel = db.orderPayment || db.OrderPayment;
+    if (orderPaymentModel) {
+      if (orderData.splitPayments && orderData.splitPayments.length > 0) {
+        for (const sp of orderData.splitPayments) {
+          if (Number(sp.amount) > 0) {
+            await orderPaymentModel.create({
+              data: {
+                orderId: order.id,
+                methodName: sp.method || "CASH",
+                amount: Number(sp.amount),
+              },
+            }).catch(() => null);
+          }
+        }
+      } else {
+        await orderPaymentModel.create({
+          data: {
+            orderId: order.id,
+            methodName: orderData.paymentMethod || "CASH",
+            amount: Number(orderData.totalAmount) || 0,
+          },
+        }).catch(() => null);
+      }
+    }
+
     // Auto-deduct stock if recipes exist & record StockMovement
     const stockMovementModel = db.stockMovement || db.StockMovement;
     if (recipeModel && ingredientModel) {
@@ -988,99 +1049,260 @@ export async function getPurchases() {
 }
 
 export async function savePurchase(data: {
+  id?: string;
+  ingredientId?: string;
+  vendorId?: string;
   itemName: string;
   quantity: number;
   unitPrice: number;
   supplierName?: string;
+  status?: "DRAFT" | "ORDERED" | "RECEIVED" | "CANCELLED" | string;
+  paymentStatus?: "PAID" | "UNPAID" | "PARTIAL" | string;
+  approvedBy?: string;
+  recordCashOut?: boolean;
   notes?: string;
 }) {
   try {
     const purModel = db.purchase || db.Purchase;
     const ingredientModel = db.ingredient || db.Ingredient;
     const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
+    const stockMovementModel = db.stockMovement || db.StockMovement;
 
     const qty = Number(data.quantity) || 1;
     const price = Number(data.unitPrice) || 0;
     const totalPrice = qty * price;
+    const status = data.status || "RECEIVED";
+    const paymentStatus = data.paymentStatus || "PAID";
 
-    // 1. Record in Purchase log
-    const newPurchase = await purModel.create({
+    let purchaseRecord: any = null;
+
+    if (data.id) {
+      // Edit existing purchase
+      purchaseRecord = await purModel.update({
+        where: { id: data.id },
+        data: {
+          ingredientId: data.ingredientId || undefined,
+          vendorId: data.vendorId || undefined,
+          itemName: data.itemName,
+          quantity: qty,
+          unitPrice: price,
+          totalPrice: totalPrice,
+          supplierName: data.supplierName || "-",
+          status,
+          paymentStatus,
+          approvedBy: data.approvedBy || undefined,
+          notes: data.notes || "",
+        },
+      });
+    } else {
+      // 1. Create new Purchase record
+      purchaseRecord = await purModel.create({
+        data: {
+          ingredientId: data.ingredientId || undefined,
+          vendorId: data.vendorId || undefined,
+          itemName: data.itemName,
+          quantity: qty,
+          unitPrice: price,
+          totalPrice: totalPrice,
+          supplierName: data.supplierName || "-",
+          status,
+          paymentStatus,
+          approvedBy: data.approvedBy || undefined,
+          notes: data.notes || "",
+        },
+      });
+    }
+
+    // 2. Auto-sync to Raw Materials Inventory (Ingredient) ONLY if status is RECEIVED
+    if (status === "RECEIVED" && ingredientModel) {
+      if (data.ingredientId) {
+        // PRECISE ID-BASED SYNC
+        const matched = await ingredientModel.findUnique({
+          where: { id: data.ingredientId },
+        }).catch(() => null);
+
+        if (matched) {
+          const conversion = Number(matched.conversionRatio) || 1;
+          const addedFloorQty = qty * conversion;
+          const newHargaBeli = price > 0 ? price : Number(matched.hargaBeli || 0);
+          const newCostPerUseUnit = conversion > 0 ? newHargaBeli / conversion : 0;
+
+          const updated = await ingredientModel.update({
+            where: { id: matched.id },
+            data: {
+              floorQuantity: { increment: addedFloorQty },
+              hargaBeli: newHargaBeli,
+              costPerUseUnit: newCostPerUseUnit,
+            },
+          });
+
+          if (stockMovementModel) {
+            await stockMovementModel.create({
+              data: {
+                ingredientId: matched.id,
+                type: "PURCHASE",
+                quantity: addedFloorQty,
+                balanceAfter: (Number(updated.floorQuantity) || 0) + (Number(updated.warehouseQuantity) || 0),
+                referenceId: purchaseRecord.id,
+                employeeName: data.approvedBy || "Sistem Pengadaan",
+                note: `Pembelian: ${matched.name} (${qty} ${matched.buyUnit || matched.unit}) dari ${data.supplierName || "-"}`,
+              },
+            }).catch(() => null);
+          }
+        }
+      } else {
+        // Name-based fallback if no ingredientId specified
+        const matched = await ingredientModel.findFirst({
+          where: { name: { contains: data.itemName } },
+        });
+
+        let targetIngId = matched?.id;
+        let balanceAfter = 0;
+
+        if (matched) {
+          const updated = await ingredientModel.update({
+            where: { id: matched.id },
+            data: {
+              floorQuantity: { increment: qty },
+              hargaBeli: price > 0 ? price : matched.hargaBeli,
+            },
+          });
+          targetIngId = updated.id;
+          balanceAfter = (Number(updated.floorQuantity) || 0) + (Number(updated.warehouseQuantity) || 0);
+        } else {
+          const created = await ingredientModel.create({
+            data: {
+              name: data.itemName,
+              category: "Bahan Baku",
+              buyUnit: "pcs",
+              unit: "pcs",
+              conversionRatio: 1,
+              floorQuantity: qty,
+              hargaBeli: price,
+            },
+          });
+          targetIngId = created.id;
+          balanceAfter = qty;
+        }
+
+        if (stockMovementModel && targetIngId) {
+          await stockMovementModel.create({
+            data: {
+              ingredientId: targetIngId,
+              type: "PURCHASE",
+              quantity: qty,
+              balanceAfter,
+              referenceId: purchaseRecord.id,
+              employeeName: data.approvedBy || "Sistem Pengadaan",
+              note: `Pembelian Manual: ${data.itemName} (${qty} item) dari ${data.supplierName || "-"}`,
+            },
+          }).catch(() => null);
+        }
+      }
+    }
+
+    // 3. Auto-sync to Cash Flow (CashTransaction) if PAID & recordCashOut is true
+    if (paymentStatus === "PAID" && data.recordCashOut !== false && cashTxModel && totalPrice > 0) {
+      await cashTxModel.create({
+        data: {
+          type: "CASH_OUT",
+          amount: totalPrice,
+          note: `Pengadaan: ${data.itemName} (${qty} x Rp ${price.toLocaleString("id-ID")}) [${data.supplierName || 'Vendor'}]`,
+          employeeName: data.approvedBy || "Sistem Pengadaan",
+        },
+      }).catch(() => null);
+    }
+
+    return purchaseRecord;
+  } catch (err) {
+    console.error("Error saving purchase:", err);
+    throw err;
+  }
+}
+
+export async function updatePurchaseStatus(data: {
+  id: string;
+  status: "DRAFT" | "ORDERED" | "RECEIVED" | "CANCELLED" | string;
+  approvedBy?: string;
+  recordCashOut?: boolean;
+}) {
+  try {
+    const purModel = db.purchase || db.Purchase;
+    const ingredientModel = db.ingredient || db.Ingredient;
+    const cashTxModel = db.cashTransaction || db.cashtransaction || db.CashTransaction;
+    const stockMovementModel = db.stockMovement || db.StockMovement;
+
+    const existing = await purModel.findUnique({ where: { id: data.id } });
+    if (!existing) throw new Error("Data pembelian tidak ditemukan");
+
+    const prevStatus = existing.status;
+    const newStatus = data.status;
+
+    const updated = await purModel.update({
+      where: { id: data.id },
       data: {
-        itemName: data.itemName,
-        quantity: qty,
-        unitPrice: price,
-        totalPrice: totalPrice,
-        supplierName: data.supplierName || "-",
-        notes: data.notes || "",
+        status: newStatus,
+        approvedBy: data.approvedBy || existing.approvedBy,
       },
     });
 
-    // 2. Auto-sync to Raw Materials Inventory (Ingredient) & StockMovement
-    const stockMovementModel = db.stockMovement || db.StockMovement;
-    if (ingredientModel) {
-      const matched = await ingredientModel.findFirst({
-        where: { name: { contains: data.itemName } },
-      });
+    // If changing to RECEIVED from non-RECEIVED, add stock
+    if (newStatus === "RECEIVED" && prevStatus !== "RECEIVED" && ingredientModel) {
+      const qty = Number(existing.quantity) || 1;
+      const price = Number(existing.unitPrice) || 0;
 
-      let targetIngId = matched?.id;
-      let balanceAfter = 0;
+      if (existing.ingredientId) {
+        const matched = await ingredientModel.findUnique({
+          where: { id: existing.ingredientId },
+        }).catch(() => null);
 
-      if (matched) {
-        const updated = await ingredientModel.update({
-          where: { id: matched.id },
-          data: {
-            floorQuantity: { increment: qty },
-            hargaBeli: price > 0 ? price : matched.hargaBeli,
-          },
-        });
-        targetIngId = updated.id;
-        balanceAfter = (Number(updated.floorQuantity) || 0) + (Number(updated.warehouseQuantity) || 0);
-      } else {
-        const created = await ingredientModel.create({
-          data: {
-            name: data.itemName,
-            category: "Bahan Baku",
-            buyUnit: "pcs",
-            unit: "pcs",
-            conversionRatio: 1,
-            floorQuantity: qty,
-            hargaBeli: price,
-          },
-        });
-        targetIngId = created.id;
-        balanceAfter = qty;
+        if (matched) {
+          const conversion = Number(matched.conversionRatio) || 1;
+          const addedFloorQty = qty * conversion;
+          const newHargaBeli = price > 0 ? price : Number(matched.hargaBeli || 0);
+          const newCostPerUseUnit = conversion > 0 ? newHargaBeli / conversion : 0;
+
+          const updatedIng = await ingredientModel.update({
+            where: { id: matched.id },
+            data: {
+              floorQuantity: { increment: addedFloorQty },
+              hargaBeli: newHargaBeli,
+              costPerUseUnit: newCostPerUseUnit,
+            },
+          });
+
+          if (stockMovementModel) {
+            await stockMovementModel.create({
+              data: {
+                ingredientId: matched.id,
+                type: "PURCHASE",
+                quantity: addedFloorQty,
+                balanceAfter: (Number(updatedIng.floorQuantity) || 0) + (Number(updatedIng.warehouseQuantity) || 0),
+                referenceId: existing.id,
+                employeeName: data.approvedBy || "Supervisor Pengadaan",
+                note: `Penerimaan Barang PO #${existing.id.substring(0, 8)}: ${matched.name} (+${addedFloorQty} ${matched.unit})`,
+              },
+            }).catch(() => null);
+          }
+        }
       }
 
-      if (stockMovementModel && targetIngId) {
-        await stockMovementModel.create({
+      // Record cash out if paid and requested
+      if (existing.paymentStatus === "PAID" && data.recordCashOut !== false && cashTxModel && Number(existing.totalPrice) > 0) {
+        await cashTxModel.create({
           data: {
-            ingredientId: targetIngId,
-            type: "PURCHASE",
-            quantity: qty,
-            balanceAfter,
-            referenceId: newPurchase.id,
-            employeeName: "Sistem Pengadaan",
-            note: `Pembelian Manual: ${data.itemName} (${qty} item) dari ${data.supplierName || "-"}`,
+            type: "CASH_OUT",
+            amount: Number(existing.totalPrice),
+            note: `Penerimaan & Bayar PO: ${existing.itemName} (${qty} item)`,
+            employeeName: data.approvedBy || "Supervisor Pengadaan",
           },
         }).catch(() => null);
       }
     }
 
-    // 3. Auto-sync to Cash Flow & OPEX Expenses (CashTransaction)
-    if (cashTxModel && totalPrice > 0) {
-      await cashTxModel.create({
-        data: {
-          type: "CASH_OUT",
-          amount: totalPrice,
-          note: `Pengadaan: ${data.itemName} (${qty} x Rp ${price.toLocaleString("id-ID")})`,
-          employeeName: "Sistem Pengadaan",
-        },
-      });
-    }
-
-    return newPurchase;
+    return updated;
   } catch (err) {
-    console.error("Error saving purchase:", err);
+    console.error("Error updating purchase status:", err);
     throw err;
   }
 }
@@ -1091,6 +1313,106 @@ export async function deletePurchase(id: string) {
     return await purModel.delete({ where: { id } });
   } catch (err) {
     console.error("Error deleting purchase:", err);
+    throw err;
+  }
+}
+
+// =============================================================================
+// VENDOR CONTACTS (SUPPLIERS)
+// =============================================================================
+
+const DEFAULT_SEED_VENDORS = [
+  { id: "ven-1", name: "Kopi Nusantara Supplier", phone: "081234567890", category: "Biji Kopi", messageTemplate: "Halo Kopi Nusantara, mau pesan Biji Kopi Espresso Blend untuk outlet Perkara POS." },
+  { id: "ven-2", name: "Distributor Susu Diamond", phone: "081987654321", category: "Dairy & Susu", messageTemplate: "Halo Distributor Susu, mau order Susu UHT Full Cream 1L Karton." },
+  { id: "ven-3", name: "Toko Bahan Kue Sejahtera", phone: "085712345678", category: "Sirup & Topping", messageTemplate: "Halo Toko Bahan Kue, mau order Sirup Gula Aren & Flavouring." },
+  { id: "ven-4", name: "Kemasan Jaya Grosir", phone: "087812345678", category: "Kemasan & Cup", messageTemplate: "Halo Kemasan Jaya, mau order Cup Plastik 16oz + Sealer Roll." },
+];
+
+export async function getVendors() {
+  try {
+    const vendorModel = db.vendorContact || db.VendorContact;
+    const purModel = db.purchase || db.Purchase;
+
+    if (!vendorModel) return DEFAULT_SEED_VENDORS;
+
+    let vendors = await vendorModel.findMany({ orderBy: { name: "asc" } }).catch(() => []);
+
+    if (!vendors || vendors.length === 0) {
+      for (const s of DEFAULT_SEED_VENDORS) {
+        try {
+          await vendorModel.create({ data: s });
+        } catch {}
+      }
+      vendors = await vendorModel.findMany({ orderBy: { name: "asc" } }).catch(() => []);
+    }
+
+    // Augment with purchase statistics per vendor
+    if (purModel) {
+      const allPurchases = await purModel.findMany().catch(() => []);
+      return vendors.map((v: any) => {
+        const vPurchases = allPurchases.filter((p: any) => p.vendorId === v.id || p.supplierName === v.name);
+        const totalSpent = vPurchases.reduce((sum: number, p: any) => sum + (Number(p.totalPrice) || 0), 0);
+        const unpaidSpent = vPurchases.filter((p: any) => p.paymentStatus === "UNPAID").reduce((sum: number, p: any) => sum + (Number(p.totalPrice) || 0), 0);
+        return {
+          ...v,
+          totalPurchasesCount: vPurchases.length,
+          totalPurchasesAmount: totalSpent,
+          unpaidAmount: unpaidSpent,
+        };
+      });
+    }
+
+    return vendors;
+  } catch (err) {
+    console.error("Error fetching vendors:", err);
+    return DEFAULT_SEED_VENDORS;
+  }
+}
+
+export async function saveVendor(data: {
+  id?: string;
+  name: string;
+  phone?: string;
+  category?: string;
+  messageTemplate?: string;
+}) {
+  try {
+    const vendorModel = db.vendorContact || db.VendorContact;
+    if (!vendorModel) throw new Error("Vendor model not found");
+
+    if (data.id) {
+      return await vendorModel.update({
+        where: { id: data.id },
+        data: {
+          name: data.name,
+          phone: data.phone || undefined,
+          category: data.category || undefined,
+          messageTemplate: data.messageTemplate || undefined,
+        },
+      });
+    } else {
+      return await vendorModel.create({
+        data: {
+          name: data.name,
+          phone: data.phone || undefined,
+          category: data.category || "Supplier Umum",
+          messageTemplate: data.messageTemplate || undefined,
+        },
+      });
+    }
+  } catch (err) {
+    console.error("Error saving vendor:", err);
+    throw err;
+  }
+}
+
+export async function deleteVendor(id: string) {
+  try {
+    const vendorModel = db.vendorContact || db.VendorContact;
+    if (!vendorModel) throw new Error("Vendor model not found");
+    return await vendorModel.delete({ where: { id } });
+  } catch (err) {
+    console.error("Error deleting vendor:", err);
     throw err;
   }
 }
@@ -1404,7 +1726,7 @@ export async function getOrdersHistory() {
     if (orderModel) {
       try {
         orders = await orderModel.findMany({
-          include: { items: true },
+          include: { items: true, payments: true },
           orderBy: { createdAt: "desc" },
         });
       } catch {
@@ -1429,7 +1751,7 @@ export async function getOrdersHistory() {
         }
         try {
           orders = await orderModel.findMany({
-            include: { items: true },
+            include: { items: true, payments: true },
             orderBy: { createdAt: "desc" },
           });
         } catch {
@@ -1444,7 +1766,6 @@ export async function getOrdersHistory() {
     return [];
   }
 }
-
 
 export async function updateOrderStatus(data: { id: string; orderStatus?: string; paymentStatus?: string }) {
   try {
@@ -1482,6 +1803,7 @@ export async function voidOrderWithAuditLog(data: {
   supervisorPin: string;
   approvedBy?: string;
   reason: string;
+  customReason?: string;
   restoreStock?: boolean;
 }) {
   try {
@@ -1505,7 +1827,7 @@ export async function voidOrderWithAuditLog(data: {
     }
 
     if (!isAuthorized) {
-      throw new Error("PIN Supervisor tidak valid (Default: 9999)");
+      throw new Error("PIN Supervisor salah. Silakan periksa kembali PIN Anda.");
     }
 
     const order = await orderModel.findUnique({
@@ -1517,6 +1839,11 @@ export async function voidOrderWithAuditLog(data: {
       throw new Error("Order tidak ditemukan");
     }
 
+    // Format structured reason
+    const finalReason = data.reason === "Lainnya" && data.customReason 
+      ? `Lainnya: ${data.customReason}` 
+      : data.reason || "Salah input kasir / salah menu";
+
     // Update order status
     const updatedOrder = await orderModel.update({
       where: { id: data.orderId },
@@ -1526,13 +1853,25 @@ export async function voidOrderWithAuditLog(data: {
       },
     });
 
-    // Create record in CancellationAuditLog
+    // Create record in CancellationAuditLog with snapshot
+    const itemsSnapshot = JSON.stringify(
+      (order.items || []).map((it: any) => ({
+        menuName: it.menuName,
+        variantName: it.variantName || "Regular",
+        quantity: it.quantity,
+        price: it.price,
+        subtotal: it.subtotal || it.price * it.quantity,
+      }))
+    );
+
     if (auditModel) {
       await auditModel.create({
         data: {
           orderId: order.id,
+          cashierName: order.employeeName || "Kasir Outlet",
           approvedBy: approverName,
-          reason: data.reason || "Void Pesanan Kasir",
+          reason: finalReason,
+          itemsSnapshot,
           amount: Number(order.totalAmount) || 0,
         },
       }).catch((e: any) => console.warn("Failed creating audit log:", e));
@@ -1583,13 +1922,23 @@ export async function voidOrderWithAuditLog(data: {
   }
 }
 
-// Refund Order with Cash Drawer Deduction, CancellationAuditLog & Stock Restoration
+// Refund Order with Cash Drawer Deduction, CancellationAuditLog & Stock Restoration (Full & Partial)
 export async function refundOrder(data: {
   orderId: string;
   supervisorPin: string;
   approvedBy?: string;
   reason: string;
+  customReason?: string;
   refundMethod: "CASH" | "NON_CASH" | string;
+  refundItems?: Array<{
+    orderItemId?: string;
+    menuId?: string;
+    menuName: string;
+    variantName?: string;
+    quantity: number;
+    unitPrice: number;
+    subtotal: number;
+  }>;
   amount?: number;
   restoreStock?: boolean;
   shiftLogId?: string;
@@ -1618,7 +1967,7 @@ export async function refundOrder(data: {
     }
 
     if (!isAuthorized) {
-      throw new Error("PIN Supervisor tidak valid (Default: 9999)");
+      throw new Error("PIN Supervisor salah. Silakan periksa kembali PIN Anda.");
     }
 
     const order = await orderModel.findUnique({
@@ -1630,24 +1979,48 @@ export async function refundOrder(data: {
       throw new Error("Transaksi order tidak ditemukan");
     }
 
-    const refundAmount = Number(data.amount) > 0 ? Number(data.amount) : (Number(order.totalAmount) || 0);
+    // Determine refund items and total amount
+    const itemsToRefund = data.refundItems && data.refundItems.length > 0 
+      ? data.refundItems 
+      : (order.items || []).map((it: any) => ({
+          orderItemId: it.id,
+          menuId: it.menuId,
+          menuName: it.menuName,
+          variantName: it.variantName,
+          quantity: it.quantity,
+          unitPrice: it.price,
+          subtotal: it.subtotal || it.price * it.quantity,
+        }));
+
+    const calculatedRefundAmount = itemsToRefund.reduce((sum: number, it: any) => sum + (Number(it.subtotal) || 0), 0);
+    const refundAmount = calculatedRefundAmount > 0 
+      ? calculatedRefundAmount 
+      : (Number(data.amount) > 0 ? Number(data.amount) : Number(order.totalAmount || 0));
+
+    const isPartial = itemsToRefund.length < (order.items || []).length;
+    const finalReason = data.reason === "Lainnya" && data.customReason 
+      ? `Lainnya: ${data.customReason}` 
+      : data.reason || "Komplain pelanggan";
 
     // Update order status
     const updatedOrder = await orderModel.update({
       where: { id: data.orderId },
       data: {
-        paymentStatus: "REFUNDED",
+        paymentStatus: isPartial ? "REFUNDED" : "REFUNDED",
         orderStatus: "REFUNDED",
       },
     });
 
     // Create Audit Log
+    const itemsSnapshot = JSON.stringify(itemsToRefund);
     if (auditModel) {
       await auditModel.create({
         data: {
           orderId: order.id,
+          cashierName: order.employeeName || "Kasir Outlet",
           approvedBy: approverName,
-          reason: `[REFUND - ${data.refundMethod === "CASH" ? "Kas Tunai" : "Non-Tunai"}] ${data.reason || "Pengembalian Pesanan"}`,
+          reason: `[REFUND ${isPartial ? "PARSIAL" : "TOTAL"} - ${data.refundMethod === "CASH" ? "Kas Tunai" : "Non-Tunai"}] ${finalReason}`,
+          itemsSnapshot,
           amount: refundAmount,
         },
       }).catch((e: any) => console.warn("Failed creating refund audit log:", e));
@@ -1668,16 +2041,16 @@ export async function refundOrder(data: {
         data: {
           type: "CASH_OUT",
           amount: refundAmount,
-          note: `Refund Kasir Order #${order.orderNumber} (${data.reason || "Pengembalian"})`,
+          note: `Refund Kasir Order #${order.orderNumber} (${finalReason})`,
           employeeName: approverName,
           shiftLogId: activeShiftId || undefined,
         },
       }).catch((e: any) => console.warn("Failed creating cash out for refund:", e));
     }
 
-    // Restore stock if requested & record StockMovement
-    if (data.restoreStock !== false && recipeModel && ingredientModel && order.items) {
-      for (const item of order.items) {
+    // Restore stock for refunded items & record StockMovement
+    if (data.restoreStock !== false && recipeModel && ingredientModel && itemsToRefund.length > 0) {
+      for (const item of itemsToRefund) {
         if (item.menuId) {
           const recipes = await recipeModel.findMany({
             where: { menuId: item.menuId },
@@ -1703,7 +2076,7 @@ export async function refundOrder(data: {
                   balanceAfter: Number(updatedIng.floorQuantity) || 0,
                   referenceId: order.orderNumber,
                   employeeName: approverName,
-                  note: `Pengembalian Stok Refund Order #${order.orderNumber} (${item.menuName})`,
+                  note: `Pengembalian Stok Refund Order #${order.orderNumber} (${item.menuName} x${item.quantity})`,
                 },
               }).catch(() => null);
             }
@@ -1712,7 +2085,13 @@ export async function refundOrder(data: {
       }
     }
 
-    return { success: true, order: updatedOrder, refundAmount, approverName };
+    return { 
+      success: true, 
+      order: updatedOrder, 
+      refundAmount, 
+      approverName, 
+      refundedItems: itemsToRefund 
+    };
   } catch (err) {
     console.error("Error processing refund:", err);
     throw err;
@@ -1729,6 +2108,7 @@ export async function getCancellationAuditLogs() {
         order: {
           include: {
             items: true,
+            payments: true,
           },
         },
       },

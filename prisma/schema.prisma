@@ -281,13 +281,15 @@ model SpillageLog {
 }
 
 model CancellationAuditLog {
-  id          String   @id @default(uuid())
-  orderId     String
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  approvedBy  String   @db.Text // Supervisor / Owner PIN approver
-  reason      String   @db.Text
-  amount      Float
-  createdAt   DateTime @default(now())
+  id            String   @id @default(uuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  cashierName   String?  @db.Text
+  approvedBy    String   @db.Text // Supervisor / Owner PIN approver
+  reason        String   @db.Text
+  itemsSnapshot String?  @db.Text // JSON snapshot of cancelled/refunded items
+  amount        Float
+  createdAt     DateTime @default(now())
 }
 
 // =============================================================================
@@ -320,6 +322,7 @@ model Order {
   driverPhone      String?                @db.Text
   createdAt        DateTime               @default(now())
   items            OrderItem[]
+  payments         OrderPayment[]
   cancellationLogs CancellationAuditLog[]
 }
 
@@ -480,23 +483,41 @@ model Purchase {
   id                 String            @id @default(uuid())
   purchaseCategoryId String?
   category           PurchaseCategory? @relation(fields: [purchaseCategoryId], references: [id])
+  ingredientId       String?
+  vendorId           String?
   itemName           String            @db.Text
   quantity           Float             @default(1)
   unitPrice          Float             @default(0)
   totalPrice         Float             @default(0)
   supplierName       String?           @db.Text
+  status             String            @default("RECEIVED") // DRAFT, ORDERED, RECEIVED, CANCELLED
+  paymentStatus      String            @default("PAID") // UNPAID, PAID, PARTIAL
+  approvedBy         String?           @db.Text
   purchaseDate       DateTime          @default(now())
   notes              String?           @db.Text
   createdAt          DateTime          @default(now())
 }
 
 model PaymentMethod {
-  id        String   @id @default(uuid())
-  name      String   @db.Text
-  code      String   @db.Text
-  type      String   @default("CASH") // CASH, QRIS, CARD, EWALLET
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id        String         @id @default(uuid())
+  name      String         @db.Text
+  code      String         @db.Text
+  type      String         @default("CASH") // CASH, QRIS, CARD, EWALLET
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  payments  OrderPayment[]
+}
+
+model OrderPayment {
+  id              String         @id @default(uuid())
+  orderId         String
+  order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentMethodId String?
+  paymentMethod   PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  methodName      String         @db.Text // CASH, QRIS, EDC_CARD, TRANSFER, etc.
+  amount          Float          @default(0)
+  referenceNo     String?        @db.Text
+  createdAt       DateTime       @default(now())
 }
 
 model DailyRecap {

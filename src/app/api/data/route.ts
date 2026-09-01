@@ -53,7 +53,11 @@ import {
   saveSystemSetting,
   createSpillageLog,
   getSpillageLogs,
-  getStockMovements
+  getStockMovements,
+  getVendors,
+  saveVendor,
+  deleteVendor,
+  updatePurchaseStatus
 } from "@/lib/actions";
 
 export async function GET(request: Request) {
@@ -69,6 +73,7 @@ export async function GET(request: Request) {
     if (type === "addon_categories") return NextResponse.json(await getAddonCategories());
     if (type === "categories") return NextResponse.json(await getCategories());
     if (type === "purchases") return NextResponse.json(await getPurchases());
+    if (type === "vendors") return NextResponse.json(await getVendors());
     if (type === "discounts") return NextResponse.json(await getDiscounts());
     if (type === "tables") return NextResponse.json(await getDiningTables());
     if (type === "customers") return NextResponse.json(await getCustomers());
@@ -127,7 +132,10 @@ export async function POST(request: Request) {
     if (type === "save_category") return NextResponse.json(await saveCategory(body));
     if (type === "delete_category") return NextResponse.json(await deleteCategory(body.id));
     if (type === "save_purchase") return NextResponse.json(await savePurchase(body));
+    if (type === "update_purchase_status") return NextResponse.json(await updatePurchaseStatus(body));
     if (type === "delete_purchase") return NextResponse.json(await deletePurchase(body.id));
+    if (type === "save_vendor") return NextResponse.json(await saveVendor(body));
+    if (type === "delete_vendor") return NextResponse.json(await deleteVendor(body.id));
     if (type === "save_discount") return NextResponse.json(await saveDiscount(body));
     if (type === "delete_discount") return NextResponse.json(await deleteDiscount(body.id));
     if (type === "save_table") return NextResponse.json(await saveDiningTable(body));

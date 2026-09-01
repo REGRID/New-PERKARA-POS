@@ -203,7 +203,7 @@ export default function POSTerminalPage() {
       setVoidError("");
       setVoidReason("Salah input / ganti pesanan");
     } else {
-      setVoidError("PIN Supervisor salah! (Default PIN: 9999)");
+      setVoidError("PIN Supervisor salah. Silakan periksa kembali PIN Anda.");
     }
   };
 
@@ -1036,10 +1036,10 @@ export default function POSTerminalPage() {
             </div>
 
             <div>
-              <label className="text-[11px] font-bold text-foreground block mb-1">PIN Supervisor (Default: 9999):</label>
+              <label className="text-[11px] font-bold text-foreground block mb-1">PIN Otorisasi Supervisor:</label>
               <Input 
                 type="password"
-                placeholder="Masukkan PIN Supervisor"
+                placeholder="Masukkan PIN Otorisasi"
                 value={supervisorPin}
                 onChange={(e) => setSupervisorPin(e.target.value)}
                 className="min-h-[42px] text-center text-lg tracking-widest"

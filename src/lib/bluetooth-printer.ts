@@ -4,26 +4,28 @@ export interface PrintableReceiptData {
   storeName: string;
   storeAddress?: string;
   orderNumber: string;
-  date: string;
-  cashierName: string;
+  date?: string;
+  cashierName?: string;
   customerName?: string;
   tableNumber?: string;
-  channel: string;
+  channel?: string;
   items: Array<{
     name: string;
     variantName?: string;
     qty: number;
-    price: number;
+    price?: number;
     subtotal: number;
     addons?: Array<{ name: string; price: number }>;
   }>;
   subtotal: number;
-  discount: number;
+  discount?: number;
   total: number;
   paymentMethod: string;
   splitPayments?: Array<{ method: string; amount: number }>;
-  amountPaid: number;
-  change: number;
+  amountPaid?: number;
+  change?: number;
+  cashPaid?: number;
+  cashChange?: number;
 }
 
 export interface PrintableRefundData {
@@ -31,7 +33,9 @@ export interface PrintableRefundData {
   storeAddress?: string;
   orderNumber: string;
   refundDate: string;
-  approvedBy: string;
+  approvedBy?: string;
+  approverName?: string;
+  cashierName?: string;
   reason: string;
   refundMethod: string;
   refundAmount: number;
@@ -39,6 +43,7 @@ export interface PrintableRefundData {
     name: string;
     variantName?: string;
     qty: number;
+    price?: number;
     subtotal: number;
   }>;
 }
@@ -113,7 +118,8 @@ class BluetoothPrinterDriver {
     for (const item of data.items) {
       const title = `${item.name}${item.variantName ? ` (${item.variantName})` : ''}`;
       commands.push(...encoder.encode(`${title}\n`));
-      const lineRight = `${item.qty} x ${item.price.toLocaleString("id-ID")} = ${item.subtotal.toLocaleString("id-ID")}\n`;
+      const itemUnitPrice = (item.price ?? (item.qty > 0 ? item.subtotal / item.qty : 0));
+      const lineRight = `${item.qty} x ${itemUnitPrice.toLocaleString("id-ID")} = ${item.subtotal.toLocaleString("id-ID")}\n`;
       commands.push(...encoder.encode(lineRight));
       if (item.addons && item.addons.length > 0) {
         for (const addon of item.addons) {
@@ -124,8 +130,9 @@ class BluetoothPrinterDriver {
 
     commands.push(...encoder.encode("--------------------------------\n"));
     commands.push(...encoder.encode(`Subtotal : Rp ${data.subtotal.toLocaleString("id-ID")}\n`));
-    if (data.discount > 0) {
-      commands.push(...encoder.encode(`Diskon   : -Rp ${data.discount.toLocaleString("id-ID")}\n`));
+    const disc = data.discount ?? 0;
+    if (disc > 0) {
+      commands.push(...encoder.encode(`Diskon   : -Rp ${disc.toLocaleString("id-ID")}\n`));
     }
 
     // Bold Total
@@ -133,17 +140,20 @@ class BluetoothPrinterDriver {
     commands.push(...encoder.encode(`TOTAL    : Rp ${data.total.toLocaleString("id-ID")}\n`));
     commands.push(ESC, 0x45, 0);
 
+    const amtPaid = data.amountPaid ?? data.cashPaid ?? data.total;
+    const changeAmt = data.change ?? data.cashChange ?? 0;
+
     if (data.splitPayments && data.splitPayments.length > 0) {
       commands.push(...encoder.encode(`Bayar (SPLIT):\n`));
       for (const sp of data.splitPayments) {
         commands.push(...encoder.encode(` - ${sp.method}: Rp ${sp.amount.toLocaleString("id-ID")}\n`));
       }
     } else {
-      commands.push(...encoder.encode(`Bayar (${data.paymentMethod}): Rp ${data.amountPaid.toLocaleString("id-ID")}\n`));
+      commands.push(...encoder.encode(`Bayar (${data.paymentMethod}): Rp ${amtPaid.toLocaleString("id-ID")}\n`));
     }
 
-    if (data.change > 0) {
-      commands.push(...encoder.encode(`Kembali  : Rp ${data.change.toLocaleString("id-ID")}\n`));
+    if (changeAmt > 0) {
+      commands.push(...encoder.encode(`Kembali  : Rp ${changeAmt.toLocaleString("id-ID")}\n`));
     }
     commands.push(...encoder.encode("--------------------------------\n"));
 
