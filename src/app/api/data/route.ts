@@ -66,7 +66,8 @@ import {
   getAccounts,
   createAccount,
   setAccountActive,
-  getAuditLogs
+  getAuditLogs,
+  seedOfficialPerkaraData
 } from "@/lib/actions";
 
 // Actions strictly restricted to Owner only
@@ -232,6 +233,7 @@ export async function POST(request: Request) {
     if (type === "save_payment_method") return NextResponse.json(await savePaymentMethod(body));
     if (type === "delete_payment_method") return NextResponse.json(await deletePaymentMethod(body.id));
     if (type === "save_setting") return NextResponse.json(await saveSystemSetting(body.key, body.value));
+    if (type === "seed_official_perkara") return NextResponse.json(await seedOfficialPerkaraData(body.forceReset));
 
     return NextResponse.json({ error: "Invalid action type" }, { status: 400 });
   } catch (error: any) {

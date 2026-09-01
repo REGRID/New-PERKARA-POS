@@ -347,6 +347,11 @@ export async function deleteIngredient(id: string) {
 
 
 // =============================================================================
+import { seedOfficialPerkaraData } from "./seedPerkaraOfficial";
+
+export { seedOfficialPerkaraData };
+
+// =============================================================================
 // 3. MENU & RECIPE SETTINGS (SETTING APA YANG ADA DI MENU)
 // =============================================================================
 export async function getMenusWithRecipes() {
@@ -354,6 +359,23 @@ export async function getMenusWithRecipes() {
     const menuModel = db.menu || db.Menu;
     const setModel = db.systemSetting || db.SystemSetting;
     let menus: any[] = [];
+
+    let hasOfficialSeeded = null;
+    if (setModel) {
+      hasOfficialSeeded = await setModel.findUnique({ where: { key: "seeded_perkara_official_v2" } }).catch(() => null);
+    }
+
+    if (!hasOfficialSeeded) {
+      await seedOfficialPerkaraData();
+      if (setModel) {
+        await setModel.upsert({
+          where: { key: "seeded_perkara_official_v2" },
+          update: { value: "true" },
+          create: { key: "seeded_perkara_official_v2", value: "true" },
+        }).catch(() => null);
+      }
+    }
+
     if (menuModel) {
       try {
         menus = await menuModel.findMany({
@@ -368,43 +390,6 @@ export async function getMenusWithRecipes() {
         });
       } catch {
         menus = [];
-      }
-    }
-
-    let hasSeeded = null;
-    if (setModel) {
-      hasSeeded = await setModel.findUnique({ where: { key: "seeded_menus" } }).catch(() => null);
-    }
-
-    if (!hasSeeded && (!menus || menus.length === 0)) {
-      if (menuModel) {
-        for (const seed of DEFAULT_SEED_MENUS) {
-          try {
-            const { id, ...dataToInsert } = seed;
-            await menuModel.create({ data: dataToInsert });
-          } catch {}
-        }
-        if (setModel) {
-          await setModel.upsert({
-            where: { key: "seeded_menus" },
-            update: { value: "true" },
-            create: { key: "seeded_menus", value: "true" },
-          }).catch(() => null);
-        }
-        try {
-          menus = await menuModel.findMany({
-            include: {
-              recipeItems: {
-                include: {
-                  ingredient: true,
-                },
-              },
-            },
-            orderBy: { name: "asc" },
-          });
-        } catch {
-          menus = [];
-        }
       }
     }
 

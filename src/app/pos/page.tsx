@@ -20,7 +20,8 @@ import {
   Clock,
   FileText,
   Wallet,
-  Camera
+  Camera,
+  Sparkles
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
@@ -149,6 +150,7 @@ export default function POSTerminalPage() {
 
   // Product Customization Modal State
   const [selectedCustomProduct, setSelectedCustomProduct] = useState<any>(null);
+  const [customBase, setCustomBase] = useState("Pure (Water & Creamer)");
   const [customSugar, setCustomSugar] = useState("Normal Sugar (100%)");
   const [customIce, setCustomIce] = useState("Normal Ice");
   const [selectedAddons, setSelectedAddons] = useState<any[]>([]);
@@ -157,15 +159,18 @@ export default function POSTerminalPage() {
 
   const availableAddonsList = [
     { name: "Extra Espresso Shot", price: 5000 },
-    { name: "Boba Pearl", price: 4000 },
-    { name: "Cream Cheese Top", price: 6000 },
-    { name: "Whipped Cream", price: 5000 },
+    { name: "Extra Gula Aren (+15ml)", price: 3000 },
+    { name: "Extra Syrup Flavor (+15ml)", price: 4000 },
+    { name: "Ice Cream Vanilla Scoop", price: 5000 },
   ];
 
   const [mobilePosTab, setMobilePosTab] = useState<"catalog" | "cart">("catalog");
 
   const handleOpenCustomization = (product: any) => {
     setSelectedCustomProduct(product);
+    const isNonCoffee = product.category?.toLowerCase().includes("non") || 
+      ["coger", "mapeta", "tezam", "revamato", "taro", "carkol", "korum", "pismat"].some(k => product.name?.toLowerCase().includes(k));
+    setCustomBase(isNonCoffee ? "Pure (Water & Creamer)" : "");
     setCustomSugar("Normal Sugar (100%)");
     setCustomIce("Normal Ice");
     setSelectedAddons([]);
@@ -174,7 +179,11 @@ export default function POSTerminalPage() {
 
   const handleConfirmAddToCart = () => {
     if (!selectedCustomProduct) return;
-    const variantName = `${customSugar}, ${customIce}`;
+    const parts = [];
+    if (customBase) parts.push(customBase.split(" ")[0]);
+    if (customSugar) parts.push(customSugar.split(" ")[0]);
+    if (customIce) parts.push(customIce);
+    const variantName = parts.join(", ");
 
     setCart([...cart, {
       productId: selectedCustomProduct.id,
@@ -992,11 +1001,52 @@ export default function POSTerminalPage() {
               </DialogHeader>
 
               <div className="space-y-4 py-2 text-xs">
+                {/* Brand Meaning & Satire Story */}
+                {(() => {
+                  let info: any = null;
+                  try {
+                    if (selectedCustomProduct.ops) info = JSON.parse(selectedCustomProduct.ops);
+                  } catch (e) {}
+                  if (!info) return null;
+                  return (
+                    <div className="p-3 bg-amber-50/90 border border-amber-200 rounded-xl text-amber-900 space-y-1">
+                      {info.standar && <div className="font-bold text-[11px] text-amber-950 flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-amber-600" /> {info.standar}</div>}
+                      {info.makna && <div className="text-[11px] leading-relaxed italic text-amber-800">"{info.makna}"</div>}
+                    </div>
+                  );
+                })()}
+
+                {/* Base Selection for Non-Coffee (Pure vs Latte) */}
+                {customBase !== "" && (
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-700 block">Pilihan Base (Non-Coffee):</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: "Pure (Water & Creamer)", label: "Pure (Air + Creamer)", desc: "Pekat & segar" },
+                        { id: "Latte (Fresh Milk Base)", label: "Latte (Susu Segar)", desc: "Creamy & gurih" },
+                      ].map((b) => (
+                        <Button
+                          key={b.id}
+                          type="button"
+                          variant={customBase === b.id ? "default" : "outline"}
+                          onClick={() => setCustomBase(b.id)}
+                          className={`min-h-[44px] flex flex-col items-start justify-center p-2 text-left ${
+                            customBase === b.id ? "bg-indigo-600 hover:bg-indigo-700 text-white" : ""
+                          }`}
+                        >
+                          <span className="font-bold text-[11px]">{b.label}</span>
+                          <span className={`text-[9px] ${customBase === b.id ? "text-indigo-100" : "text-slate-500"}`}>{b.desc}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Sugar Level */}
                 <div className="space-y-1.5">
                   <label className="font-bold text-slate-700 block">Level Gula:</label>
                   <div className="grid grid-cols-3 gap-2">
-                    {["Normal Sugar (100%)", "Less Sugar (70%)", "No Sugar (0%)"].map((s) => (
+                    {["Normal Sugar (100%)", "Less Sugar (50%)", "No Sugar (0%)"].map((s) => (
                       <Button
                         key={s}
                         type="button"
