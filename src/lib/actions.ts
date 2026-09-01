@@ -148,16 +148,43 @@ export async function updateIngredientStock(data: {
   id: string;
   floorQuantity?: number;
   warehouseQuantity?: number;
+  employeeName?: string;
+  note?: string;
 }) {
   try {
     const ingredientModel = db.ingredient || db.Ingredient;
-    return await ingredientModel.update({
+    const stockMovementModel = db.stockMovement || db.StockMovement;
+
+    const prev = await ingredientModel.findUnique({ where: { id: data.id } }).catch(() => null);
+
+    const updated = await ingredientModel.update({
       where: { id: data.id },
       data: {
         ...(data.floorQuantity !== undefined ? { floorQuantity: Number(data.floorQuantity) } : {}),
         ...(data.warehouseQuantity !== undefined ? { warehouseQuantity: Number(data.warehouseQuantity) } : {}),
       },
     });
+
+    if (stockMovementModel && prev) {
+      const deltaFloor = data.floorQuantity !== undefined ? Number(data.floorQuantity) - Number(prev.floorQuantity || 0) : 0;
+      const deltaWh = data.warehouseQuantity !== undefined ? Number(data.warehouseQuantity) - Number(prev.warehouseQuantity || 0) : 0;
+      const totalDelta = deltaFloor + deltaWh;
+
+      if (totalDelta !== 0) {
+        await stockMovementModel.create({
+          data: {
+            ingredientId: data.id,
+            type: "OPNAME_ADJUSTMENT",
+            quantity: totalDelta,
+            balanceAfter: (Number(updated.floorQuantity) || 0) + (Number(updated.warehouseQuantity) || 0),
+            employeeName: data.employeeName || "Staf Outlet",
+            note: data.note || `Penyesuaian Opname Stok (${totalDelta > 0 ? "+" : ""}${totalDelta})`,
+          },
+        }).catch(() => null);
+      }
+    }
+
+    return updated;
   } catch (error) {
     console.error("Error updating ingredient stock:", error);
     throw error;
@@ -658,7 +685,8 @@ export async function processOrderCheckout(orderData: {
       },
     });
 
-    // Auto-deduct stock if recipes exist
+    // Auto-deduct stock if recipes exist & record StockMovement
+    const stockMovementModel = db.stockMovement || db.StockMovement;
     if (recipeModel && ingredientModel) {
       for (const item of orderData.items) {
         if (item.menuId) {
@@ -668,14 +696,28 @@ export async function processOrderCheckout(orderData: {
 
           for (const rec of recipes) {
             const totalDeduct = (Number(rec.quantityUsed) || 1) * item.quantity;
-            await ingredientModel.update({
+            const updatedIng = await ingredientModel.update({
               where: { id: rec.ingredientId },
               data: {
                 floorQuantity: {
                   decrement: totalDeduct,
                 },
               },
-            });
+            }).catch(() => null);
+
+            if (stockMovementModel && updatedIng) {
+              await stockMovementModel.create({
+                data: {
+                  ingredientId: rec.ingredientId,
+                  type: "SALE",
+                  quantity: -totalDeduct,
+                  balanceAfter: Number(updatedIng.floorQuantity) || 0,
+                  referenceId: order.orderNumber,
+                  employeeName: orderData.employeeName || "Kasir Outlet",
+                  note: `Penjualan POS #${order.orderNumber} (${item.menuName} x${item.quantity})`,
+                },
+              }).catch(() => null);
+            }
           }
         }
       }
@@ -973,22 +1015,28 @@ export async function savePurchase(data: {
       },
     });
 
-    // 2. Auto-sync to Raw Materials Inventory (Ingredient)
+    // 2. Auto-sync to Raw Materials Inventory (Ingredient) & StockMovement
+    const stockMovementModel = db.stockMovement || db.StockMovement;
     if (ingredientModel) {
       const matched = await ingredientModel.findFirst({
         where: { name: { contains: data.itemName } },
       });
 
+      let targetIngId = matched?.id;
+      let balanceAfter = 0;
+
       if (matched) {
-        await ingredientModel.update({
+        const updated = await ingredientModel.update({
           where: { id: matched.id },
           data: {
             floorQuantity: { increment: qty },
             hargaBeli: price > 0 ? price : matched.hargaBeli,
           },
         });
+        targetIngId = updated.id;
+        balanceAfter = (Number(updated.floorQuantity) || 0) + (Number(updated.warehouseQuantity) || 0);
       } else {
-        await ingredientModel.create({
+        const created = await ingredientModel.create({
           data: {
             name: data.itemName,
             category: "Bahan Baku",
@@ -999,6 +1047,22 @@ export async function savePurchase(data: {
             hargaBeli: price,
           },
         });
+        targetIngId = created.id;
+        balanceAfter = qty;
+      }
+
+      if (stockMovementModel && targetIngId) {
+        await stockMovementModel.create({
+          data: {
+            ingredientId: targetIngId,
+            type: "PURCHASE",
+            quantity: qty,
+            balanceAfter,
+            referenceId: newPurchase.id,
+            employeeName: "Sistem Pengadaan",
+            note: `Pembelian Manual: ${data.itemName} (${qty} item) dari ${data.supplierName || "-"}`,
+          },
+        }).catch(() => null);
       }
     }
 
@@ -1474,7 +1538,8 @@ export async function voidOrderWithAuditLog(data: {
       }).catch((e: any) => console.warn("Failed creating audit log:", e));
     }
 
-    // Restore stock if requested and recipes exist
+    // Restore stock if requested and recipes exist & log StockMovement
+    const stockMovementModel = db.stockMovement || db.StockMovement;
     if (data.restoreStock !== false && recipeModel && ingredientModel && order.items) {
       for (const item of order.items) {
         if (item.menuId) {
@@ -1484,7 +1549,7 @@ export async function voidOrderWithAuditLog(data: {
 
           for (const rec of recipes) {
             const totalAdd = (Number(rec.quantityUsed) || 1) * (Number(item.quantity) || 1);
-            await ingredientModel.update({
+            const updatedIng = await ingredientModel.update({
               where: { id: rec.ingredientId },
               data: {
                 floorQuantity: {
@@ -1492,6 +1557,20 @@ export async function voidOrderWithAuditLog(data: {
                 },
               },
             }).catch(() => null);
+
+            if (stockMovementModel && updatedIng) {
+              await stockMovementModel.create({
+                data: {
+                  ingredientId: rec.ingredientId,
+                  type: "CANCEL_RETURN",
+                  quantity: totalAdd,
+                  balanceAfter: Number(updatedIng.floorQuantity) || 0,
+                  referenceId: order.orderNumber,
+                  employeeName: approverName,
+                  note: `Pengembalian Stok Void Order #${order.orderNumber} (${item.menuName})`,
+                },
+              }).catch(() => null);
+            }
           }
         }
       }
@@ -1523,6 +1602,7 @@ export async function refundOrder(data: {
     const shiftModel = db.shiftLog || db.shiftlog || db.ShiftLog;
     const ingredientModel = db.ingredient || db.Ingredient;
     const recipeModel = db.recipeItem || db.RecipeItem;
+    const stockMovementModel = db.stockMovement || db.StockMovement;
 
     let approverName = data.approvedBy || "Supervisor";
     let isAuthorized = data.supervisorPin === "9999" || data.supervisorPin === "1234";
@@ -1595,7 +1675,7 @@ export async function refundOrder(data: {
       }).catch((e: any) => console.warn("Failed creating cash out for refund:", e));
     }
 
-    // Restore stock if requested
+    // Restore stock if requested & record StockMovement
     if (data.restoreStock !== false && recipeModel && ingredientModel && order.items) {
       for (const item of order.items) {
         if (item.menuId) {
@@ -1605,7 +1685,7 @@ export async function refundOrder(data: {
 
           for (const rec of recipes) {
             const totalAdd = (Number(rec.quantityUsed) || 1) * (Number(item.quantity) || 1);
-            await ingredientModel.update({
+            const updatedIng = await ingredientModel.update({
               where: { id: rec.ingredientId },
               data: {
                 floorQuantity: {
@@ -1613,6 +1693,20 @@ export async function refundOrder(data: {
                 },
               },
             }).catch(() => null);
+
+            if (stockMovementModel && updatedIng) {
+              await stockMovementModel.create({
+                data: {
+                  ingredientId: rec.ingredientId,
+                  type: "REFUND_RETURN",
+                  quantity: totalAdd,
+                  balanceAfter: Number(updatedIng.floorQuantity) || 0,
+                  referenceId: order.orderNumber,
+                  employeeName: approverName,
+                  note: `Pengembalian Stok Refund Order #${order.orderNumber} (${item.menuName})`,
+                },
+              }).catch(() => null);
+            }
           }
         }
       }
@@ -1642,6 +1736,111 @@ export async function getCancellationAuditLogs() {
     });
   } catch (err) {
     console.error("Error fetching cancellation audit logs:", err);
+    return [];
+  }
+}
+
+// =============================================================================
+// 8. WASTE / SPILLAGE LOGS & STOCK MOVEMENTS (FOR 100% INVENTORY INTEGRITY)
+// =============================================================================
+
+export async function createSpillageLog(data: {
+  ingredientId: string;
+  quantity: number;
+  reason: string;
+  reportedBy?: string;
+  location?: "floor" | "warehouse";
+}) {
+  try {
+    const spillageModel = db.spillageLog || db.spillagelog || db.SpillageLog;
+    const ingredientModel = db.ingredient || db.Ingredient;
+    const stockMovementModel = db.stockMovement || db.StockMovement;
+
+    const qty = Number(data.quantity) || 0;
+    if (qty <= 0) throw new Error("Jumlah waste harus lebih dari 0");
+
+    const ingredient = await ingredientModel.findUnique({
+      where: { id: data.ingredientId },
+    });
+
+    if (!ingredient) throw new Error("Bahan baku tidak ditemukan");
+
+    // Deduct stock from floor or warehouse
+    const isWarehouse = data.location === "warehouse";
+    const updateData = isWarehouse
+      ? { warehouseQuantity: { decrement: qty } }
+      : { floorQuantity: { decrement: qty } };
+
+    const updatedIng = await ingredientModel.update({
+      where: { id: data.ingredientId },
+      data: updateData,
+    });
+
+    // Create SpillageLog
+    let newLog = null;
+    if (spillageModel) {
+      newLog = await spillageModel.create({
+        data: {
+          ingredientId: data.ingredientId,
+          quantity: qty,
+          reason: data.reason || "Barang Rusak / Tumpah (Waste)",
+          reportedBy: data.reportedBy || "Staf Outlet",
+        },
+      });
+    }
+
+    // Create StockMovement
+    if (stockMovementModel) {
+      await stockMovementModel.create({
+        data: {
+          ingredientId: data.ingredientId,
+          type: "SPILLAGE",
+          quantity: -qty,
+          balanceAfter: Number(isWarehouse ? updatedIng.warehouseQuantity : updatedIng.floorQuantity) || 0,
+          employeeName: data.reportedBy || "Staf Outlet",
+          note: `Waste/Tumpah: ${data.reason || "Barang Rusak"} (${isWarehouse ? "Gudang" : "Bar/Store"})`,
+          referenceId: newLog?.id || undefined,
+        },
+      }).catch(() => null);
+    }
+
+    return { success: true, log: newLog, updatedIng };
+  } catch (err) {
+    console.error("Error creating spillage log:", err);
+    throw err;
+  }
+}
+
+export async function getSpillageLogs() {
+  try {
+    const spillageModel = db.spillageLog || db.spillagelog || db.SpillageLog;
+    if (!spillageModel) return [];
+    return await spillageModel.findMany({
+      include: {
+        ingredient: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (err) {
+    console.error("Error fetching spillage logs:", err);
+    return [];
+  }
+}
+
+export async function getStockMovements(ingredientId?: string) {
+  try {
+    const stockMovementModel = db.stockMovement || db.StockMovement;
+    if (!stockMovementModel) return [];
+    return await stockMovementModel.findMany({
+      where: ingredientId ? { ingredientId } : undefined,
+      include: {
+        ingredient: true,
+      },
+      orderBy: { timestamp: "desc" },
+      take: 200,
+    });
+  } catch (err) {
+    console.error("Error fetching stock movements:", err);
     return [];
   }
 }

@@ -50,12 +50,16 @@ import {
   savePaymentMethod,
   deletePaymentMethod,
   getSystemSettings,
-  saveSystemSetting
+  saveSystemSetting,
+  createSpillageLog,
+  getSpillageLogs,
+  getStockMovements
 } from "@/lib/actions";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
+  const ingredientId = searchParams.get("ingredientId") || undefined;
 
   try {
     if (type === "ingredients") return NextResponse.json(await getIngredients());
@@ -71,6 +75,8 @@ export async function GET(request: Request) {
     if (type === "expenses") return NextResponse.json(await getExpenses());
     if (type === "orders_history") return NextResponse.json(await getOrdersHistory());
     if (type === "cancellation_logs") return NextResponse.json(await getCancellationAuditLogs());
+    if (type === "stock_movements") return NextResponse.json(await getStockMovements(ingredientId));
+    if (type === "spillage_logs") return NextResponse.json(await getSpillageLogs());
     if (type === "payment_methods") return NextResponse.json(await getPaymentMethods());
     if (type === "settings") return NextResponse.json(await getSystemSettings());
 
@@ -109,6 +115,9 @@ export async function POST(request: Request) {
     if (type === "delete_order") return NextResponse.json(await deleteOrder(body.id));
     if (type === "void_order") return NextResponse.json(await voidOrderWithAuditLog(body));
     if (type === "refund_order") return NextResponse.json(await refundOrder(body));
+    
+    // Spillage / Waste
+    if (type === "save_spillage") return NextResponse.json(await createSpillageLog(body));
     
     // Extended Modules POST Handlers
     if (type === "save_employee") return NextResponse.json(await saveEmployee(body));
