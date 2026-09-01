@@ -158,7 +158,7 @@ export default function PaymentMethodsPage() {
       <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto text-slate-900 space-y-6 select-none">
         
         {/* Main Card Container */}
-        <div className="bg-white p-5 md:p-7 rounded-3xl border border-slate-200/90 shadow-2xs space-y-6">
+        <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-2xs space-y-6">
           
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
@@ -176,12 +176,12 @@ export default function PaymentMethodsPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button 
                 size="sm" 
                 variant="outline" 
                 onClick={fetchMethods} 
-                className="text-xs font-semibold gap-1.5 h-9 rounded-xl border-slate-200 hover:bg-slate-50"
+                className="text-xs font-semibold gap-1.5 min-h-[38px] rounded-xl border-slate-200 hover:bg-slate-50 active:scale-[0.98]"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
                 <span>Segarkan</span>
@@ -190,7 +190,7 @@ export default function PaymentMethodsPage() {
                 <Button
                   size="sm"
                   onClick={openAddModal}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs h-9 px-4 rounded-xl gap-1.5 cursor-pointer shadow-xs"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs min-h-[38px] px-4 rounded-xl gap-1.5 cursor-pointer shadow-xs active:scale-[0.98]"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Tambah Metode</span>
@@ -311,7 +311,7 @@ export default function PaymentMethodsPage() {
 
       {/* Modal Add / Edit Payment Method */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-md p-6 bg-white border border-slate-200 rounded-3xl select-none">
+        <DialogContent className="w-[95vw] sm:max-w-md max-h-[90dvh] overflow-y-auto p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl sm:rounded-3xl select-none">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900">
               {editingMethod ? "Edit Metode Pembayaran" : "Tambah Metode Pembayaran"}

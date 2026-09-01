@@ -230,8 +230,8 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
 
       {/* Sidebar Container */}
       <aside className={`
-        fixed top-0 bottom-0 left-0 z-50 w-72 max-w-[85vw] bg-card border-r flex flex-col justify-between transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none select-none
-        lg:translate-x-0 lg:static lg:h-screen lg:w-64 lg:shrink-0 lg:z-auto
+        fixed top-0 bottom-0 left-0 z-50 w-72 max-w-[85vw] bg-card border-r flex flex-col justify-between transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none select-none min-h-[100dvh] h-[100dvh]
+        lg:translate-x-0 lg:static lg:h-full lg:w-64 lg:shrink-0 lg:z-auto
         ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
       `}>
         {/* Sidebar Header / Branding */}

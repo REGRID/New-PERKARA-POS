@@ -573,11 +573,12 @@ export default function OrdersPage() {
 
             {/* Orders Table */}
             <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
-              <table className="w-full text-left border-collapse min-w-[700px]">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200/80 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-                    <th className="py-3 px-4">No. Nota</th>
-                    <th className="py-3 px-4">Pelanggan &amp; Waktu</th>
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full text-left border-collapse min-w-[700px]">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200/80 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                      <th className="py-3 px-4">No. Nota</th>
+                      <th className="py-3 px-4">Pelanggan &amp; Waktu</th>
                     <th className="py-3 px-4 text-center">Metode Bayar</th>
                     <th className="py-3 px-4 text-right">Total Transaksi</th>
                     <th className="py-3 px-4 text-center">Aksi</th>
@@ -676,6 +677,7 @@ export default function OrdersPage() {
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* Pagination Controls */}
@@ -790,83 +792,85 @@ export default function OrdersPage() {
 
             {/* Audit Logs Table */}
             <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
-              <table className="w-full text-left border-collapse min-w-[750px]">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200/80 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-                    <th className="py-3 px-4">Waktu</th>
-                    <th className="py-3 px-4">No. Order &amp; Kasir</th>
-                    <th className="py-3 px-4">Supervisor Penyetuju</th>
-                    <th className="py-3 px-4">Alasan &amp; Item Batal</th>
-                    <th className="py-3 px-4 text-right">Nilai Pembatalan</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
-                  {filteredCancellationLogs.length > 0 ? (
-                    filteredCancellationLogs.map((log: any) => {
-                      let itemsList: any[] = [];
-                      if (log.itemsSnapshot) {
-                        try {
-                          itemsList = JSON.parse(log.itemsSnapshot);
-                        } catch {}
-                      }
-                      if (itemsList.length === 0 && log.order?.items) {
-                        itemsList = log.order.items;
-                      }
-
-                      return (
-                        <tr key={log.id} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
-                            {new Date(log.createdAt).toLocaleString("id-ID", {
-                              day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
-                            })} WIB
-                          </td>
-
-                          <td className="py-3 px-4">
-                            <div className="font-bold text-slate-900">
-                              {log.order?.orderNumber || log.orderId || "-"}
-                            </div>
-                            <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                              <User className="w-3 h-3 text-slate-400" />
-                              <span>Kasir: {log.cashierName || log.order?.employeeName || "Kasir Outlet"}</span>
-                            </div>
-                          </td>
-
-                          <td className="py-3 px-4">
-                            <span className="font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded text-[11px]">
-                              {log.approvedBy || "Supervisor"}
-                            </span>
-                          </td>
-
-                          <td className="py-3 px-4 text-slate-700 max-w-xs">
-                            <div className="font-semibold text-slate-900">{log.reason}</div>
-                            {itemsList.length > 0 && (
-                              <div className="text-[11px] text-slate-500 mt-1 flex flex-wrap gap-1">
-                                {itemsList.map((it: any, idx: number) => (
-                                  <span key={idx} className="bg-slate-100 px-1.5 py-0.2 rounded text-[10px]">
-                                    {it.menuName || it.name} (x{it.quantity || it.qty})
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </td>
-
-                          <td className="py-3 px-4 text-right font-extrabold text-rose-700">
-                            Rp {Number(log.amount || 0).toLocaleString("id-ID")}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="py-12 text-center text-slate-400">
-                        <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                        <p className="font-bold text-xs text-slate-700">Belum ada riwayat pembatalan transaksi</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">Semua void kasir dan refund akan tercatat otomatis di sini.</p>
-                      </td>
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full text-left border-collapse min-w-[750px]">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200/80 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                      <th className="py-3 px-4">Waktu</th>
+                      <th className="py-3 px-4">No. Order &amp; Kasir</th>
+                      <th className="py-3 px-4">Supervisor Penyetuju</th>
+                      <th className="py-3 px-4">Alasan &amp; Item Batal</th>
+                      <th className="py-3 px-4 text-right">Nilai Pembatalan</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {filteredCancellationLogs.length > 0 ? (
+                      filteredCancellationLogs.map((log: any) => {
+                        let itemsList: any[] = [];
+                        if (log.itemsSnapshot) {
+                          try {
+                            itemsList = JSON.parse(log.itemsSnapshot);
+                          } catch {}
+                        }
+                        if (itemsList.length === 0 && log.order?.items) {
+                          itemsList = log.order.items;
+                        }
+
+                        return (
+                          <tr key={log.id} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
+                              {new Date(log.createdAt).toLocaleString("id-ID", {
+                                day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
+                              })} WIB
+                            </td>
+
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-slate-900">
+                                {log.order?.orderNumber || log.orderId || "-"}
+                              </div>
+                              <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                                <User className="w-3 h-3 text-slate-400" />
+                                <span>Kasir: {log.cashierName || log.order?.employeeName || "Kasir Outlet"}</span>
+                              </div>
+                            </td>
+
+                            <td className="py-3 px-4">
+                              <span className="font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded text-[11px]">
+                                {log.approvedBy || "Supervisor"}
+                              </span>
+                            </td>
+
+                            <td className="py-3 px-4 text-slate-700 max-w-xs">
+                              <div className="font-semibold text-slate-900">{log.reason}</div>
+                              {itemsList.length > 0 && (
+                                <div className="text-[11px] text-slate-500 mt-1 flex flex-wrap gap-1">
+                                  {itemsList.map((it: any, idx: number) => (
+                                    <span key={idx} className="bg-slate-100 px-1.5 py-0.2 rounded text-[10px]">
+                                      {it.menuName || it.name} (x{it.quantity || it.qty})
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+
+                            <td className="py-3 px-4 text-right font-extrabold text-rose-700 font-mono">
+                              Rp {Number(log.amount || 0).toLocaleString("id-ID")}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="py-12 text-center text-slate-400">
+                          <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                          <p className="font-bold text-xs text-slate-700">Belum ada riwayat pembatalan transaksi</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">Semua void kasir dan refund akan tercatat otomatis di sini.</p>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
           </div>
@@ -874,7 +878,7 @@ export default function OrdersPage() {
 
         {/* Modal Detail Order */}
         <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-          <DialogContent className="sm:max-w-md p-6 bg-white border border-slate-200 rounded-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="w-[95vw] sm:max-w-md p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl sm:rounded-3xl max-h-[90dvh] overflow-y-auto">
             {selectedOrder && (
               <div className="space-y-4 text-xs">
                 <DialogHeader>

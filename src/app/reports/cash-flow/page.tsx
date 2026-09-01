@@ -309,86 +309,90 @@ export default function CashFlowReportPage() {
             </span>
           </div>
 
-          {/* Table Container */}
+          {/* Table Container with Smooth Horizontal Scroll */}
           <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
-            <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-              <div className="col-span-3">WAKTU & PETUGAS</div>
-              <div className="col-span-2">TIPE</div>
-              <div className="col-span-2">JUMLAH (RP)</div>
-              <div className="col-span-3">CATATAN & BUKTI</div>
-              <div className="col-span-2 text-right">AKSI / NOTA</div>
-            </div>
-
-            <div className="divide-y divide-slate-100">
-              {filteredPettyLogs.length > 0 ? (
-                filteredPettyLogs.map((log) => (
-                  <div key={log.id} className="grid grid-cols-12 px-6 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
-                    <div className="col-span-3">
-                      <div className="font-bold text-slate-800">{log.petugas}</div>
-                      <div className="text-slate-400 font-mono text-[11px]">{log.waktu}</div>
-                    </div>
-
-                    <div className="col-span-2">
-                      {log.tipe === "OUT" ? (
-                        <span className="bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-lg inline-flex items-center gap-1">
-                          <ArrowUpRight className="w-3 h-3 text-amber-600" /> Kas Keluar
-                        </span>
-                      ) : (
-                        <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-lg inline-flex items-center gap-1">
-                          <ArrowDownLeft className="w-3 h-3 text-emerald-600" /> Kas Masuk
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="col-span-2 font-extrabold text-slate-900">
-                      Rp {Number(log.jumlah).toLocaleString("id-ID")}
-                    </div>
-
-                    <div className="col-span-3 text-slate-600 font-medium space-y-1">
-                      <div className="truncate">{log.catatan}</div>
-                      <div className="flex items-center gap-1">
-                        {log.receiptImage ? (
-                          <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                            <Camera className="w-2.5 h-2.5 text-emerald-600" /> Foto Terlampir
-                          </span>
-                        ) : (
-                          <span className="bg-slate-100 text-slate-600 text-[9px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                            <Receipt className="w-2.5 h-2.5 text-slate-500" /> E-Nota Slip
-                          </span>
-                        )}
-                        {log.voucherNumber && (
-                          <span className="text-[10px] text-slate-400 font-mono">#{log.voucherNumber}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="col-span-2 text-right flex items-center justify-end gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setSelectedProofTransaction(log)}
-                        className="text-[11px] h-7 px-2.5 rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100 gap-1 cursor-pointer"
-                        title="Buka Popup Bukti Nota"
-                      >
-                        <Eye className="w-3 h-3 text-indigo-600" />
-                        <span>Lihat Nota</span>
-                      </Button>
-
-                      <button 
-                        onClick={() => handleDeleteLog(log.id)}
-                        className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg transition-colors cursor-pointer"
-                        title="Hapus Catatan"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="p-8 text-center text-xs text-slate-400 font-medium">
-                  Belum ada transaksi kas kecil tercatat pada periode ini.
+            <div className="overflow-x-auto custom-scrollbar">
+              <div className="min-w-[680px]">
+                <div className="grid grid-cols-12 px-5 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
+                  <div className="col-span-3">WAKTU & PETUGAS</div>
+                  <div className="col-span-2">TIPE</div>
+                  <div className="col-span-2">JUMLAH (RP)</div>
+                  <div className="col-span-3">CATATAN & BUKTI</div>
+                  <div className="col-span-2 text-right">AKSI / NOTA</div>
                 </div>
-              )}
+
+                <div className="divide-y divide-slate-100">
+                  {filteredPettyLogs.length > 0 ? (
+                    filteredPettyLogs.map((log) => (
+                      <div key={log.id} className="grid grid-cols-12 px-5 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
+                        <div className="col-span-3">
+                          <div className="font-bold text-slate-800">{log.petugas}</div>
+                          <div className="text-slate-400 font-mono text-[11px]">{log.waktu}</div>
+                        </div>
+
+                        <div className="col-span-2">
+                          {log.tipe === "OUT" ? (
+                            <span className="bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-lg inline-flex items-center gap-1">
+                              <ArrowUpRight className="w-3 h-3 text-amber-600" /> Kas Keluar
+                            </span>
+                          ) : (
+                            <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-lg inline-flex items-center gap-1">
+                              <ArrowDownLeft className="w-3 h-3 text-emerald-600" /> Kas Masuk
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="col-span-2 font-extrabold text-slate-900 font-mono">
+                          Rp {Number(log.jumlah).toLocaleString("id-ID")}
+                        </div>
+
+                        <div className="col-span-3 text-slate-600 font-medium space-y-1">
+                          <div className="truncate">{log.catatan}</div>
+                          <div className="flex items-center gap-1">
+                            {log.receiptImage ? (
+                              <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                <Camera className="w-2.5 h-2.5 text-emerald-600" /> Foto Terlampir
+                              </span>
+                            ) : (
+                              <span className="bg-slate-100 text-slate-600 text-[9px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                <Receipt className="w-2.5 h-2.5 text-slate-500" /> E-Nota Slip
+                              </span>
+                            )}
+                            {log.voucherNumber && (
+                              <span className="text-[10px] text-slate-400 font-mono">#{log.voucherNumber}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="col-span-2 text-right flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedProofTransaction(log)}
+                            className="text-[11px] h-7 px-2.5 rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100 gap-1 cursor-pointer"
+                            title="Buka Popup Bukti Nota"
+                          >
+                            <Eye className="w-3 h-3 text-indigo-600" />
+                            <span>Lihat Nota</span>
+                          </Button>
+
+                          <button 
+                            onClick={() => handleDeleteLog(log.id)}
+                            className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+                            title="Hapus Catatan"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center text-xs text-slate-400 font-medium">
+                      Belum ada transaksi kas kecil tercatat pada periode ini.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 

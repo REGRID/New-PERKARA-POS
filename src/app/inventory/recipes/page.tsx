@@ -293,7 +293,7 @@ export default function RecipesAndMenuSettingsPage() {
 
         {/* Modal Setting / Edit Menu */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="w-[95vw] sm:max-w-xl max-h-[90dvh] overflow-y-auto rounded-2xl p-5">
             <DialogHeader>
               <DialogTitle className="text-base font-bold">
                 {editingMenu ? `Pengaturan Menu: ${editingMenu.name}` : "Tambah Menu Baru"}

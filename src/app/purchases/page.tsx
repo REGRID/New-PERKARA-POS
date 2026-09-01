@@ -808,7 +808,7 @@ export default function PurchasesPage() {
 
         {/* Modal Tambah / Edit Pembelian */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="sm:max-w-lg p-6 bg-white border border-slate-200 rounded-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="w-[95vw] sm:max-w-lg p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl sm:rounded-3xl max-h-[90dvh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-base font-bold text-slate-900">
                 {editingPurchase ? "Edit Catatan Pembelian" : "Tambah Transaksi Pembelian Baru"}
@@ -857,11 +857,11 @@ export default function PurchasesPage() {
               {/* Supplier / Vendor Dropdown */}
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Supplier / Vendor:</label>
-                <div className="grid grid-cols-12 gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <select
                     value={form.vendorId}
                     onChange={(e) => handleSelectVendor(e.target.value)}
-                    className="col-span-8 bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-semibold text-slate-900 focus:bg-white"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-semibold text-slate-900 focus:bg-white"
                   >
                     <option value="">-- Pilih dari Daftar Supplier --</option>
                     {vendors.map((v) => (
@@ -872,7 +872,7 @@ export default function PurchasesPage() {
                     value={form.supplierName}
                     onChange={(e) => setForm({ ...form, supplierName: e.target.value })}
                     placeholder="Nama Supplier"
-                    className="col-span-4 min-h-[38px] text-xs font-medium"
+                    className="w-full sm:w-1/3 min-h-[38px] text-xs font-medium"
                   />
                 </div>
               </div>
@@ -906,7 +906,7 @@ export default function PurchasesPage() {
               {/* Total Calculation Preview */}
               <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex justify-between items-center text-xs">
                 <span className="text-slate-500 font-semibold">Total Tagihan Pembelian:</span>
-                <strong className="text-sm font-extrabold text-indigo-700">
+                <strong className="text-sm font-extrabold text-indigo-700 font-mono">
                   Rp {(form.quantity * form.unitPrice).toLocaleString("id-ID")}
                 </strong>
               </div>
@@ -918,11 +918,12 @@ export default function PurchasesPage() {
                   <select
                     value={form.status}
                     onChange={(e) => setForm({ ...form, status: e.target.value as any })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900 focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-semibold text-slate-900 focus:bg-white"
                   >
                     <option value="RECEIVED">Diterima (Stok Masuk)</option>
-                    <option value="ORDERED">Dipesan ke Vendor (PO)</option>
-                    <option value="DRAFT">Draft Rencana</option>
+                    <option value="ORDERED">Dipesan (Menunggu)</option>
+                    <option value="DRAFT">Draft</option>
+                    <option value="CANCELLED">Dibatalkan</option>
                   </select>
                 </div>
 
@@ -931,30 +932,30 @@ export default function PurchasesPage() {
                   <select
                     value={form.paymentStatus}
                     onChange={(e) => setForm({ ...form, paymentStatus: e.target.value as any })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900 focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-semibold text-slate-900 focus:bg-white"
                   >
-                    <option value="PAID">Lunas (Kas Keluar)</option>
-                    <option value="UNPAID">Tempo (Hutang Dagang)</option>
+                    <option value="PAID">Lunas (Paid)</option>
+                    <option value="UNPAID">Hutang / Belum Bayar</option>
                   </select>
                 </div>
               </div>
 
               {/* Notes */}
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Catatan / Keterangan:</label>
+                <label className="font-bold text-slate-700 block mb-1">Catatan Tambahan:</label>
                 <Input
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder="Keterangan nomor faktur atau PO"
-                  className="min-h-[38px] text-xs"
+                  placeholder="nomor faktur, tempo bayar, dll."
+                  className="min-h-[38px] text-xs font-medium"
                 />
               </div>
 
-              <DialogFooter className="gap-2 pt-3 border-t">
-                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="text-xs rounded-xl">
+              <DialogFooter className="pt-2 border-t flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="rounded-xl text-xs">
                   Batal
                 </Button>
-                <Button type="submit" disabled={submitting || !form.itemName.trim()} className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl px-5 cursor-pointer">
+                <Button type="submit" disabled={submitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs">
                   {submitting ? "Menyimpan..." : "Simpan Pembelian"}
                 </Button>
               </DialogFooter>
@@ -964,7 +965,7 @@ export default function PurchasesPage() {
 
         {/* Modal Tambah / Edit Supplier (Vendor) */}
         <Dialog open={isVendorModalOpen} onOpenChange={setIsVendorModalOpen}>
-          <DialogContent className="sm:max-w-md p-6 bg-white border border-slate-200 rounded-3xl">
+          <DialogContent className="w-[95vw] sm:max-w-md p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl sm:rounded-3xl max-h-[90dvh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-base font-bold text-slate-900">
                 {editingVendor ? "Edit Data Supplier" : "Tambah Data Supplier Baru"}

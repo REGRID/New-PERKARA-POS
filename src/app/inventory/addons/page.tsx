@@ -349,7 +349,7 @@ export default function AddonStockPage() {
 
       {/* Modal Add / Edit Addon Category */}
       <Dialog open={isCatModalOpen} onOpenChange={setIsCatModalOpen}>
-        <DialogContent className="sm:max-w-sm rounded-2xl">
+        <DialogContent className="w-[95vw] sm:max-w-sm max-h-[90dvh] overflow-y-auto rounded-2xl p-5">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900">
               {editingCat ? "Edit Kategori Add-on" : "Tambah Kategori Add-on"}
@@ -395,7 +395,7 @@ export default function AddonStockPage() {
 
       {/* Modal Add / Edit Addon Item */}
       <Dialog open={isItemModalOpen} onOpenChange={setIsItemModalOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogContent className="w-[95vw] sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl p-5">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900">
               {editingItem ? "Edit Opsi Add-on" : "Tambah Opsi Add-on Baru"}

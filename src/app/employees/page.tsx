@@ -135,7 +135,7 @@ export default function EmployeesPage() {
       <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto text-slate-900 space-y-6">
         
         {/* Prominent Outer Card Container */}
-        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-2xs space-y-6">
+        <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-2xs space-y-6">
           
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">

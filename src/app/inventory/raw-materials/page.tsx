@@ -724,139 +724,142 @@ export default function RawMaterialsPage() {
               </div>
 
               <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
-                <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-                  <div className="col-span-5">NAMA BAHAN BAKU</div>
-                  <div className="col-span-2 text-center">STATUS STOK</div>
-                  <div className="col-span-3 text-center">STOK FISIK BAR</div>
-                  <div className="col-span-2 text-right">AKSI</div>
-                </div>
+                <div className="overflow-x-auto custom-scrollbar">
+                  <div className="min-w-[680px]">
+                    <div className="grid grid-cols-12 px-5 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
+                      <div className="col-span-5">NAMA BAHAN BAKU</div>
+                      <div className="col-span-2 text-center">STATUS STOK</div>
+                      <div className="col-span-3 text-center">STOK FISIK BAR</div>
+                      <div className="col-span-2 text-right">AKSI</div>
+                    </div>
 
-                {/* Group Items by Category */}
-                <div className="divide-y divide-slate-100">
-                  {categories.map((catName) => {
-                    const catItems = filtered.filter((m) => (m.category || "Bahan Baku") === catName);
-                    if (catItems.length === 0) return null;
+                    {/* Group Items by Category */}
+                    <div className="divide-y divide-slate-100">
+                      {categories.map((catName) => {
+                        const catItems = filtered.filter((m) => (m.category || "Bahan Baku") === catName);
+                        if (catItems.length === 0) return null;
 
-                    return (
-                      <div key={catName} className="space-y-0">
-                        <div className="bg-slate-50/90 px-6 py-3 flex items-center gap-2 border-y border-slate-200/80">
-                          <Tag className="w-3.5 h-3.5 text-amber-600" />
-                          <span className="font-extrabold text-xs uppercase tracking-wider text-slate-900">
-                            {catName}
-                          </span>
-                          <Badge className="bg-white text-slate-600 text-[10px] font-bold px-2 py-0.5 border border-slate-200">
-                            {catItems.length} Item
-                          </Badge>
-                        </div>
+                        return (
+                          <div key={catName} className="space-y-0">
+                            <div className="bg-slate-50/90 px-5 py-3 flex items-center gap-2 border-y border-slate-200/80">
+                              <Tag className="w-3.5 h-3.5 text-amber-600" />
+                              <span className="font-extrabold text-xs uppercase tracking-wider text-slate-900">
+                                {catName}
+                              </span>
+                              <Badge className="bg-white text-slate-600 text-[10px] font-bold px-2 py-0.5 border border-slate-200">
+                                {catItems.length} Item
+                              </Badge>
+                            </div>
 
-                        <div className="divide-y divide-slate-100">
-                          {catItems.map((item) => {
-                            const hargaBeli = Number(item.hargaBeli || 100000);
-                            const conversion = Number(item.conversionRatio || 1000);
-                            const isPercent = item.isPercentageMode || item.unit === "%";
-                            const floorQty = Number(item.floorQuantity) || 0;
-                            const whQty = Number(item.warehouseQuantity) || 0;
-                            const totalQty = floorQty + whQty;
-                            const minAlert = Number(item.minStockAlert) || 10;
-                            const isCritical = totalQty <= minAlert;
-                            const isLow = !isCritical && totalQty <= minAlert * 1.5;
+                            <div className="divide-y divide-slate-100">
+                              {catItems.map((item) => {
+                                const hargaBeli = Number(item.hargaBeli || 100000);
+                                const conversion = Number(item.conversionRatio || 1000);
+                                const isPercent = item.isPercentageMode || item.unit === "%";
+                                const floorQty = Number(item.floorQuantity) || 0;
+                                const whQty = Number(item.warehouseQuantity) || 0;
+                                const totalQty = floorQty + whQty;
+                                const minAlert = Number(item.minStockAlert) || 10;
+                                const isCritical = totalQty <= minAlert;
+                                const isLow = !isCritical && totalQty <= minAlert * 1.5;
 
-                            return (
-                              <div key={item.id} className="grid grid-cols-12 px-6 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
-                                
-                                {/* Col 1: Name & Price */}
-                                <div className="col-span-5 space-y-0.5">
-                                  <h4 className="font-extrabold text-slate-900 text-sm">{item.name}</h4>
-                                  <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
-                                    <span>{isAdmin ? `Rp ${hargaBeli.toLocaleString("id-ID")} / ${item.buyUnit || "Pcs"}` : `Kemasan: ${item.buyUnit || "Pcs"}`}</span>
-                                    <span>•</span>
-                                    <span>Min Alert: {minAlert} {item.buyUnit || item.unit}</span>
+                                return (
+                                  <div key={item.id} className="grid grid-cols-12 px-5 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
+                                    
+                                    {/* Col 1: Name & Price */}
+                                    <div className="col-span-5 space-y-0.5">
+                                      <h4 className="font-extrabold text-slate-900 text-sm">{item.name}</h4>
+                                      <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+                                        <span>{isAdmin ? `Rp ${hargaBeli.toLocaleString("id-ID")} / ${item.buyUnit || "Pcs"}` : `Kemasan: ${item.buyUnit || "Pcs"}`}</span>
+                                        <span>•</span>
+                                        <span>Min Alert: {minAlert} {item.buyUnit || item.unit}</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Col 2: Stock Level Status Badge */}
+                                    <div className="col-span-2 flex justify-center">
+                                      {isCritical ? (
+                                        <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 font-extrabold text-[10px] flex items-center gap-1">
+                                          <AlertTriangle className="w-3 h-3" /> KRITIS
+                                        </span>
+                                      ) : isLow ? (
+                                        <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-extrabold text-[10px] flex items-center gap-1">
+                                          MENIPIS
+                                        </span>
+                                      ) : (
+                                        <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px] flex items-center gap-1">
+                                          AMAN
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Col 3: Stock Bar Controls [-] [input] [+] Unit */}
+                                    <div className="col-span-3 flex items-center justify-center gap-1.5">
+                                      <button
+                                        onClick={() => handleFloorStockChange(item.id, -1)}
+                                        className="w-7 h-7 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
+                                      >
+                                        -
+                                      </button>
+
+                                      <input
+                                        type="number"
+                                        value={item.floorQuantity ?? 0}
+                                        onChange={(e) => handleFloorStockDirectInput(item.id, e.target.value)}
+                                        className="w-16 h-7 rounded-lg border border-slate-200 bg-white text-center font-extrabold text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                      />
+
+                                      <button
+                                        onClick={() => handleFloorStockChange(item.id, 1)}
+                                        className="w-7 h-7 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
+                                      >
+                                        +
+                                      </button>
+
+                                      <span className="text-xs text-slate-600 font-semibold min-w-[36px]">
+                                        {isPercent ? "%" : (item.buyUnit || item.unit || "Pcs")}
+                                      </span>
+                                    </div>
+
+                                    {/* Col 4: Action Buttons */}
+                                    <div className="col-span-2 flex items-center justify-end gap-1.5">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => { setRestockItem(item); setRestockQty(1); }}
+                                        className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-semibold rounded-xl min-h-[32px] px-2.5 cursor-pointer"
+                                      >
+                                        Restock
+                                      </Button>
+
+                                      <button
+                                        onClick={() => handleOpenSpillageModal(item)}
+                                        className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                        title="Catat Barang Rusak / Tumpah"
+                                      >
+                                        <AlertOctagon className="w-4 h-4" />
+                                      </button>
+
+                                      {isAdmin && (
+                                        <button
+                                          onClick={() => handleOpenAdminEdit(item)}
+                                          className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                          title="Edit Detail Bahan & Konversi HPP"
+                                        >
+                                          <Pencil className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                    </div>
+
                                   </div>
-                                </div>
-
-                                {/* Col 2: Stock Level Status Badge */}
-                                <div className="col-span-2 flex justify-center">
-                                  {isCritical ? (
-                                    <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 font-extrabold text-[10px] flex items-center gap-1">
-                                      <AlertTriangle className="w-3 h-3" />
-                                      <span>Kritis</span>
-                                    </span>
-                                  ) : isLow ? (
-                                    <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-bold text-[10px] flex items-center gap-1">
-                                      <span>Menipis</span>
-                                    </span>
-                                  ) : (
-                                    <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-semibold text-[10px] flex items-center gap-1">
-                                      <span>Aman</span>
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* Col 3: Stock Bar Controls [-] [input] [+] Unit */}
-                                <div className="col-span-3 flex items-center justify-center gap-1.5">
-                                  <button
-                                    onClick={() => handleFloorStockChange(item.id, -1)}
-                                    className="w-7 h-7 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
-                                  >
-                                    -
-                                  </button>
-
-                                  <input
-                                    type="number"
-                                    value={item.floorQuantity ?? 0}
-                                    onChange={(e) => handleFloorStockDirectInput(item.id, e.target.value)}
-                                    className="w-16 h-7 rounded-lg border border-slate-200 bg-white text-center font-extrabold text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                                  />
-
-                                  <button
-                                    onClick={() => handleFloorStockChange(item.id, 1)}
-                                    className="w-7 h-7 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
-                                  >
-                                    +
-                                  </button>
-
-                                  <span className="text-xs text-slate-600 font-semibold min-w-[36px]">
-                                    {isPercent ? "%" : (item.buyUnit || item.unit || "Pcs")}
-                                  </span>
-                                </div>
-
-                                {/* Col 4: Action Buttons */}
-                                <div className="col-span-2 flex items-center justify-end gap-1.5">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => { setRestockItem(item); setRestockQty(1); }}
-                                    className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-semibold rounded-xl min-h-[32px] px-2.5 cursor-pointer"
-                                  >
-                                    Restock
-                                  </Button>
-
-                                  <button
-                                    onClick={() => handleOpenSpillageModal(item)}
-                                    className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                                    title="Catat Barang Rusak / Tumpah"
-                                  >
-                                    <AlertOctagon className="w-4 h-4" />
-                                  </button>
-
-                                  {isAdmin && (
-                                    <button
-                                      onClick={() => handleOpenAdminEdit(item)}
-                                      className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                                      title="Edit Detail Bahan & Konversi HPP"
-                                    >
-                                      <Pencil className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                </div>
-
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

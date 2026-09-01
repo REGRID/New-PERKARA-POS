@@ -124,7 +124,7 @@ export default function TablesPage() {
       <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto text-slate-900 space-y-6">
         
         {/* Prominent Outer Card Container */}
-        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-2xs space-y-6">
+        <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-2xs space-y-6">
           
           {/* Card Header & Main Action */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -142,15 +142,15 @@ export default function TablesPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={fetchTables} className="text-xs gap-1.5 min-h-[40px] rounded-xl">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button size="sm" variant="outline" onClick={fetchTables} className="text-xs gap-1.5 min-h-[38px] rounded-xl active:scale-[0.98]">
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
                 <span>Segarkan</span>
               </Button>
               {isAdmin && (
                 <Button
                   onClick={openAddModal}
-                  className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs px-4 py-2.5 rounded-xl min-h-[40px] gap-2 shadow-xs shrink-0 cursor-pointer"
+                  className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs px-4 py-2 rounded-xl min-h-[38px] gap-2 shadow-xs shrink-0 cursor-pointer active:scale-[0.98]"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Tambah Meja</span>
@@ -278,7 +278,7 @@ export default function TablesPage() {
 
       {/* Modal Add / Edit Table */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogContent className="w-[95vw] sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl p-5">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900">
               {editingTable ? "Ubah Data Meja" : "Tambah Meja"}

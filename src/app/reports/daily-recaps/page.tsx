@@ -227,9 +227,9 @@ export default function DailyRecapsPage() {
 
         {/* Riwayat Shift Terkini */}
         {shiftLogs.length > 0 && (
-          <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
+          <div className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
             <h3 className="text-sm font-extrabold text-slate-900">Riwayat Shift Kasir Terkini</h3>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto custom-scrollbar">
               <table className="w-full text-left text-xs border-collapse min-w-[600px]">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
