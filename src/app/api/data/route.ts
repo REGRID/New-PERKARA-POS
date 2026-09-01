@@ -45,11 +45,21 @@ import {
   updateOrderStatus,
   deleteOrder,
   deleteAllOrders,
+  voidOrderWithAuditLog,
+  refundOrder,
+  getCancellationAuditLogs,
   getPaymentMethods,
   savePaymentMethod,
   deletePaymentMethod,
   getSystemSettings,
-  saveSystemSetting
+  saveSystemSetting,
+  createSpillageLog,
+  getSpillageLogs,
+  getStockMovements,
+  getVendors,
+  saveVendor,
+  deleteVendor,
+  updatePurchaseStatus
 } from "@/lib/actions";
 
 // Actions strictly restricted to Admin / Owner / Manager
@@ -78,6 +88,7 @@ const ADMIN_ONLY_ACTIONS = new Set([
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
+  const ingredientId = searchParams.get("ingredientId") || undefined;
 
   try {
     if (type === "ingredients") return NextResponse.json(await getIngredients());
@@ -87,11 +98,15 @@ export async function GET(request: Request) {
     if (type === "addon_categories") return NextResponse.json(await getAddonCategories());
     if (type === "categories") return NextResponse.json(await getCategories());
     if (type === "purchases") return NextResponse.json(await getPurchases());
+    if (type === "vendors") return NextResponse.json(await getVendors());
     if (type === "discounts") return NextResponse.json(await getDiscounts());
     if (type === "tables") return NextResponse.json(await getDiningTables());
     if (type === "customers") return NextResponse.json(await getCustomers());
     if (type === "expenses") return NextResponse.json(await getExpenses());
     if (type === "orders_history") return NextResponse.json(await getOrdersHistory());
+    if (type === "cancellation_logs") return NextResponse.json(await getCancellationAuditLogs());
+    if (type === "stock_movements") return NextResponse.json(await getStockMovements(ingredientId));
+    if (type === "spillage_logs") return NextResponse.json(await getSpillageLogs());
     if (type === "payment_methods") return NextResponse.json(await getPaymentMethods());
     if (type === "settings") return NextResponse.json(await getSystemSettings());
 
@@ -145,6 +160,11 @@ export async function POST(request: Request) {
     if (type === "update_order_status") return NextResponse.json(await updateOrderStatus(body));
     if (type === "delete_order") return NextResponse.json(await deleteOrder(body.id));
     if (type === "delete_all_orders") return NextResponse.json(await deleteAllOrders());
+    if (type === "void_order") return NextResponse.json(await voidOrderWithAuditLog(body));
+    if (type === "refund_order") return NextResponse.json(await refundOrder(body));
+    
+    // Spillage / Waste
+    if (type === "save_spillage") return NextResponse.json(await createSpillageLog(body));
     
     // 6. Extended Modules POST Handlers
     if (type === "save_employee") return NextResponse.json(await saveEmployee(body));
@@ -154,7 +174,10 @@ export async function POST(request: Request) {
     if (type === "save_category") return NextResponse.json(await saveCategory(body));
     if (type === "delete_category") return NextResponse.json(await deleteCategory(body.id));
     if (type === "save_purchase") return NextResponse.json(await savePurchase(body));
+    if (type === "update_purchase_status") return NextResponse.json(await updatePurchaseStatus(body));
     if (type === "delete_purchase") return NextResponse.json(await deletePurchase(body.id));
+    if (type === "save_vendor") return NextResponse.json(await saveVendor(body));
+    if (type === "delete_vendor") return NextResponse.json(await deleteVendor(body.id));
     if (type === "save_discount") return NextResponse.json(await saveDiscount(body));
     if (type === "delete_discount") return NextResponse.json(await deleteDiscount(body.id));
     if (type === "save_table") return NextResponse.json(await saveDiningTable(body));

@@ -14,7 +14,19 @@ import {
   SlidersHorizontal,
   Trash2,
   Calculator,
-  Percent
+  Percent,
+  AlertTriangle,
+  History,
+  TrendingDown,
+  TrendingUp,
+  AlertOctagon,
+  FileSpreadsheet,
+  CheckCircle2,
+  PackageX,
+  ArrowDownRight,
+  ArrowUpRight,
+  ShieldAlert,
+  ShoppingCart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,45 +50,43 @@ const parseRupiahInput = (val: string) => {
 
 export default function RawMaterialsPage() {
   const { user, isAdmin } = useAuth();
+  const [activeMainTab, setActiveMainTab] = useState<"inventory" | "movements" | "spillage">("inventory");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryTab, setSelectedCategoryTab] = useState("Semua");
   const [activeSubMode, setActiveSubMode] = useState<"bar" | "warehouse">("bar");
+  
+  // Data States
   const [materials, setMaterials] = useState<any[]>([]);
+  const [stockMovements, setStockMovements] = useState<any[]>([]);
+  const [spillageLogs, setSpillageLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [loadingMovements, setLoadingMovements] = useState(false);
+  const [loadingSpillage, setLoadingSpillage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // WhatsApp & Category State
+  // Filter for Stock Movements
+  const [movementFilterType, setMovementFilterType] = useState<string>("SEMUA");
+
+  // Modals
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [categoriesList, setCategoriesList] = useState<string[]>(["Semua", "Bahan Baku", "Kemasan", "Operasional", "Powder", "Syrup"]);
-
-  // Admin Edit Modal State
   const [selectedAdminEditItem, setSelectedAdminEditItem] = useState<any>(null);
+  const [restockItem, setRestockItem] = useState<any>(null);
+  const [restockQty, setRestockQty] = useState<number>(1);
 
-  const handleSendStockWa = () => {
-    const todayStr = new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-    let message = `*📊 LAPORAN STOK FISIK OUTLET*\nTanggal: ${todayStr}\n\n`;
-    
-    materials.forEach((m, idx) => {
-      const isPercent = m.isPercentageMode || m.unit === "%";
-      const unit = isPercent ? "%" : (m.buyUnit || m.unit || "Pcs");
-      message += `${idx + 1}. *${m.name}*: ${m.floorQuantity || 0} ${unit}\n`;
-    });
+  // Spillage / Waste Modal
+  const [isSpillageModalOpen, setIsSpillageModalOpen] = useState(false);
+  const [spillageForm, setSpillageForm] = useState({
+    ingredientId: "",
+    quantity: 1,
+    location: "floor" as "floor" | "warehouse",
+    reason: "Tumpah saat pembuatan pesanan",
+    customReason: "",
+    reportedBy: user?.name || "Staf Outlet",
+  });
 
-    message += `\n_Dikirim otomatis dari Perkara POS Superapp_`;
-    const encoded = encodeURIComponent(message);
-    window.open(`https://wa.me/?text=${encoded}`, "_blank");
-  };
-
-  const handleAddCategory = () => {
-    if (!newCategoryName.trim()) return;
-    if (!categoriesList.includes(newCategoryName.trim())) {
-      setCategoriesList([...categoriesList, newCategoryName.trim()]);
-    }
-    setNewCategoryName("");
-    setIsCategoryModalOpen(false);
-  };
   const [adminEditForm, setAdminEditForm] = useState({
     name: "",
     category: "Bahan Baku",
@@ -90,10 +100,6 @@ export default function RawMaterialsPage() {
     isPercentageMode: false,
   });
 
-  // Restock Modal
-  const [restockItem, setRestockItem] = useState<any>(null);
-  const [restockQty, setRestockQty] = useState<number>(1);
-
   // Form State for New Item
   const [formData, setFormData] = useState({
     name: "",
@@ -104,8 +110,17 @@ export default function RawMaterialsPage() {
     floorQuantity: 1,
     warehouseQuantity: 0,
     hargaBeli: 100000,
+    minStockAlert: 10,
     isPercentageMode: false,
   });
+
+  const DEFAULT_FALLBACK_MATERIALS = [
+    { id: "ing-1", sku: "RAW-KOPI-001", name: "Biji Kopi Espresso Blend", category: "Bahan Baku", buyUnit: "Kg", unit: "gram", conversionRatio: 1000, floorQuantity: 5000, warehouseQuantity: 10000, minStockAlert: 2000, hargaBeli: 180000, costPerUseUnit: 180 },
+    { id: "ing-2", sku: "RAW-SUSU-002", name: "Susu UHT Full Cream 1L", category: "Bahan Baku", buyUnit: "Karton", unit: "ml", conversionRatio: 12000, floorQuantity: 2000, warehouseQuantity: 0, minStockAlert: 5000, hargaBeli: 210000, costPerUseUnit: 17.5 },
+    { id: "ing-3", sku: "RAW-SIRU-003", name: "Sirup Gula Aren Premium 1L", category: "Bahan Baku", buyUnit: "Botol", unit: "ml", conversionRatio: 1000, floorQuantity: 3000, warehouseQuantity: 6000, minStockAlert: 1000, hargaBeli: 65000, costPerUseUnit: 65 },
+    { id: "ing-4", sku: "RAW-MATC-004", name: "Powder Matcha Uji Pure 500g", category: "Bahan Baku", buyUnit: "Pack", unit: "gram", conversionRatio: 500, floorQuantity: 250, warehouseQuantity: 0, minStockAlert: 500, hargaBeli: 145000, costPerUseUnit: 290 },
+    { id: "ing-5", sku: "RAW-CUP1-005", name: "Cup Plastik PET 16oz + Lid", category: "Operasional", buyUnit: "Karton", unit: "pcs", conversionRatio: 1000, floorQuantity: 150, warehouseQuantity: 0, minStockAlert: 300, hargaBeli: 350000, costPerUseUnit: 350 },
+  ];
 
   const fetchIngredients = async () => {
     try {
@@ -125,9 +140,94 @@ export default function RawMaterialsPage() {
     }
   };
 
+  const fetchStockMovements = async () => {
+    try {
+      setLoadingMovements(true);
+      const res = await fetch("/api/data?type=stock_movements");
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json)) setStockMovements(json);
+      }
+    } catch (err) {
+      console.error("Error fetching stock movements:", err);
+    } finally {
+      setLoadingMovements(false);
+    }
+  };
+
+  const fetchSpillageLogs = async () => {
+    try {
+      setLoadingSpillage(true);
+      const res = await fetch("/api/data?type=spillage_logs");
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json)) setSpillageLogs(json);
+      }
+    } catch (err) {
+      console.error("Error fetching spillage logs:", err);
+    } finally {
+      setLoadingSpillage(false);
+    }
+  };
+
   useEffect(() => {
     fetchIngredients();
   }, []);
+
+  useEffect(() => {
+    if (activeMainTab === "movements") {
+      fetchStockMovements();
+    } else if (activeMainTab === "spillage") {
+      fetchSpillageLogs();
+    }
+  }, [activeMainTab]);
+
+  // Critical Low Stock Items (Reorder Point Alert)
+  const criticalStockItems = materials.filter((m) => {
+    const totalQty = (Number(m.floorQuantity) || 0) + (Number(m.warehouseQuantity) || 0);
+    const minAlert = Number(m.minStockAlert) || 10;
+    return totalQty <= minAlert;
+  });
+
+  const handleSendStockWa = () => {
+    const todayStr = new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+    let message = `*📊 LAPORAN STOK FISIK OUTLET*\nTanggal: ${todayStr}\n\n`;
+    
+    materials.forEach((m, idx) => {
+      const isPercent = m.isPercentageMode || m.unit === "%";
+      const unit = isPercent ? "%" : (m.buyUnit || m.unit || "Pcs");
+      message += `${idx + 1}. *${m.name}*: ${m.floorQuantity || 0} ${unit}\n`;
+    });
+
+    message += `\n_Dikirim otomatis dari Perkara POS Superapp_`;
+    const encoded = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encoded}`, "_blank");
+  };
+
+  const handleSendReorderWa = () => {
+    const todayStr = new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+    let message = `*🚨 REKAP PERMINTAAN REORDER BAHAN KRITIS*\nTanggal: ${todayStr}\n\n`;
+    message += `Mohon pengadaan/pengiriman segera untuk bahan baku berikut:\n`;
+
+    criticalStockItems.forEach((m, idx) => {
+      const totalStock = (Number(m.floorQuantity) || 0) + (Number(m.warehouseQuantity) || 0);
+      const unit = m.buyUnit || m.unit || "Pcs";
+      message += `${idx + 1}. *${m.name}* (Sisa: ${totalStock} ${unit}, Min: ${m.minStockAlert} ${unit})\n`;
+    });
+
+    message += `\n_Dikirim dari Modul Manajemen Stok Perkara POS_`;
+    const encoded = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encoded}`, "_blank");
+  };
+
+  const handleAddCategory = () => {
+    if (!newCategoryName.trim()) return;
+    if (!categoriesList.includes(newCategoryName.trim())) {
+      setCategoriesList([...categoriesList, newCategoryName.trim()]);
+    }
+    setNewCategoryName("");
+    setIsCategoryModalOpen(false);
+  };
 
   // Update Floor Quantity (+ / -)
   const handleFloorStockChange = async (id: string, delta: number) => {
@@ -141,7 +241,12 @@ export default function RawMaterialsPage() {
       await fetch("/api/data?type=update_stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, floorQuantity: newQty }),
+        body: JSON.stringify({ 
+          id, 
+          floorQuantity: newQty,
+          employeeName: user?.name || "Staf Outlet",
+          note: `Quick Adjust ${delta > 0 ? "+" : ""}${delta}`
+        }),
       });
     } catch (err) {
       console.error("Failed to update floor stock:", err);
@@ -157,7 +262,12 @@ export default function RawMaterialsPage() {
       await fetch("/api/data?type=update_stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, floorQuantity: numVal }),
+        body: JSON.stringify({ 
+          id, 
+          floorQuantity: numVal,
+          employeeName: user?.name || "Staf Outlet",
+          note: "Input Opname Manual"
+        }),
       });
     } catch (err) {
       console.error("Failed to update floor stock input:", err);
@@ -175,10 +285,58 @@ export default function RawMaterialsPage() {
       await fetch("/api/data?type=update_stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: restockItem.id, floorQuantity: newFloorQty }),
+        body: JSON.stringify({ 
+          id: restockItem.id, 
+          floorQuantity: newFloorQty,
+          employeeName: user?.name || "Staf Outlet",
+          note: `Restock Cepat +${restockQty}`
+        }),
       });
+      await fetchIngredients();
     } catch (err) {
       console.error("Failed to restock:", err);
+    }
+  };
+
+  // Handle Spillage / Waste Submit
+  const handleSaveSpillage = async () => {
+    if (!spillageForm.ingredientId || spillageForm.quantity <= 0) return;
+    try {
+      setSubmitting(true);
+      const finalReason = spillageForm.reason === "Lainnya" 
+        ? spillageForm.customReason || "Waste Lainnya"
+        : spillageForm.reason;
+
+      const res = await fetch("/api/data?type=save_spillage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ingredientId: spillageForm.ingredientId,
+          quantity: Number(spillageForm.quantity),
+          location: spillageForm.location,
+          reason: finalReason,
+          reportedBy: spillageForm.reportedBy || user?.name || "Staf Outlet",
+        }),
+      });
+
+      if (res.ok) {
+        setIsSpillageModalOpen(false);
+        setSpillageForm({
+          ingredientId: "",
+          quantity: 1,
+          location: "floor",
+          reason: "Tumpah saat pembuatan pesanan",
+          customReason: "",
+          reportedBy: user?.name || "Staf Outlet",
+        });
+        await fetchIngredients();
+        if (activeMainTab === "spillage") await fetchSpillageLogs();
+        if (activeMainTab === "movements") await fetchStockMovements();
+      }
+    } catch (err) {
+      console.error("Error saving spillage:", err);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -241,6 +399,7 @@ export default function RawMaterialsPage() {
           floorQuantity: 1,
           warehouseQuantity: 0,
           hargaBeli: 100000,
+          minStockAlert: 10,
           isPercentageMode: false,
         });
         await fetchIngredients();
@@ -269,7 +428,20 @@ export default function RawMaterialsPage() {
     });
   };
 
-  // Filter items
+  // Open Spillage Modal for specific item
+  const handleOpenSpillageModal = (item?: any) => {
+    setSpillageForm({
+      ingredientId: item?.id || materials[0]?.id || "",
+      quantity: 1,
+      location: "floor",
+      reason: "Tumpah saat pembuatan pesanan",
+      customReason: "",
+      reportedBy: user?.name || "Staf Outlet",
+    });
+    setIsSpillageModalOpen(true);
+  };
+
+  // Filter items for Materials View
   const filtered = materials.filter((m) => {
     const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (m.category && m.category.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -279,6 +451,24 @@ export default function RawMaterialsPage() {
   });
 
   const categories = Array.from(new Set(materials.map((m) => m.category || "Bahan Baku")));
+
+  // Filter Stock Movements
+  const filteredMovements = stockMovements.filter((mov) => {
+    const matchesType = movementFilterType === "SEMUA" || mov.type === movementFilterType;
+    const ingName = mov.ingredient?.name || "";
+    const note = mov.note || "";
+    const refId = mov.referenceId || "";
+    const matchesSearch = ingName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      note.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      refId.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesType && matchesSearch;
+  });
+
+  // Calculate Total Spillage Loss in Rupiah
+  const totalSpillageLoss = spillageLogs.reduce((acc, log) => {
+    const costPerUnit = Number(log.ingredient?.costPerUseUnit) || 0;
+    return acc + (Number(log.quantity || 0) * costPerUnit);
+  }, 0);
 
   return (
     <AppShell>
@@ -291,9 +481,9 @@ export default function RawMaterialsPage() {
               <Store className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Stok Bahan Baku</h1>
+              <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Manajemen Stok &amp; Bahan Baku</h1>
               <p className="text-xs text-slate-500 font-medium">
-                {isAdmin ? "Kelola stok fisik bahan baku, konversi HPP, dan batas minimum peringatan." : "Input dan verifikasi stok fisik bahan baku outlet."}
+                Pantau mutasi bahan baku, alert stok kritis (reorder), dan pelacakan waste/spillage.
               </p>
             </div>
           </div>
@@ -302,11 +492,20 @@ export default function RawMaterialsPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
+              onClick={() => handleOpenSpillageModal()}
+              className="border-rose-300 text-rose-700 bg-rose-50/50 hover:bg-rose-100 font-semibold text-xs px-3.5 py-2 min-h-[40px] rounded-xl gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <AlertOctagon className="w-4 h-4 text-rose-600" />
+              <span>Catat Waste / Tumpah</span>
+            </Button>
+
+            <Button
+              variant="outline"
               onClick={handleSendStockWa}
               className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-semibold text-xs px-3.5 py-2 min-h-[40px] rounded-xl gap-1.5 shadow-2xs cursor-pointer"
             >
               <Send className="w-4 h-4 text-emerald-600" />
-              <span>Kirim Rekap WA</span>
+              <span>Rekap Stok WA</span>
             </Button>
 
             {isAdmin && (
@@ -317,7 +516,7 @@ export default function RawMaterialsPage() {
                   className="border-amber-500 text-amber-700 hover:bg-amber-50 font-semibold text-xs px-3.5 py-2 min-h-[40px] rounded-xl gap-1.5 shadow-2xs cursor-pointer"
                 >
                   <Tag className="w-4 h-4 text-amber-600" />
-                  <span>Kategori Bahan</span>
+                  <span>Kategori</span>
                 </Button>
 
                 <Button
@@ -332,227 +531,668 @@ export default function RawMaterialsPage() {
 
             <Button
               variant="outline"
-              onClick={fetchIngredients}
+              onClick={() => {
+                fetchIngredients();
+                if (activeMainTab === "movements") fetchStockMovements();
+                if (activeMainTab === "spillage") fetchSpillageLogs();
+              }}
               className="p-2.5 min-h-[40px] rounded-xl border-slate-200 hover:bg-slate-50 text-slate-600 cursor-pointer"
               title="Segarkan Data"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${loading || loadingMovements || loadingSpillage ? "animate-spin" : ""}`} />
             </Button>
           </div>
         </div>
 
-        {/* 2. Sub Header Mode Selector Tabs */}
-        <div className="flex items-center gap-2">
+        {/* 2. CRITICAL LOW STOCK ALERT BANNER (REORDER POINT) */}
+        {criticalStockItems.length > 0 && (
+          <div className="p-4 md:p-5 bg-gradient-to-r from-rose-50 via-amber-50 to-orange-50 border border-rose-200/90 rounded-3xl shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in fade-in duration-300">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <AlertTriangle className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-extrabold text-sm text-rose-950">
+                    Peringatan: {criticalStockItems.length} Bahan Baku Mencapai Batas Kritis (Reorder Point)
+                  </h3>
+                  <Badge className="bg-rose-600 text-white text-[10px] font-bold px-2 py-0 border-none">
+                    Perlu Restock
+                  </Badge>
+                </div>
+                <p className="text-xs text-rose-900/80 font-medium mt-1">
+                  Bahan baku berikut stoknya hampir habis:{" "}
+                  <span className="font-bold text-rose-950">
+                    {criticalStockItems.map((m) => `${m.name} (${(Number(m.floorQuantity) || 0) + (Number(m.warehouseQuantity) || 0)} ${m.buyUnit || m.unit})`).join(", ")}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleSendReorderWa}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-4 py-2 rounded-xl shrink-0 gap-1.5 shadow-2xs cursor-pointer w-full md:w-auto"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Pesan Ulang ke Vendor (WA)</span>
+            </Button>
+          </div>
+        )}
+
+        {/* 3. MAIN NAVIGATION TABS */}
+        <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3 overflow-x-auto">
           <button
-            onClick={() => setActiveSubMode("bar")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeSubMode === "bar"
-                ? "bg-[#0f172a] text-white shadow-2xs"
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+            onClick={() => setActiveMainTab("inventory")}
+            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeMainTab === "inventory"
+                ? "bg-slate-900 text-white shadow-xs"
+                : "bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50"
             }`}
           >
             <Store className="w-4 h-4" />
-            <span>Stok Bar</span>
+            <span>Stok Bahan &amp; Bar</span>
+            <Badge className={`text-[10px] px-2 py-0 border-none font-bold ${
+              activeMainTab === "inventory" ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-600"
+            }`}>
+              {materials.length}
+            </Badge>
           </button>
 
           <button
-            onClick={() => setActiveSubMode("warehouse")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeSubMode === "warehouse"
-                ? "bg-[#0f172a] text-white shadow-2xs"
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+            onClick={() => setActiveMainTab("movements")}
+            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeMainTab === "movements"
+                ? "bg-slate-900 text-white shadow-xs"
+                : "bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50"
             }`}
           >
-            <SlidersHorizontal className="w-4 h-4" />
-            <span>Pengaturan Gudang</span>
-            <Badge className="bg-slate-100 text-slate-600 text-[10px] px-2 py-0 border-none font-bold">
-              Lokal Outlet
+            <History className="w-4 h-4" />
+            <span>Riwayat Mutasi Stok</span>
+            <Badge className={`text-[10px] px-2 py-0 border-none font-bold ${
+              activeMainTab === "movements" ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-600"
+            }`}>
+              Audit Log
             </Badge>
+          </button>
+
+          <button
+            onClick={() => setActiveMainTab("spillage")}
+            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeMainTab === "spillage"
+                ? "bg-slate-900 text-white shadow-xs"
+                : "bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50"
+            }`}
+          >
+            <AlertOctagon className="w-4 h-4 text-rose-500" />
+            <span>Log Waste &amp; Kerugian</span>
+            {spillageLogs.length > 0 && (
+              <Badge className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0 border-none font-bold">
+                {spillageLogs.length}
+              </Badge>
+            )}
           </button>
         </div>
 
-        {/* 3. Top 3 Summary Stat Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Total Bahan Baku</span>
-              <div className="text-2xl font-extrabold text-slate-900">{materials.length} Bahan</div>
-            </div>
-            <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center">
-              <Boxes className="w-5 h-5" />
-            </div>
-          </div>
+        {/* ========================================================================= */}
+        {/* TAB 1: INVENTORY & STOCK MANAGEMENT */}
+        {/* ========================================================================= */}
+        {activeMainTab === "inventory" && (
+          <div className="space-y-6">
+            {/* Top 3 Summary Stat Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-400 block mb-1">Total Item Bahan Baku</span>
+                  <div className="text-2xl font-extrabold text-slate-900">{materials.length} Bahan</div>
+                </div>
+                <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center">
+                  <Boxes className="w-5 h-5" />
+                </div>
+              </div>
 
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Stok Tersedia</span>
-              <div className="text-2xl font-extrabold text-slate-900">
-                {materials.filter((m) => (m.floorQuantity || 0) > 0).length} Siap
+              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-400 block mb-1">Stok Aman</span>
+                  <div className="text-2xl font-extrabold text-emerald-600">
+                    {materials.filter((m) => {
+                      const qty = (Number(m.floorQuantity) || 0) + (Number(m.warehouseQuantity) || 0);
+                      return qty > (Number(m.minStockAlert) || 10);
+                    }).length} Bahan
+                  </div>
+                </div>
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-400 block mb-1">Stok Kritis / Perlu Beli</span>
+                  <div className="text-2xl font-extrabold text-rose-600">
+                    {criticalStockItems.length} Bahan
+                  </div>
+                </div>
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
               </div>
             </div>
-            <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center">
-              <Store className="w-5 h-5" />
-            </div>
-          </div>
 
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Tipe Penyimpanan</span>
-              <div className="text-xl font-extrabold text-slate-900">Lokal Outlet</div>
-            </div>
-            <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center">
-              <Warehouse className="w-5 h-5" />
-            </div>
-          </div>
-        </div>
+            {/* Category Filter Pills & Search Input Row */}
+            <div className="bg-white p-3.5 md:p-4 rounded-3xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {["Semua", "Bahan Baku", "Kemasan", "Operasional", "Powder", "Syrup"].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setSelectedCategoryTab(tab)}
+                    className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      selectedCategoryTab === tab
+                        ? "bg-[#0f172a] text-white shadow-2xs"
+                        : "bg-slate-100/70 text-slate-600 border border-slate-200/60 hover:bg-slate-100"
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
 
-        {/* 4. Category Filter Pills & Search Input Row (Card Box Container) */}
-        <div className="bg-white p-3.5 md:p-4 rounded-3xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {["Semua", "Bahan Baku", "Kemasan", "Operasional", "Powder", "Syrup"].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setSelectedCategoryTab(tab)}
-                className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                  selectedCategoryTab === tab
-                    ? "bg-[#0f172a] text-white shadow-2xs"
-                    : "bg-slate-100/70 text-slate-600 border border-slate-200/60 hover:bg-slate-100"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          <div className="relative min-w-[260px]">
-            <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
-            <Input
-              placeholder="Cari nama bahan baku..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-slate-50/70 pl-9 min-h-[40px] text-xs rounded-xl border-slate-200/80"
-            />
-          </div>
-        </div>
-
-        {/* 5. Daftar Stok Bahan & Kemasan Main Outer Container */}
-        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
-          <div className="border-b pb-4">
-            <div className="flex items-center gap-2">
-              <h3 className="font-extrabold text-base text-slate-900">Daftar Bahan Baku</h3>
-              <Badge className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 border-none">
-                Stok Bar
-              </Badge>
-            </div>
-            <p className="text-xs text-slate-500 font-medium mt-1">
-              Seluruh bahan baku langsung dipantau melalui stok bar outlet.
-            </p>
-          </div>
-
-          {/* Table Container */}
-          <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
-            <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-              <div className="col-span-6">NAMA BAHAN BAKU</div>
-              <div className="col-span-3 text-center">STOK FISIK</div>
-              <div className="col-span-3 text-right">AKSI</div>
+              <div className="relative min-w-[260px]">
+                <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+                <Input
+                  placeholder="Cari nama bahan baku..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-slate-50/70 pl-9 min-h-[40px] text-xs rounded-xl border-slate-200/80"
+                />
+              </div>
             </div>
 
-            {/* Group Items by Category */}
-            <div className="divide-y divide-slate-100">
-              {categories.map((catName) => {
-                const catItems = filtered.filter((m) => (m.category || "Bahan Baku") === catName);
-                if (catItems.length === 0) return null;
-
-                return (
-                  <div key={catName} className="space-y-0">
-                    <div className="bg-slate-50/90 px-6 py-3 flex items-center gap-2 border-y border-slate-200/80">
-                      <Tag className="w-3.5 h-3.5 text-amber-600" />
-                      <span className="font-extrabold text-xs uppercase tracking-wider text-slate-900">
-                        {catName}
-                      </span>
-                      <Badge className="bg-white text-slate-600 text-[10px] font-bold px-2 py-0.5 border border-slate-200">
-                        {catItems.length} Item
-                      </Badge>
-                    </div>
-
-                    <div className="divide-y divide-slate-100">
-                      {catItems.map((item) => {
-                        const hargaBeli = Number(item.hargaBeli || 100000);
-                        const conversion = Number(item.conversionRatio || 1000);
-                        const costPerUnit = Number(item.costPerUseUnit) || (conversion > 0 ? hargaBeli / conversion : 0);
-                        const isPercent = item.isPercentageMode || item.unit === "%";
-
-                        return (
-                          <div key={item.id} className="grid grid-cols-12 px-6 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
-                            
-                             {/* Col 1: Name & Satuan Beli (Harga Beli hidden for cashier) */}
-                            <div className="col-span-6 space-y-0.5">
-                              <h4 className="font-extrabold text-slate-900 text-sm">{item.name}</h4>
-                              <p className="text-slate-500 font-medium text-xs">
-                                {isAdmin ? `Rp ${hargaBeli.toLocaleString("id-ID")} / ${item.buyUnit || "Pcs"}` : `Kemasan Beli: ${item.buyUnit || "Pcs"}`}
-                              </p>
-                            </div>
-
-                            {/* Col 2: Stock Bar Controls [-] [input] [+] Unit */}
-                            <div className="col-span-3 flex items-center justify-center gap-1.5">
-                              <button
-                                onClick={() => handleFloorStockChange(item.id, -1)}
-                                className="w-7 h-7 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
-                              >
-                                -
-                              </button>
-
-                              <input
-                                type="number"
-                                value={item.floorQuantity ?? 0}
-                                onChange={(e) => handleFloorStockDirectInput(item.id, e.target.value)}
-                                className="w-14 h-7 rounded-lg border border-slate-200 bg-white text-center font-extrabold text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                              />
-
-                              <button
-                                onClick={() => handleFloorStockChange(item.id, 1)}
-                                className="w-7 h-7 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
-                              >
-                                +
-                              </button>
-
-                              <span className="text-xs text-slate-600 font-semibold min-w-[36px]">
-                                {isPercent ? "%" : (item.buyUnit || item.unit || "Pcs")}
-                              </span>
-                            </div>
-
-                            {/* Col 3: Admin / Cashier Options (Restock + Edit Pencil for Admin) */}
-                            <div className="col-span-3 flex items-center justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => { setRestockItem(item); setRestockQty(1); }}
-                                className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-semibold rounded-xl min-h-[34px] px-3 cursor-pointer"
-                              >
-                                Restock
-                              </Button>
-
-                              {isAdmin && (
-                                <button
-                                  onClick={() => handleOpenAdminEdit(item)}
-                                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                                  title="Edit Detail Bahan & Konversi HPP"
-                                >
-                                  <Pencil className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-
-                          </div>
-                        );
-                      })}
-                    </div>
+            {/* Main Materials Table */}
+            <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
+              <div className="border-b pb-4 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-extrabold text-base text-slate-900">Daftar Stok Bahan &amp; Takaran</h3>
+                    <Badge className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 border-none">
+                      Stok Bar &amp; Gudang
+                    </Badge>
                   </div>
-                );
-              })}
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    Setiap penjualan kasir otomatis memotong stok bahan sesuai resep minuman.
+                  </p>
+                </div>
+              </div>
+
+              <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
+                <div className="grid grid-cols-12 px-6 py-3.5 bg-slate-50/70 border-b text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
+                  <div className="col-span-5">NAMA BAHAN BAKU</div>
+                  <div className="col-span-2 text-center">STATUS STOK</div>
+                  <div className="col-span-3 text-center">STOK FISIK BAR</div>
+                  <div className="col-span-2 text-right">AKSI</div>
+                </div>
+
+                {/* Group Items by Category */}
+                <div className="divide-y divide-slate-100">
+                  {categories.map((catName) => {
+                    const catItems = filtered.filter((m) => (m.category || "Bahan Baku") === catName);
+                    if (catItems.length === 0) return null;
+
+                    return (
+                      <div key={catName} className="space-y-0">
+                        <div className="bg-slate-50/90 px-6 py-3 flex items-center gap-2 border-y border-slate-200/80">
+                          <Tag className="w-3.5 h-3.5 text-amber-600" />
+                          <span className="font-extrabold text-xs uppercase tracking-wider text-slate-900">
+                            {catName}
+                          </span>
+                          <Badge className="bg-white text-slate-600 text-[10px] font-bold px-2 py-0.5 border border-slate-200">
+                            {catItems.length} Item
+                          </Badge>
+                        </div>
+
+                        <div className="divide-y divide-slate-100">
+                          {catItems.map((item) => {
+                            const hargaBeli = Number(item.hargaBeli || 100000);
+                            const conversion = Number(item.conversionRatio || 1000);
+                            const isPercent = item.isPercentageMode || item.unit === "%";
+                            const floorQty = Number(item.floorQuantity) || 0;
+                            const whQty = Number(item.warehouseQuantity) || 0;
+                            const totalQty = floorQty + whQty;
+                            const minAlert = Number(item.minStockAlert) || 10;
+                            const isCritical = totalQty <= minAlert;
+                            const isLow = !isCritical && totalQty <= minAlert * 1.5;
+
+                            return (
+                              <div key={item.id} className="grid grid-cols-12 px-6 py-3.5 items-center text-xs hover:bg-slate-50/60 transition-colors">
+                                
+                                {/* Col 1: Name & Price */}
+                                <div className="col-span-5 space-y-0.5">
+                                  <h4 className="font-extrabold text-slate-900 text-sm">{item.name}</h4>
+                                  <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+                                    <span>{isAdmin ? `Rp ${hargaBeli.toLocaleString("id-ID")} / ${item.buyUnit || "Pcs"}` : `Kemasan: ${item.buyUnit || "Pcs"}`}</span>
+                                    <span>•</span>
+                                    <span>Min Alert: {minAlert} {item.buyUnit || item.unit}</span>
+                                  </div>
+                                </div>
+
+                                {/* Col 2: Stock Level Status Badge */}
+                                <div className="col-span-2 flex justify-center">
+                                  {isCritical ? (
+                                    <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 font-extrabold text-[10px] flex items-center gap-1">
+                                      <AlertTriangle className="w-3 h-3" />
+                                      <span>Kritis</span>
+                                    </span>
+                                  ) : isLow ? (
+                                    <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-bold text-[10px] flex items-center gap-1">
+                                      <span>Menipis</span>
+                                    </span>
+                                  ) : (
+                                    <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-semibold text-[10px] flex items-center gap-1">
+                                      <span>Aman</span>
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Col 3: Stock Bar Controls [-] [input] [+] Unit */}
+                                <div className="col-span-3 flex items-center justify-center gap-1.5">
+                                  <button
+                                    onClick={() => handleFloorStockChange(item.id, -1)}
+                                    className="w-7 h-7 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
+                                  >
+                                    -
+                                  </button>
+
+                                  <input
+                                    type="number"
+                                    value={item.floorQuantity ?? 0}
+                                    onChange={(e) => handleFloorStockDirectInput(item.id, e.target.value)}
+                                    className="w-16 h-7 rounded-lg border border-slate-200 bg-white text-center font-extrabold text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                  />
+
+                                  <button
+                                    onClick={() => handleFloorStockChange(item.id, 1)}
+                                    className="w-7 h-7 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
+                                  >
+                                    +
+                                  </button>
+
+                                  <span className="text-xs text-slate-600 font-semibold min-w-[36px]">
+                                    {isPercent ? "%" : (item.buyUnit || item.unit || "Pcs")}
+                                  </span>
+                                </div>
+
+                                {/* Col 4: Action Buttons */}
+                                <div className="col-span-2 flex items-center justify-end gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => { setRestockItem(item); setRestockQty(1); }}
+                                    className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-semibold rounded-xl min-h-[32px] px-2.5 cursor-pointer"
+                                  >
+                                    Restock
+                                  </Button>
+
+                                  <button
+                                    onClick={() => handleOpenSpillageModal(item)}
+                                    className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                    title="Catat Barang Rusak / Tumpah"
+                                  >
+                                    <AlertOctagon className="w-4 h-4" />
+                                  </button>
+
+                                  {isAdmin && (
+                                    <button
+                                      onClick={() => handleOpenAdminEdit(item)}
+                                      className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                      title="Edit Detail Bahan & Konversi HPP"
+                                    >
+                                      <Pencil className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 2: RIWAYAT MUTASI STOK (STOCK MOVEMENTS AUDIT LOG) */}
+        {/* ========================================================================= */}
+        {activeMainTab === "movements" && (
+          <div className="space-y-4">
+            <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* Type Filter Pills */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[
+                  { label: "Semua Mutasi", val: "SEMUA" },
+                  { label: "Penjualan POS", val: "SALE" },
+                  { label: "Pembelian", val: "PURCHASE" },
+                  { label: "Waste / Tumpah", val: "SPILLAGE" },
+                  { label: "Penyesuaian Opname", val: "OPNAME_ADJUSTMENT" },
+                  { label: "Retur / Refund", val: "REFUND_RETURN" },
+                  { label: "Void Order", val: "CANCEL_RETURN" },
+                ].map((t) => (
+                  <button
+                    key={t.val}
+                    onClick={() => setMovementFilterType(t.val)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      movementFilterType === t.val
+                        ? "bg-slate-900 text-white shadow-xs"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative min-w-[240px]">
+                <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+                <Input
+                  placeholder="Cari nama bahan / ref..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-slate-50/70 pl-9 min-h-[38px] text-xs rounded-xl border-slate-200"
+                />
+              </div>
+            </div>
+
+            <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200/80 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                    <th className="py-3 px-4">Waktu</th>
+                    <th className="py-3 px-4">Bahan Baku</th>
+                    <th className="py-3 px-4 text-center">Tipe Mutasi</th>
+                    <th className="py-3 px-4 text-right">Perubahan Qty</th>
+                    <th className="py-3 px-4 text-right">Sisa Stok</th>
+                    <th className="py-3 px-4">Petugas &amp; Catatan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {filteredMovements.length > 0 ? (
+                    filteredMovements.map((mov: any) => {
+                      const isNegative = Number(mov.quantity) < 0;
+                      const unit = mov.ingredient?.unit || mov.ingredient?.buyUnit || "unit";
+
+                      return (
+                        <tr key={mov.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
+                            {new Date(mov.timestamp || mov.createdAt).toLocaleString("id-ID", {
+                              day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
+                            })} WIB
+                          </td>
+                          <td className="py-3 px-4 font-bold text-slate-900">
+                            {mov.ingredient?.name || "Bahan Baku"}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <Badge className={`text-[10px] font-bold ${
+                              mov.type === "SALE" ? "bg-indigo-100 text-indigo-800" :
+                              mov.type === "PURCHASE" ? "bg-emerald-100 text-emerald-800" :
+                              mov.type === "SPILLAGE" ? "bg-rose-100 text-rose-800" :
+                              mov.type === "REFUND_RETURN" || mov.type === "CANCEL_RETURN" ? "bg-amber-100 text-amber-800" :
+                              "bg-slate-100 text-slate-800"
+                            }`}>
+                              {mov.type === "SALE" ? "Penjualan POS" :
+                               mov.type === "PURCHASE" ? "Pembelian" :
+                               mov.type === "SPILLAGE" ? "Waste / Tumpah" :
+                               mov.type === "REFUND_RETURN" ? "Retur Refund" :
+                               mov.type === "CANCEL_RETURN" ? "Retur Void" :
+                               "Opname Stok"}
+                            </Badge>
+                          </td>
+                          <td className={`py-3 px-4 text-right font-extrabold ${isNegative ? "text-rose-600" : "text-emerald-600"}`}>
+                            {isNegative ? "" : "+"}{Number(mov.quantity || 0).toLocaleString("id-ID")} {unit}
+                          </td>
+                          <td className="py-3 px-4 text-right font-bold text-slate-800">
+                            {Number(mov.balanceAfter || 0).toLocaleString("id-ID")} {unit}
+                          </td>
+                          <td className="py-3 px-4 text-slate-600">
+                            <div className="font-semibold text-slate-900">{mov.employeeName || "Sistem"}</div>
+                            <div className="text-[11px] text-slate-400 truncate max-w-[220px]" title={mov.note || ""}>
+                              {mov.note || "-"}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400">
+                        <History className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                        <p className="font-bold text-xs text-slate-700">Belum ada catatan mutasi stok</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Semua pergerakan stok penjualan, pembelian, dan waste akan tercatat di sini.</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 3: LOG WASTE & KERUGIAN (SPILLAGE LOGS) */}
+        {/* ========================================================================= */}
+        {activeMainTab === "spillage" && (
+          <div className="space-y-6">
+            {/* Top Waste Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-400 block mb-1">Total Kejadian Waste</span>
+                  <div className="text-2xl font-extrabold text-slate-900">{spillageLogs.length} Insiden</div>
+                </div>
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                  <PackageX className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-400 block mb-1">Estimasi Kerugian Finansial (HPP)</span>
+                  <div className="text-2xl font-extrabold text-rose-600">
+                    Rp {Math.round(totalSpillageLoss).toLocaleString("id-ID")}
+                  </div>
+                </div>
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                  <TrendingDown className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-400 block mb-1">Pencegahan Kerugian</span>
+                  <div className="text-xs font-semibold text-slate-600 mt-1">
+                    Wajib catat barang tumpah &amp; expired untuk analisa SOP bar.
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => handleOpenSpillageModal()} 
+                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl"
+                >
+                  + Catat Waste
+                </Button>
+              </div>
+            </div>
+
+            {/* Spillage Table */}
+            <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-2xs">
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200/80 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                    <th className="py-3 px-4">Waktu</th>
+                    <th className="py-3 px-4">Bahan Baku</th>
+                    <th className="py-3 px-4 text-center">Jumlah Waste</th>
+                    <th className="py-3 px-4 text-right">Estimasi Kerugian (HPP)</th>
+                    <th className="py-3 px-4">Alasan &amp; Keterangan</th>
+                    <th className="py-3 px-4">Pelapor</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {spillageLogs.length > 0 ? (
+                    spillageLogs.map((log: any) => {
+                      const costPerUnit = Number(log.ingredient?.costPerUseUnit) || 0;
+                      const lossTotal = Number(log.quantity || 0) * costPerUnit;
+                      const unit = log.ingredient?.unit || log.ingredient?.buyUnit || "unit";
+
+                      return (
+                        <tr key={log.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
+                            {new Date(log.createdAt).toLocaleString("id-ID", {
+                              day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
+                            })} WIB
+                          </td>
+                          <td className="py-3 px-4 font-bold text-slate-900">
+                            {log.ingredient?.name || "Bahan Baku"}
+                          </td>
+                          <td className="py-3 px-4 text-center font-bold text-rose-600">
+                            {Number(log.quantity || 0).toLocaleString("id-ID")} {unit}
+                          </td>
+                          <td className="py-3 px-4 text-right font-extrabold text-rose-700">
+                            Rp {Math.round(lossTotal).toLocaleString("id-ID")}
+                          </td>
+                          <td className="py-3 px-4 text-slate-700">
+                            {log.reason}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
+                              {log.reportedBy || "Staf Outlet"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400">
+                        <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                        <p className="font-bold text-xs text-slate-700">Belum ada barang rusak atau tumpah</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Semua catatan kerugian bahan baku akan otomatis tertera di sini.</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Dialog Catat Waste / Spillage */}
+        {isSpillageModalOpen && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-3xl border shadow-2xl p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <AlertOctagon className="w-5 h-5 text-rose-600" />
+                <h3 className="font-bold text-base text-slate-900">Catat Barang Rusak / Tumpah (Waste)</h3>
+              </div>
+              <p className="text-xs text-slate-500">
+                Stok bahan baku akan otomatis dipotong dan dicatat ke log audit kerugian F&amp;B.
+              </p>
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Pilih Bahan Baku *</label>
+                  <select
+                    value={spillageForm.ingredientId}
+                    onChange={(e) => setSpillageForm({ ...spillageForm, ingredientId: e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 min-h-[38px] text-xs font-semibold"
+                  >
+                    {materials.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} (Sisa Stok: {(Number(m.floorQuantity) || 0) + (Number(m.warehouseQuantity) || 0)} {m.buyUnit || m.unit})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Jumlah Terbuang / Rusak *</label>
+                    <Input
+                      type="number"
+                      min={0.1}
+                      step="any"
+                      value={spillageForm.quantity}
+                      onChange={(e) => setSpillageForm({ ...spillageForm, quantity: Number(e.target.value) })}
+                      className="min-h-[38px] font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Lokasi Stok</label>
+                    <select
+                      value={spillageForm.location}
+                      onChange={(e) => setSpillageForm({ ...spillageForm, location: e.target.value as any })}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 min-h-[38px] text-xs font-semibold"
+                    >
+                      <option value="floor">Stok Bar / Outlet</option>
+                      <option value="warehouse">Stok Gudang</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Alasan Waste / Kerusakan *</label>
+                  <select
+                    value={spillageForm.reason}
+                    onChange={(e) => setSpillageForm({ ...spillageForm, reason: e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 min-h-[38px] text-xs font-semibold"
+                  >
+                    <option value="Tumpah saat pembuatan pesanan">Tumpah saat pembuatan pesanan</option>
+                    <option value="Bahan kadaluarsa / expired">Bahan kadaluarsa / expired</option>
+                    <option value="Kemasan bocor / rusak / pecah">Kemasan bocor / rusak / pecah</option>
+                    <option value="Kualitas rasa rusak / basi">Kualitas rasa rusak / basi</option>
+                    <option value="Salah takaran saat kalibrasi mesin">Salah takaran saat kalibrasi mesin</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                </div>
+
+                {spillageForm.reason === "Lainnya" && (
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Keterangan Tambahan</label>
+                    <Input
+                      placeholder="Jelaskan alasan kerusakan..."
+                      value={spillageForm.customReason}
+                      onChange={(e) => setSpillageForm({ ...spillageForm, customReason: e.target.value })}
+                      className="min-h-[38px]"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Nama Staf Pelapor</label>
+                  <Input
+                    placeholder="Nama staf yang bertugas"
+                    value={spillageForm.reportedBy}
+                    onChange={(e) => setSpillageForm({ ...spillageForm, reportedBy: e.target.value })}
+                    className="min-h-[38px]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-2 border-t">
+                <Button variant="outline" onClick={() => setIsSpillageModalOpen(false)} className="text-xs rounded-xl">
+                  Batal
+                </Button>
+                <Button 
+                  onClick={handleSaveSpillage} 
+                  disabled={submitting || !spillageForm.ingredientId || spillageForm.quantity <= 0}
+                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl px-4 cursor-pointer"
+                >
+                  {submitting ? "Menyimpan..." : "Simpan & Kurangi Stok"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal Dialog Restock */}
         {restockItem && (
@@ -584,7 +1224,7 @@ export default function RawMaterialsPage() {
         {selectedAdminEditItem && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-3xl border shadow-2xl p-6 space-y-4">
-              <h3 className="font-bold text-sm text-slate-900">Edit Detail Bahan & Konversi HPP: {selectedAdminEditItem.name}</h3>
+              <h3 className="font-bold text-sm text-slate-900">Edit Detail Bahan &amp; Konversi HPP: {selectedAdminEditItem.name}</h3>
               
               <div className="space-y-3 text-xs">
                 <div>
@@ -652,14 +1292,25 @@ export default function RawMaterialsPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Satuan Takaran Resep / HPP</label>
-                  <Input
-                    placeholder="misal: ml / gram / pcs / cup"
-                    value={adminEditForm.unit}
-                    onChange={(e) => setAdminEditForm({ ...adminEditForm, unit: e.target.value })}
-                    className="min-h-[38px]"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Satuan Takaran Resep / HPP</label>
+                    <Input
+                      placeholder="misal: ml / gram / pcs / cup"
+                      value={adminEditForm.unit}
+                      onChange={(e) => setAdminEditForm({ ...adminEditForm, unit: e.target.value })}
+                      className="min-h-[38px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Batas Minimum Peringatan (Reorder Point)</label>
+                    <Input
+                      type="number"
+                      value={adminEditForm.minStockAlert}
+                      onChange={(e) => setAdminEditForm({ ...adminEditForm, minStockAlert: Number(e.target.value) })}
+                      className="min-h-[38px]"
+                    />
+                  </div>
                 </div>
 
                 {/* HPP Live Badge Preview */}
@@ -684,7 +1335,7 @@ export default function RawMaterialsPage() {
                     className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
                   />
                   <label htmlFor="editIsPercentageMode" className="text-xs font-medium text-slate-800 cursor-pointer">
-                    Tampilkan Stok dalam Satuan Persentase (%) <span className="text-slate-400">(Khusus bahan curah besar seperti Creamer 25kg)</span>
+                    Tampilkan Stok dalam Satuan Persentase (%) <span className="text-slate-400">(Khusus bahan curah besar)</span>
                   </label>
                 </div>
               </div>
@@ -705,7 +1356,7 @@ export default function RawMaterialsPage() {
         {isAddModalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-3xl border shadow-2xl p-6 space-y-4">
-              <h3 className="font-bold text-sm text-slate-900">Tambah Bahan Baku & Konversi HPP</h3>
+              <h3 className="font-bold text-sm text-slate-900">Tambah Bahan Baku &amp; Konversi HPP</h3>
               <form onSubmit={(e) => { e.preventDefault(); handleAddMaterial(); }} className="space-y-3 text-xs">
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">Nama Bahan Baku *</label>
@@ -776,15 +1427,26 @@ export default function RawMaterialsPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Satuan Takaran Resep / HPP *</label>
-                  <Input
-                    placeholder="ml / gram / pcs / cup"
-                    value={formData.unit}
-                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="min-h-[38px]"
-                    required
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Satuan Takaran Resep / HPP *</label>
+                    <Input
+                      placeholder="ml / gram / pcs / cup"
+                      value={formData.unit}
+                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                      className="min-h-[38px]"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Batas Minimum Peringatan</label>
+                    <Input
+                      type="number"
+                      value={formData.minStockAlert}
+                      onChange={(e) => setFormData({ ...formData, minStockAlert: Number(e.target.value) })}
+                      className="min-h-[38px]"
+                    />
+                  </div>
                 </div>
 
                 {/* HPP Live Badge Preview */}
@@ -809,7 +1471,7 @@ export default function RawMaterialsPage() {
                     className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
                   />
                   <label htmlFor="addIsPercentageMode" className="text-xs font-medium text-slate-800 cursor-pointer">
-                    Tampilkan Stok dalam Satuan Persentase (%) <span className="text-slate-400">(Khusus Creamer 25kg sak)</span>
+                    Tampilkan Stok dalam Satuan Persentase (%)
                   </label>
                 </div>
 
