@@ -106,9 +106,8 @@ function ProductsContent() {
   // Addon Modal State
   const [isAddonCatModalOpen, setIsAddonCatModalOpen] = useState(false);
   const [isAddonItemModalOpen, setIsAddonItemModalOpen] = useState(false);
-  const [selectedAddonCatId, setSelectedAddonCatId] = useState<string>("");
   const [addonCatForm, setAddonCatForm] = useState({ id: "", name: "", isRequired: false, allowMultiple: true });
-  const [addonItemForm, setAddonItemForm] = useState({ id: "", name: "", price: 5000, addonCategoryId: "" });
+  const [addonItemForm, setAddonItemForm] = useState({ id: "", name: "", price: 5000, addonCategoryId: "", ingredientId: "", quantityUsed: 1 });
 
   // Discount Modal State
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
@@ -529,6 +528,64 @@ function ProductsContent() {
   // =========================================================================
   // 8. ADDON CRUD HANDLERS
   // =========================================================================
+  const openAddAddonCategory = () => {
+    setAddonCatForm({ id: "", name: "", isRequired: false, allowMultiple: true });
+    setIsAddonCatModalOpen(true);
+  };
+
+  const openEditAddonCategory = (cat: any) => {
+    setAddonCatForm({
+      id: cat.id,
+      name: cat.name,
+      isRequired: Boolean(cat.isRequired),
+      allowMultiple: cat.allowMultiple !== false,
+    });
+    setIsAddonCatModalOpen(true);
+  };
+
+  const handleDeleteAddonCategory = async (id: string, name: string) => {
+    if (!confirm(`Hapus grup topping "${name}" beserta seluruh item di dalamnya?`)) return;
+    try {
+      setSubmitting(true);
+      await fetch("/api/data?type=delete_addon_category", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      await fetchData();
+    } catch (e) {
+      console.error("Failed to delete addon category:", e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openAddAddonItem = (catId?: string) => {
+    const defaultCatId = catId || (addonCategories.length > 0 ? addonCategories[0].id : "");
+    setAddonItemForm({
+      id: "",
+      name: "",
+      price: 5000,
+      addonCategoryId: defaultCatId,
+      ingredientId: "",
+      quantityUsed: 1,
+    });
+    setIsAddonItemModalOpen(true);
+  };
+
+  const openEditAddonItem = (item: any, catId: string) => {
+    const recipe = item.recipes && item.recipes[0];
+    setAddonItemForm({
+      id: item.id,
+      name: item.name,
+      price: item.price || 0,
+      addonCategoryId: catId || item.addonCategoryId,
+      ingredientId: recipe?.ingredientId || "",
+      quantityUsed: recipe?.quantityUsed || 1,
+    });
+    setIsAddonItemModalOpen(true);
+  };
+
   const handleSaveAddonCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addonCatForm.name.trim()) return;
@@ -564,6 +621,23 @@ function ProductsContent() {
       await fetchData();
     } catch (e) {
       console.error("Failed to save addon item:", e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteAddonItem = async (id: string, name: string) => {
+    if (!confirm(`Hapus item topping "${name}"?`)) return;
+    try {
+      setSubmitting(true);
+      await fetch("/api/data?type=delete_addon_item", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      await fetchData();
+    } catch (e) {
+      console.error("Failed to delete addon item:", e);
     } finally {
       setSubmitting(false);
     }
@@ -749,19 +823,15 @@ function ProductsContent() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => { setAddonCatForm({ id: "", name: "", isRequired: false, allowMultiple: true }); setIsAddonCatModalOpen(true); }}
-                    className="text-xs min-h-[38px] rounded-xl"
+                    onClick={openAddAddonCategory}
+                    className="text-xs min-h-[38px] rounded-xl cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5 mr-1" />
                     Grup Topping
                   </Button>
                   <Button
-                    onClick={() => { 
-                      if (addonCategories.length === 0) return alert("Buat grup topping terlebih dahulu");
-                      setAddonItemForm({ id: "", name: "", price: 5000, addonCategoryId: addonCategories[0].id }); 
-                      setIsAddonItemModalOpen(true); 
-                    }}
-                    className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs min-h-[38px] rounded-xl gap-1.5"
+                    onClick={() => openAddAddonItem()}
+                    className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs min-h-[38px] rounded-xl gap-1.5 cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     Item Topping
@@ -1197,34 +1267,135 @@ function ProductsContent() {
           {/* ========================================================================= */}
           {activeTab === "ADDONS" && (
             <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                <div className="text-xs text-slate-600">
+                  <strong>Manajemen Topping &amp; Add-ons:</strong> Atur varian base (Pure vs Latte), tingkat gula, ekstra shot, dan aneka topping tambahan kasir.
+                </div>
+                {isAdmin && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={openAddAddonCategory}
+                      className="text-xs min-h-[36px] rounded-xl cursor-pointer border-slate-300"
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" />
+                      + Grup Topping
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => openAddAddonItem()}
+                      className="bg-stone-800 hover:bg-stone-900 text-white text-xs min-h-[36px] rounded-xl font-bold cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" />
+                      + Item Topping
+                    </Button>
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {addonCategories.map((group) => (
-                  <div key={group.id} className="border border-slate-200/90 rounded-2xl p-4 bg-slate-50/50 space-y-3">
-                    <div className="flex items-center justify-between border-b pb-2">
+                  <div key={group.id} className="border border-slate-200/90 rounded-2xl p-4 bg-white space-y-3 shadow-2xs">
+                    <div className="flex items-center justify-between border-b pb-3">
                       <div>
-                        <h4 className="font-bold text-slate-900 text-sm">{group.name}</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-slate-900 text-sm">{group.name}</h4>
+                          <Badge className="bg-indigo-50 text-indigo-700 text-[10px] border-indigo-200">
+                            {group.items?.length || 0} Item
+                          </Badge>
+                        </div>
                         <span className="text-[10px] text-slate-400 font-medium">
-                          {group.isRequired ? "Wajib Pilih" : "Opsional"} &bull; {group.allowMultiple ? "Bisa Multi-pilih" : "Hanya 1 Pilihan"}
+                          {group.isRequired ? "Wajib Dipilih" : "Opsional"} &bull; {group.allowMultiple ? "Bisa Multi-pilih" : "Hanya 1 Pilihan"}
                         </span>
                       </div>
-                      <Badge className="bg-indigo-50 text-indigo-700 text-[10px]">
-                        {group.items?.length || 0} Item
-                      </Badge>
+
+                      {isAdmin && (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => openEditAddonCategory(group)}
+                            className="w-7 h-7 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg cursor-pointer"
+                            title="Edit Grup"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleDeleteAddonCategory(group.id, group.name)}
+                            className="w-7 h-7 text-slate-400 hover:text-destructive hover:bg-red-50 rounded-lg cursor-pointer"
+                            title="Hapus Grup"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-1.5">
-                      {(group.items || []).map((it: any) => (
-                        <div key={it.id} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200/60 text-xs">
-                          <span className="font-semibold text-slate-800">{it.name}</span>
-                          <span className="font-mono font-bold text-emerald-700">
-                            +Rp {Number(it.price || 0).toLocaleString("id-ID")}
-                          </span>
-                        </div>
-                      ))}
+                      {(group.items || []).map((it: any) => {
+                        const recipe = it.recipes && it.recipes[0];
+                        return (
+                          <div key={it.id} className="flex items-center justify-between p-2.5 bg-slate-50/70 hover:bg-slate-100/70 transition-colors rounded-xl border border-slate-200/60 text-xs">
+                            <div className="space-y-0.5">
+                              <span className="font-semibold text-slate-800 block">{it.name}</span>
+                              {recipe?.ingredient && (
+                                <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                                  📦 {recipe.ingredient.name}: {recipe.quantityUsed} {recipe.ingredient.unit}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-emerald-700">
+                                {Number(it.price || 0) > 0 ? `+Rp ${Number(it.price).toLocaleString("id-ID")}` : "Rp 0"}
+                              </span>
+                              {isAdmin && (
+                                <div className="flex items-center gap-0.5 ml-1">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => openEditAddonItem(it, group.id)}
+                                    className="w-6 h-6 text-slate-400 hover:text-slate-900 rounded-md cursor-pointer"
+                                    title="Edit Item"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleDeleteAddonItem(it.id, it.name)}
+                                    className="w-6 h-6 text-slate-400 hover:text-destructive rounded-md cursor-pointer"
+                                    title="Hapus Item"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                       {(!group.items || group.items.length === 0) && (
-                        <div className="text-[11px] text-slate-400 text-center py-2">Belum ada item topping dalam grup ini.</div>
+                        <div className="text-[11px] text-slate-400 text-center py-2 italic">Belum ada item topping dalam grup ini.</div>
                       )}
                     </div>
+
+                    {isAdmin && (
+                      <div className="pt-2 border-t border-slate-100">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openAddAddonItem(group.id)}
+                          className="w-full text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50/50 min-h-[32px] rounded-xl cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-1" />
+                          Tambah Item di {group.name}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1687,31 +1858,56 @@ function ProductsContent() {
       <Dialog open={isAddonCatModalOpen} onOpenChange={setIsAddonCatModalOpen}>
         <DialogContent className="w-[95vw] sm:max-w-sm rounded-2xl p-5 bg-white">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold">Grup Topping / Add-on</DialogTitle>
+            <DialogTitle className="text-base font-bold">
+              {addonCatForm.id ? "Edit Grup Topping / Add-on" : "Tambah Grup Topping / Add-on"}
+            </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSaveAddonCategory} className="space-y-3 py-2 text-xs">
-            <Input
-              required
-              placeholder="Nama Grup (e.g. Extra Shot, Sirup, Topping Jelly)"
-              value={addonCatForm.name}
-              onChange={(e) => setAddonCatForm({ ...addonCatForm, name: e.target.value })}
-              className="min-h-[38px] text-xs rounded-xl"
-            />
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="isRequiredAddon"
-                checked={addonCatForm.isRequired}
-                onChange={(e) => setAddonCatForm({ ...addonCatForm, isRequired: e.target.checked })}
-                className="rounded border-slate-300 text-indigo-600 h-4 w-4"
+          <form onSubmit={handleSaveAddonCategory} className="space-y-3.5 py-2 text-xs">
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-700">Nama Grup Topping *</label>
+              <Input
+                required
+                placeholder="Nama Grup (e.g. Extra Shot, Varian Base, Sirup)"
+                value={addonCatForm.name}
+                onChange={(e) => setAddonCatForm({ ...addonCatForm, name: e.target.value })}
+                className="min-h-[38px] text-xs rounded-xl"
               />
-              <label htmlFor="isRequiredAddon" className="text-xs font-semibold text-slate-700">
-                Wajib Dipilih Saat Kasir Checkout
-              </label>
             </div>
-            <DialogFooter className="pt-2">
-              <Button type="submit" disabled={submitting} className="bg-stone-800 hover:bg-stone-900 text-white text-xs min-h-[38px] rounded-xl font-bold w-full">
-                Simpan Grup
+
+            <div className="space-y-2 pt-1 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isRequiredAddon"
+                  checked={addonCatForm.isRequired}
+                  onChange={(e) => setAddonCatForm({ ...addonCatForm, isRequired: e.target.checked })}
+                  className="rounded border-slate-300 text-indigo-600 h-4 w-4"
+                />
+                <label htmlFor="isRequiredAddon" className="text-xs font-semibold text-slate-700">
+                  Wajib Dipilih Saat Kasir Checkout
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="allowMultipleAddon"
+                  checked={addonCatForm.allowMultiple}
+                  onChange={(e) => setAddonCatForm({ ...addonCatForm, allowMultiple: e.target.checked })}
+                  className="rounded border-slate-300 text-indigo-600 h-4 w-4"
+                />
+                <label htmlFor="allowMultipleAddon" className="text-xs font-semibold text-slate-700">
+                  Boleh Memilih Lebih dari 1 Item (Multi-select)
+                </label>
+              </div>
+            </div>
+
+            <DialogFooter className="flex gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsAddonCatModalOpen(false)} className="text-xs min-h-[38px] rounded-xl flex-1">
+                Batal
+              </Button>
+              <Button type="submit" disabled={submitting} className="bg-stone-800 hover:bg-stone-900 text-white text-xs min-h-[38px] rounded-xl font-bold flex-1">
+                {submitting ? "Menyimpan..." : "Simpan Grup"}
               </Button>
             </DialogFooter>
           </form>
@@ -1721,11 +1917,13 @@ function ProductsContent() {
       <Dialog open={isAddonItemModalOpen} onOpenChange={setIsAddonItemModalOpen}>
         <DialogContent className="w-[95vw] sm:max-w-sm rounded-2xl p-5 bg-white">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold">Tambah Item Topping</DialogTitle>
+            <DialogTitle className="text-base font-bold">
+              {addonItemForm.id ? "Edit Item Topping" : "Tambah Item Topping"}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSaveAddonItem} className="space-y-3 py-2 text-xs">
             <div className="space-y-1">
-              <label className="text-[11px] font-bold">Pilih Grup Topping</label>
+              <label className="text-[11px] font-bold text-slate-700">Pilih Grup Topping *</label>
               <select
                 value={addonItemForm.addonCategoryId}
                 onChange={(e) => setAddonItemForm({ ...addonItemForm, addonCategoryId: e.target.value })}
@@ -1737,17 +1935,17 @@ function ProductsContent() {
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-[11px] font-bold">Nama Item Topping</label>
+              <label className="text-[11px] font-bold text-slate-700">Nama Item Topping *</label>
               <Input
                 required
-                placeholder="e.g. Grass Jelly / Caramel Syrup"
+                placeholder="e.g. Grass Jelly / Extra Espresso Shot"
                 value={addonItemForm.name}
                 onChange={(e) => setAddonItemForm({ ...addonItemForm, name: e.target.value })}
                 className="min-h-[38px] text-xs rounded-xl"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[11px] font-bold">Harga Tambahan (Rp)</label>
+              <label className="text-[11px] font-bold text-slate-700">Harga Tambahan (Rp)</label>
               <Input
                 type="number"
                 min={0}
@@ -1756,9 +1954,42 @@ function ProductsContent() {
                 className="min-h-[38px] text-xs rounded-xl font-mono font-bold"
               />
             </div>
-            <DialogFooter className="pt-2">
-              <Button type="submit" disabled={submitting} className="bg-stone-800 hover:bg-stone-900 text-white text-xs min-h-[38px] rounded-xl font-bold w-full">
-                Simpan Item Topping
+
+            {/* Optional Raw Material Ingredient Link */}
+            <div className="space-y-2 p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
+              <label className="text-[11px] font-bold text-slate-700 block">Link Potong Stok Bahan (Opsional):</label>
+              <select
+                value={addonItemForm.ingredientId || ""}
+                onChange={(e) => setAddonItemForm({ ...addonItemForm, ingredientId: e.target.value })}
+                className="w-full min-h-[36px] px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-medium"
+              >
+                <option value="">-- Tanpa Potong Bahan Baku --</option>
+                {ingredients.map((ing) => (
+                  <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
+                ))}
+              </select>
+
+              {addonItemForm.ingredientId && (
+                <div className="space-y-1 pt-1">
+                  <label className="text-[10px] font-bold text-slate-600">Takaran Pengurangan Stok:</label>
+                  <Input
+                    type="number"
+                    step="any"
+                    min={0.1}
+                    value={addonItemForm.quantityUsed || 1}
+                    onChange={(e) => setAddonItemForm({ ...addonItemForm, quantityUsed: Number(e.target.value) })}
+                    className="min-h-[34px] text-xs rounded-lg font-mono"
+                  />
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="flex gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsAddonItemModalOpen(false)} className="text-xs min-h-[38px] rounded-xl flex-1">
+                Batal
+              </Button>
+              <Button type="submit" disabled={submitting} className="bg-stone-800 hover:bg-stone-900 text-white text-xs min-h-[38px] rounded-xl font-bold flex-1">
+                {submitting ? "Menyimpan..." : "Simpan Item"}
               </Button>
             </DialogFooter>
           </form>

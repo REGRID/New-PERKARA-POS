@@ -3025,5 +3025,3 @@ export async function deleteAttendanceRecord(id: string) {
     throw err;
   }
 }
-
-
