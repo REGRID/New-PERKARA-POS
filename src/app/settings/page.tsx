@@ -76,20 +76,12 @@ export default function SettingsPage() {
       groupName: "OPERASIONAL",
       items: [
         { name: "Kasir POS", href: "/pos", icon: ShoppingCart },
+        { name: "Katalog Menu", href: "/products", icon: Package },
         { name: "Transaksi", href: "/orders", icon: FileText },
         { name: "Meja", href: "/tables", icon: Grid },
         { name: "Pelanggan", href: "/customers", icon: Users },
         { name: "Menu QR", href: "/qr-menu/outlet-1", icon: CircleDot },
         { name: "Absensi & Shift", href: "/attendance", icon: Clock },
-      ]
-    },
-    {
-      groupName: "KATALOG",
-      items: [
-        { name: "Kategori", href: "/categories", icon: Tag },
-        { name: "Produk", href: "/products", icon: Package },
-        { name: "Menu Tambahan", href: "/inventory/addons", icon: Layers },
-        { name: "Diskon", href: "/discounts", icon: Percent },
       ]
     },
     {

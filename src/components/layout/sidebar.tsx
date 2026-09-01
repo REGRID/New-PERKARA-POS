@@ -69,22 +69,12 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       groupName: "OPERASIONAL",
       items: [
         { name: "Kasir POS", href: "/pos", icon: ShoppingCart, badge: "Live" },
+        { name: "Katalog Menu", href: "/products", icon: Package },
         { name: "Transaksi", href: "/orders", icon: FileText },
         { name: "Meja", href: "/tables", icon: Grid },
         { name: "Pelanggan", href: "/customers", icon: Users },
         { name: "Menu QR", href: "/qr-menu/outlet-1", icon: CircleDot },
         { name: "Absensi & Shift", href: "/attendance", icon: Clock },
-      ]
-    },
-    {
-      id: "CATALOG",
-      groupName: "KATALOG",
-      items: [
-        { name: "Semua Produk", href: "/products", icon: Package },
-        { name: "Kategori", href: "/products?tab=categories", icon: Tag },
-        { name: "Topping & Add-on", href: "/products?tab=addons", icon: Layers },
-        { name: "Diskon & Promo", href: "/products?tab=discounts", icon: Percent },
-        { name: "Resep & HPP", href: "/products?tab=recipes", icon: ClipboardList },
       ]
     },
     {
@@ -122,7 +112,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
     : rawNavigation.map((group) => ({
         ...group,
         items: group.items.filter((item) => 
-          ["/pos", "/orders", "/tables", "/customers", "/attendance", "/reports/cash-flow", "/inventory/raw-materials"].includes(item.href) || item.href.startsWith("/qr-menu")
+          ["/pos", "/products", "/orders", "/tables", "/customers", "/attendance", "/reports/cash-flow", "/inventory/raw-materials"].includes(item.href) || item.href.startsWith("/qr-menu")
         ),
       })).filter((group) => group.items.length > 0);
 
