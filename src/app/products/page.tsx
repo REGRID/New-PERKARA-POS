@@ -819,22 +819,22 @@ function ProductsContent() {
               )}
 
               {isAdmin && activeTab === "ADDONS" && (
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={openAddAddonCategory}
-                    className="text-xs min-h-[38px] rounded-xl cursor-pointer"
+                    className="text-xs min-h-[38px] rounded-xl cursor-pointer border-slate-200"
                   >
-                    <Plus className="w-3.5 h-3.5 mr-1" />
-                    Grup Topping
+                    <Plus className="w-3.5 h-3.5 mr-1 text-slate-500" />
+                    <span>Grup Topping</span>
                   </Button>
                   <Button
                     onClick={() => openAddAddonItem()}
                     className="bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs min-h-[38px] rounded-xl gap-1.5 cursor-pointer"
                   >
-                    <Plus className="w-4 h-4" />
-                    Item Topping
+                    <Plus className="w-3.5 h-3.5 text-white" />
+                    <span>Item Topping</span>
                   </Button>
                 </div>
               )}
@@ -1267,33 +1267,6 @@ function ProductsContent() {
           {/* ========================================================================= */}
           {activeTab === "ADDONS" && (
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
-                <div className="text-xs text-slate-600">
-                  <strong>Manajemen Topping &amp; Add-ons:</strong> Atur varian base (Pure vs Latte), tingkat gula, ekstra shot, dan aneka topping tambahan kasir.
-                </div>
-                {isAdmin && (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={openAddAddonCategory}
-                      className="text-xs min-h-[36px] rounded-xl cursor-pointer border-slate-300"
-                    >
-                      <Plus className="w-3.5 h-3.5 mr-1" />
-                      + Grup Topping
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => openAddAddonItem()}
-                      className="bg-stone-800 hover:bg-stone-900 text-white text-xs min-h-[36px] rounded-xl font-bold cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5 mr-1" />
-                      + Item Topping
-                    </Button>
-                  </div>
-                )}
-              </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {addonCategories.map((group) => (
                   <div key={group.id} className="border border-slate-200/90 rounded-2xl p-4 bg-white space-y-3 shadow-2xs">
@@ -1392,7 +1365,7 @@ function ProductsContent() {
                           className="w-full text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50/50 min-h-[32px] rounded-xl cursor-pointer"
                         >
                           <Plus className="w-3.5 h-3.5 mr-1" />
-                          Tambah Item di {group.name}
+                          <span>Tambah Topping</span>
                         </Button>
                       </div>
                     )}
