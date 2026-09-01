@@ -184,9 +184,9 @@ export function AttendanceCalendarView() {
 
     // Verify Employee PIN
     const currentEmp = employees.find((emp) => emp.name === selectedSelfName);
-    const validPin = currentEmp?.pin || "1234";
+    const validPin = currentEmp?.pin;
 
-    if (empInputPin !== validPin && empInputPin !== "9999") {
+    if (!validPin || empInputPin !== validPin) {
       alert(`PIN verifikasi salah untuk ${selectedSelfName}! Silakan masukkan PIN yang terdaftar.`);
       return;
     }

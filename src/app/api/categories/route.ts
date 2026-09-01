@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { getOrSeedCategories, invalidateCategoriesCache } from "@/lib/categories";
+import { requireRole } from "@/lib/authHelper";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin", "karyawan"]);
+    if (errorResponse) return errorResponse;
+
     const hierarchy = await getOrSeedCategories();
     const allCategoryNames = hierarchy.map((h) => h.name);
 
@@ -33,6 +37,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin"]);
+    if (errorResponse) return errorResponse;
+
     const { name, parentId } = await req.json();
     const cleanName = name ? name.trim() : "";
 

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { getAdminUserFromRequest } from "@/lib/authHelper";
+import { getAdminUserFromRequest, requireRole } from "@/lib/authHelper";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin", "karyawan"]);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     const { data: receipt, error } = await supabase
       .from("receipts")
@@ -24,8 +27,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { errorResponse, session } = await requireRole(req, ["admin", "karyawan"]);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
-    const adminUser = getAdminUserFromRequest(req);
+    const adminUser = session?.name || getAdminUserFromRequest(req);
     const body = await req.json();
     const { date, items, directUpdate } = body;
 
@@ -103,8 +109,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { errorResponse, session } = await requireRole(req, ["admin"]);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
-    const adminUser = getAdminUserFromRequest(req);
+    const adminUser = session?.name || getAdminUserFromRequest(req);
 
     // Create Pending Approval for DELETE action in Supabase
     const { data: approval, error } = await supabase

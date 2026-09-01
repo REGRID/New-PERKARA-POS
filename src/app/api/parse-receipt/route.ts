@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, incrementRateLimit, normalizeIp } from "@/lib/rateLimiter";
 import { getLearnedKnowledgeContext, matchItemWithLearnedMemory } from "@/lib/selfLearningEngine";
 import { getOrSeedCategories } from "@/lib/categories";
-
 import { generateItemSku } from "@/lib/utils";
+import { requireRole } from "@/lib/authHelper";
 
 export interface ParsedItem {
   name: string;
@@ -83,6 +83,9 @@ async function callGeminiRestApi(apiKey: string, modelName: string, contentsPart
 
 export async function POST(req: NextRequest) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin", "karyawan"]);
+    if (errorResponse) return errorResponse;
+
     // 1. IP Normalization & Realtime Rate Limiting Enforcement
     const rawIp =
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||

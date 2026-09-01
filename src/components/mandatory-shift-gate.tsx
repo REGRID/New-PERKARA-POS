@@ -60,9 +60,9 @@ export function MandatoryShiftGate({ onShiftOpened }: MandatoryShiftGateProps) {
 
     // Verify Employee PIN
     const currentEmp = employees.find((emp) => emp.name === selectedStaff);
-    const validPin = currentEmp?.pin || "1234";
+    const validPin = currentEmp?.pin;
 
-    if (inputPin !== validPin && inputPin !== "9999") {
+    if (!validPin || inputPin !== validPin) {
       setErrorMsg(`PIN verifikasi salah untuk ${selectedStaff}! Silakan masukkan PIN yang terdaftar.`);
       return;
     }

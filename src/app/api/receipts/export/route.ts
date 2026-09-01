@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import { generateItemSku } from "@/lib/utils";
+import { requireRole } from "@/lib/authHelper";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin", "karyawan"]);
+    if (errorResponse) return errorResponse;
+
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
     const category = searchParams.get("category") || "";

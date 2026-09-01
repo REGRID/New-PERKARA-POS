@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-export type UserRole = "admin" | "karyawan";
+export type UserRole = "owner" | "admin" | "karyawan";
 
 export interface UserSession {
   id: string;
@@ -21,6 +21,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
   isAdmin: boolean;
+  isOwner: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -30,6 +31,7 @@ const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
   refreshSession: async () => {},
   isAdmin: false,
+  isOwner: false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -76,10 +78,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "owner";
+  const isOwner = user?.role === "owner";
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshSession, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshSession, isAdmin, isOwner }}>
       {children}
     </AuthContext.Provider>
   );

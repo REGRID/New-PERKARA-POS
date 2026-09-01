@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { getAdminUserFromRequest } from "@/lib/authHelper";
+import { getAdminUserFromRequest, requireRole } from "@/lib/authHelper";
 import { compressBase64Image } from "@/lib/imageCompressor";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { errorResponse, session } = await requireRole(req, ["admin"]);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     const cleanId = (id || "").trim();
 
@@ -12,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "ID permintaan verifikasi tidak valid" }, { status: 400 });
     }
 
-    const approvingAdmin = getAdminUserFromRequest(req);
+    const approvingAdmin = session?.name || getAdminUserFromRequest(req);
 
     // Fetch approval request safely with maybeSingle
     const { data: pendingApproval, error: findErr } = await supabase

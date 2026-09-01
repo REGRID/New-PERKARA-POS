@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AppShell } from "@/components/layout/app-shell";
+import { useAuth } from "@/lib/auth-context";
 
 interface NavConfigGroup {
   groupName: string;
@@ -46,6 +47,15 @@ interface NavConfigGroup {
 }
 
 export default function SettingsPage() {
+  const { user } = useAuth();
+  const isOwner = user?.role === "owner";
+
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [newAccount, setNewAccount] = useState({ name: "", username: "", password: "", pin: "", role: "cashier" });
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [accountError, setAccountError] = useState("");
+  const [accountSuccess, setAccountSuccess] = useState("");
+
   const [outletName, setOutletName] = useState("PERKARA COFFEE");
   const [address, setAddress] = useState("Jl. Boulevard Utama No. 8, Jakarta Selatan");
   const [phone, setPhone] = useState("0812-3456-7890");
@@ -174,6 +184,57 @@ export default function SettingsPage() {
 
     loadSettings();
   }, []);
+
+  const loadAccounts = async () => {
+    try {
+      const res = await fetch("/api/data?type=accounts");
+      if (res.ok) {
+        setAccounts(await res.json());
+      }
+    } catch (e) {
+      console.error("Error loading accounts:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (isOwner) loadAccounts();
+  }, [isOwner]);
+
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAccountError("");
+    setAccountSuccess("");
+    setCreatingAccount(true);
+    try {
+      const res = await fetch("/api/data?type=create_account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newAccount),
+      });
+      const result = await res.json();
+      if (!res.ok || result.error) throw new Error(result.error || "Gagal membuat akun");
+      setAccountSuccess(`Akun "${newAccount.name}" berhasil dibuat!`);
+      setNewAccount({ name: "", username: "", password: "", pin: "", role: "cashier" });
+      await loadAccounts();
+    } catch (err: any) {
+      setAccountError(err.message || "Gagal membuat akun");
+    } finally {
+      setCreatingAccount(false);
+    }
+  };
+
+  const handleToggleActive = async (id: string, isActive: boolean) => {
+    try {
+      await fetch("/api/data?type=set_account_active", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, isActive }),
+      });
+      await loadAccounts();
+    } catch (e) {
+      console.error("Error toggling account status:", e);
+    }
+  };
 
   const toggleNavVisibility = (href: string) => {
     let updated: string[];
@@ -424,6 +485,175 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
+
+            {/* 4. Kelola Akun (Khusus Role Owner) */}
+            {isOwner && (
+              <div className="space-y-4 pt-6 border-t border-slate-200/80">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                      <Users className="w-4 h-4 text-indigo-600" />
+                      <span>Kelola Akun &amp; Kredensial (Khusus Owner)</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      Buat akun baru untuk Admin, Supervisor, atau Kasir. Setiap akun memiliki kredensial independen dan tercatat di audit log.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={loadAccounts}
+                    className="text-xs gap-1 rounded-xl cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Segarkan Akun</span>
+                  </Button>
+                </div>
+
+                {/* Form Buat Akun */}
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                  <h4 className="text-xs font-bold text-slate-800">Tambah Akun Pengguna Baru</h4>
+
+                  {accountError && (
+                    <div className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-2.5">
+                      {accountError}
+                    </div>
+                  )}
+                  {accountSuccess && (
+                    <div className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl p-2.5">
+                      {accountSuccess}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 block mb-1">Nama Lengkap</label>
+                      <Input
+                        placeholder="Contoh: Siti Rahma"
+                        value={newAccount.name}
+                        onChange={(e) => setNewAccount({ ...newAccount, name: e.target.value })}
+                        className="text-xs bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 block mb-1">Username Login</label>
+                      <Input
+                        placeholder="Contoh: sitikasir"
+                        value={newAccount.username}
+                        onChange={(e) => setNewAccount({ ...newAccount, username: e.target.value })}
+                        className="text-xs bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 block mb-1">Password (Min. 6 Karakter)</label>
+                      <Input
+                        type="password"
+                        placeholder="••••••••"
+                        value={newAccount.password}
+                        onChange={(e) => setNewAccount({ ...newAccount, password: e.target.value })}
+                        className="text-xs bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 block mb-1">PIN Cepat POS (Opsional, 4-6 digit)</label>
+                      <Input
+                        placeholder="Contoh: 123456"
+                        value={newAccount.pin}
+                        onChange={(e) => setNewAccount({ ...newAccount, pin: e.target.value })}
+                        className="text-xs bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 block mb-1">Role Akun</label>
+                      <select
+                        value={newAccount.role}
+                        onChange={(e) => setNewAccount({ ...newAccount, role: e.target.value })}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 shadow-2xs h-9"
+                      >
+                        <option value="cashier">Kasir (Akses POS &amp; Meja)</option>
+                        <option value="supervisor">Supervisor (Void &amp; Laporan)</option>
+                        <option value="admin">Admin (ERP Penuh)</option>
+                        <option value="owner">Owner (Hak Akses Penuh)</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        onClick={handleCreateAccount}
+                        disabled={creatingAccount}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold h-9 rounded-xl cursor-pointer"
+                      >
+                        {creatingAccount ? "Membuat Akun..." : "Tambah Akun"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Daftar Akun Terdaftar */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-2xs">
+                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700">Daftar Akun Pengguna ({accounts.length})</span>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    {accounts.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-slate-400">Belum ada akun di database.</div>
+                    ) : (
+                      accounts.map((acc) => (
+                        <div key={acc.id} className="flex items-center justify-between p-3.5 text-xs hover:bg-slate-50/50 transition-colors">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <strong className="text-slate-900 font-bold">{acc.name}</strong>
+                              <span className="text-slate-400 font-normal">@{acc.username || acc.id}</span>
+                              <Badge className={`text-[10px] font-bold ${
+                                acc.role === "owner" ? "bg-amber-100 text-amber-800" :
+                                acc.role === "admin" ? "bg-indigo-100 text-indigo-800" :
+                                acc.role === "supervisor" ? "bg-purple-100 text-purple-800" :
+                                "bg-emerald-100 text-emerald-800"
+                              }`}>
+                                {acc.role.toUpperCase()}
+                              </Badge>
+                              {acc.hasPin && (
+                                <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">PIN Aktif</span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-400 mt-0.5 block">
+                              Dibuat: {acc.createdAt ? new Date(acc.createdAt).toLocaleDateString("id-ID") : "Awal"}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-bold ${acc.isActive ? "text-emerald-600" : "text-rose-600"}`}>
+                              {acc.isActive ? "● Aktif" : "● Nonaktif"}
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleToggleActive(acc.id, !acc.isActive)}
+                              className={`text-[11px] h-7 px-2.5 rounded-lg cursor-pointer ${
+                                acc.isActive ? "hover:bg-rose-50 text-rose-600 border-rose-200" : "hover:bg-emerald-50 text-emerald-700 border-emerald-200"
+                              }`}
+                            >
+                              {acc.isActive ? "Nonaktifkan" : "Aktifkan"}
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Bottom Actions */}
             <div className="flex items-center gap-3 pt-2">

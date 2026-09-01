@@ -67,7 +67,9 @@ export async function middleware(request: NextRequest) {
 
   // 5. Handle Authenticated User visiting /login
   if (isLoginPage) {
-    const targetUrl = session.role === "admin" ? new URL("/", request.url) : new URL("/pos", request.url);
+    const targetUrl = (session.role === "admin" || session.role === "owner")
+      ? new URL("/", request.url)
+      : new URL("/pos", request.url);
     return NextResponse.redirect(targetUrl);
   }
 

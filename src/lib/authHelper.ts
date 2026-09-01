@@ -40,7 +40,7 @@ export async function getAuthSession(req: NextRequest | Request): Promise<Sessio
  */
 export async function requireRole(
   req: NextRequest | Request,
-  allowedRoles: Array<"admin" | "karyawan"> = ["admin"]
+  allowedRoles: Array<"owner" | "admin" | "karyawan"> = ["admin"]
 ): Promise<{ errorResponse: NextResponse | null; session: SessionPayload | null }> {
   const session = await getAuthSession(req);
 
@@ -54,7 +54,12 @@ export async function requireRole(
     };
   }
 
-  if (!allowedRoles.includes(session.role)) {
+  // Owner implicitly has all Admin privileges
+  const hasAccess = 
+    allowedRoles.includes(session.role) ||
+    (session.role === "owner" && allowedRoles.includes("admin"));
+
+  if (!hasAccess) {
     return {
       errorResponse: NextResponse.json(
         { error: "Akses ditolak. Anda tidak memiliki izin untuk aksi ini." },

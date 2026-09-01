@@ -1,7 +1,7 @@
 export interface SessionPayload {
   id: string;
   name: string;
-  role: "admin" | "karyawan";
+  role: "owner" | "admin" | "karyawan";
   username?: string;
   outletName?: string;
   exp: number; // Unix timestamp in ms

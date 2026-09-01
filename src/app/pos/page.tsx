@@ -195,16 +195,40 @@ export default function POSTerminalPage() {
     }
   };
 
-  const handleConfirmVoidCart = () => {
-    if (supervisorPin === "9999" || supervisorPin === "1234" || supervisorPin === (user?.pin || "9999")) {
+  const handleConfirmVoidCart = async () => {
+    const isPinValid = (user?.pin && supervisorPin === user.pin) || (isAdmin && supervisorPin === user?.pin) || (isAdmin && !user?.pin);
+    
+    // Also verify against backend if not matched locally
+    if (isPinValid) {
       setCart([]);
       setIsVoidModalOpen(false);
       setSupervisorPin("");
       setVoidError("");
       setVoidReason("Salah input / ganti pesanan");
-    } else {
-      setVoidError("PIN Supervisor salah. Silakan periksa kembali PIN Anda.");
+      return;
     }
+
+    try {
+      const res = await fetch("/api/data?type=employees");
+      if (res.ok) {
+        const emps = await res.json();
+        const supervisor = (Array.isArray(emps) ? emps : []).find(
+          (e: any) => e.pin && e.pin === supervisorPin && ["admin", "owner", "manager", "ADMIN", "OWNER", "MANAGER", "supervisor", "SUPERVISOR"].includes(e.role)
+        );
+        if (supervisor) {
+          setCart([]);
+          setIsVoidModalOpen(false);
+          setSupervisorPin("");
+          setVoidError("");
+          setVoidReason("Salah input / ganti pesanan");
+          return;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    setVoidError("PIN Supervisor salah. Silakan periksa kembali PIN Anda.");
   };
 
   const updateCartQty = (index: number, delta: number) => {

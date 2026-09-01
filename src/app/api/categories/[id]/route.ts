@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { invalidateCategoriesCache } from "@/lib/categories";
+import { requireRole } from "@/lib/authHelper";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin"]);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     const { name } = await req.json();
     const cleanName = name ? name.trim() : "";
@@ -33,6 +37,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin"]);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
 
     // Delete sub-categories under this parent first if it's a parent category

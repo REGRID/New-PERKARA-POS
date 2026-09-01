@@ -1,15 +1,20 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma as db } from "@/lib/prisma";
+import { getAuthSession } from "@/lib/authHelper";
 
-const EXPECTED_SECRET = process.env.POS_WEBHOOK_SECRET || "perkara_pos_secret_key_2026";
+const EXPECTED_SECRET = (process.env.POS_WEBHOOK_SECRET || "perkara_pos_secret_key_2026").trim();
 
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization") || "";
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
 
-    if (token !== EXPECTED_SECRET) {
-      return NextResponse.json({ error: "Unauthorized: Invalid Webhook Secret" }, { status: 401 });
+    const isSecretValid = token && token === EXPECTED_SECRET;
+    const session = await getAuthSession(req);
+    const isSessionValid = session && (session.role === "admin" || session.role === "karyawan");
+
+    if (!isSecretValid && !isSessionValid) {
+      return NextResponse.json({ error: "Unauthorized: Invalid Webhook Secret or Session" }, { status: 401 });
     }
 
     const payload = await req.json();

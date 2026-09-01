@@ -1,8 +1,12 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma as db } from "@/lib/prisma";
+import { requireRole } from "@/lib/authHelper";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin", "karyawan"]);
+    if (errorResponse) return errorResponse;
+
     const anyDb = db as any;
     if (!anyDb) {
       return NextResponse.json({ error: "Database not connected" }, { status: 500 });
@@ -31,6 +35,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin"]);
+    if (errorResponse) return errorResponse;
+
     const body = await req.json();
     const { action, itemIndex, itemData, ingredientId, newIngredientData, destination = "BAR" } = body;
 

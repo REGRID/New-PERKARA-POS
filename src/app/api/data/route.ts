@@ -59,8 +59,15 @@ import {
   getVendors,
   saveVendor,
   deleteVendor,
-  updatePurchaseStatus
+  updatePurchaseStatus,
+  getAccounts,
+  createAccount,
+  setAccountActive,
+  getAuditLogs
 } from "@/lib/actions";
+
+// Actions strictly restricted to Owner only
+const OWNER_ONLY_ACTIONS = new Set(["create_account", "set_account_active"]);
 
 // Actions strictly restricted to Admin / Owner / Manager
 const ADMIN_ONLY_ACTIONS = new Set([
@@ -91,6 +98,16 @@ export async function GET(request: Request) {
   const ingredientId = searchParams.get("ingredientId") || undefined;
 
   try {
+    if (type === "accounts") {
+      const { errorResponse } = await requireRole(request, ["owner"]);
+      if (errorResponse) return errorResponse;
+      return NextResponse.json(await getAccounts());
+    }
+    if (type === "audit_logs") {
+      const { errorResponse } = await requireRole(request, ["owner", "admin"]);
+      if (errorResponse) return errorResponse;
+      return NextResponse.json(await getAuditLogs());
+    }
     if (type === "ingredients") return NextResponse.json(await getIngredients());
     if (type === "employees") return NextResponse.json(await getEmployees());
     if (type === "attendances") return NextResponse.json(await getEmployeeAttendances());
@@ -135,13 +152,26 @@ export async function POST(request: Request) {
       return NextResponse.json(await authenticateUser(body));
     }
 
-    // 2. Check Admin Permission for Sensitive Actions
+    // 2. Check Owner Permission for Account Management
+    if (type && OWNER_ONLY_ACTIONS.has(type)) {
+      const { errorResponse, session } = await requireRole(request, ["owner"]);
+      if (errorResponse) return errorResponse;
+
+      if (type === "create_account") {
+        return NextResponse.json(await createAccount({ ...body, createdBy: session?.name || "Owner" }));
+      }
+      if (type === "set_account_active") {
+        return NextResponse.json(await setAccountActive({ ...body, actorName: session?.name || "Owner" }));
+      }
+    }
+
+    // 3. Check Admin Permission for Sensitive Actions
     if (type && ADMIN_ONLY_ACTIONS.has(type)) {
       const { errorResponse } = await requireRole(request, ["admin"]);
       if (errorResponse) return errorResponse;
     }
 
-    // 3. Operational & Inventory
+    // 4. Operational & Inventory
     if (type === "update_stock") return NextResponse.json(await updateIngredientStock(body));
     if (type === "update_ingredient_detail") return NextResponse.json(await updateIngredientDetail(body));
     if (type === "delete_ingredient") return NextResponse.json(await deleteIngredient(body.id));

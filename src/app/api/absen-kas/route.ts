@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/authHelper";
 
 const db = prisma as any;
 
@@ -7,6 +8,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin", "karyawan"]);
+    if (errorResponse) return errorResponse;
+
     const { searchParams } = new URL(req.url);
     const monthParam = searchParams.get("month");
     const yearParam = searchParams.get("year");
@@ -197,6 +201,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin", "karyawan"]);
+    if (errorResponse) return errorResponse;
+
     const body = await req.json();
     const { action, employeeName, shiftCategory, startingCash, cashVerified, note, type, timestamp } = body;
 
@@ -325,6 +332,9 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin", "karyawan"]);
+    if (errorResponse) return errorResponse;
+
     const body = await req.json();
     const { id, employeeName, type, timestamp, startingCash, cashVerified, cashDiscrepancy, cashNote } = body;
 
@@ -385,6 +395,9 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin"]);
+    if (errorResponse) return errorResponse;
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     const clearAll = searchParams.get("clearAll");

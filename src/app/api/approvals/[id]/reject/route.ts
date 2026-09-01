@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { getAdminUserFromRequest } from "@/lib/authHelper";
+import { getAdminUserFromRequest, requireRole } from "@/lib/authHelper";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { errorResponse, session } = await requireRole(req, ["admin"]);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     const cleanId = (id || "").trim();
 
@@ -11,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "ID permintaan verifikasi tidak valid" }, { status: 400 });
     }
 
-    const rejectingAdmin = getAdminUserFromRequest(req);
+    const rejectingAdmin = session?.name || getAdminUserFromRequest(req);
     const body = await req.json();
     const { reason } = body || {};
 

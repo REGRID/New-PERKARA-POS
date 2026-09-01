@@ -5,6 +5,7 @@ import { recordLearnedMemory } from "@/lib/selfLearningEngine";
 import { compressBase64Image } from "@/lib/imageCompressor";
 import { prisma as db } from "@/lib/prisma";
 import { generateItemSku, detectUnitsFromItemName } from "@/lib/utils";
+import { requireRole } from "@/lib/authHelper";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,9 @@ const RECEIPT_LIST_SELECT = `
 
 export async function GET(req: NextRequest) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin", "karyawan"]);
+    if (errorResponse) return errorResponse;
+
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
     const category = searchParams.get("category") || "";
@@ -148,6 +152,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const { errorResponse } = await requireRole(req, ["admin", "karyawan"]);
+    if (errorResponse) return errorResponse;
+
     const body = await req.json();
     const { merchantName, date, imageUrl, subtotal, taxAmount, totalAmount, paymentMethod, paymentStatus, note, items, userRole } = body;
 

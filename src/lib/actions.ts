@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { supabase } from "@/lib/supabase";
+import { scryptSync, randomBytes, timingSafeEqual } from "crypto";
 
 const db = prisma as any;
 
@@ -856,8 +857,40 @@ export async function processOrderCheckout(orderData: {
 }
 
 // =============================================================================
-// 6. AUTHENTICATION (READING CREDENTIALS SAFELY FROM PROCESS.ENV & MYSQL)
+// 6. AUTHENTICATION & PASSWORD HASHING (SECURE SCRYPT & MULTI-ROLE)
 // =============================================================================
+
+export function hashPassword(plain: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(plain, salt, 64).toString("hex");
+  return `scrypt:${salt}:${hash}`;
+}
+
+export function verifyPassword(plain: string, stored: string): boolean {
+  if (!stored) return false;
+  if (stored.startsWith("scrypt:")) {
+    const [, salt, hashHex] = stored.split(":");
+    if (!salt || !hashHex) return false;
+    try {
+      const candidate = scryptSync(plain, salt, 64);
+      const expected = Buffer.from(hashHex, "hex");
+      if (candidate.length !== expected.length) return false;
+      return timingSafeEqual(candidate, expected);
+    } catch {
+      return false;
+    }
+  }
+  // Backward compatibility for legacy plaintext records
+  return plain === stored;
+}
+
+export function resolveSessionRole(dbRole: string | null | undefined): "owner" | "admin" | "karyawan" {
+  const r = (dbRole || "").toLowerCase();
+  if (r === "owner") return "owner";
+  if (r === "admin" || r === "manager" || r === "supervisor") return "admin";
+  return "karyawan";
+}
+
 export async function authenticateUser(data: { username: string; password?: string }) {
   const inputId = (data.username || "").trim();
   const inputPass = (data.password || "").trim();
@@ -867,32 +900,34 @@ export async function authenticateUser(data: { username: string; password?: stri
   }
 
   const envAdminId = (process.env.ADMIN_ID || "admin").trim();
-  const envAdminPass = (process.env.ADMIN_PASSWORD || "admin123").trim();
+  const envAdminPass = (process.env.ADMIN_PASSWORD || "").trim();
 
   const envKaryawanId = (process.env.KARYAWAN_ID || "karyawan").trim();
-  const envKaryawanPass = (process.env.KARYAWAN_PASSWORD || "kasir123").trim();
+  const envKaryawanPass = (process.env.KARYAWAN_PASSWORD || "").trim();
 
-  // 1. Check Admin Credentials from .env or master PIN 9999
+  // 1. Akun Owner bootstrap dari .env
   if (
+    envAdminPass &&
     inputId.toLowerCase() === envAdminId.toLowerCase() &&
-    (inputPass === envAdminPass || inputPass === "9999" || inputPass === "admin123")
+    inputPass === envAdminPass
   ) {
     return {
       success: true,
       user: {
-        id: "admin-1",
-        name: "Admin / Manager",
+        id: "owner-1",
+        name: "Owner",
         username: envAdminId,
-        role: "admin" as const,
+        role: "owner" as const,
         outletName: "Outlet Utama",
       },
     };
   }
 
-  // 2. Check Generic Karyawan Credentials from .env
+  // 2. Akun Generic Karyawan dari .env
   if (
+    envKaryawanPass &&
     inputId.toLowerCase() === envKaryawanId.toLowerCase() &&
-    (inputPass === envKaryawanPass || inputPass === "kasir123")
+    inputPass === envKaryawanPass
   ) {
     return {
       success: true,
@@ -906,7 +941,7 @@ export async function authenticateUser(data: { username: string; password?: stri
     };
   }
 
-  // 3. Database Employee Lookup (Verified against MySQL Employee table)
+  // 3. Database Employee Lookup
   try {
     const employeeModel = db.employee || db.Employee;
     if (employeeModel) {
@@ -914,36 +949,39 @@ export async function authenticateUser(data: { username: string; password?: stri
         where: {
           OR: [
             { username: inputId },
-            { name: inputId },
-            { name: { contains: inputId } },
             { id: inputId }
           ]
         }
       });
 
       if (emp) {
-        // Verify PIN or password
+        if (emp.isActive === false) {
+          return { success: false, error: "Akun ini telah dinonaktifkan. Hubungi Owner/Admin." };
+        }
+
         const empPin = (emp.pin || "").trim();
         const empPass = (emp.password || "").trim();
 
-        const isPinMatch = empPin && inputPass === empPin;
-        const isPassMatch = empPass && inputPass === empPass;
+        if (!empPin && !empPass) {
+          return { success: false, error: "Akun belum memiliki PIN/Kata Sandi yang diatur. Silakan hubungi Administrator." };
+        }
 
-        // If employee has a PIN or password configured, it MUST match
-        if (isPinMatch || isPassMatch || (!empPin && !empPass)) {
-          const isEmpAdmin = emp.role === "admin" || emp.role === "owner" || emp.role === "manager";
+        const isPinMatch = empPin && inputPass === empPin;
+        const isPassMatch = empPass && verifyPassword(inputPass, empPass);
+
+        if (isPinMatch || isPassMatch) {
           return {
             success: true,
             user: {
               id: emp.id,
               name: emp.name,
               username: emp.username || emp.name,
-              role: isEmpAdmin ? ("admin" as const) : ("karyawan" as const),
+              role: resolveSessionRole(emp.role),
               outletName: "Outlet Utama",
             },
           };
         } else {
-          return { success: false, error: "PIN atau Kata Sandi karyawan salah." };
+          return { success: false, error: "PIN atau Kata Sandi salah." };
         }
       }
     }
@@ -951,11 +989,132 @@ export async function authenticateUser(data: { username: string; password?: stri
     console.error("Error authenticating against DB employee table:", err);
   }
 
-  // 4. Strict Failure - No insecure fallback
+  // 4. Strict Failure
   return {
     success: false,
     error: "ID Pengguna atau Kata Sandi tidak ditemukan.",
   };
+}
+
+// =============================================================================
+// ACCOUNT MANAGEMENT & AUDIT LOGS (FOR OWNER & ADMIN)
+// =============================================================================
+
+const ASSIGNABLE_ROLES = ["owner", "admin", "supervisor", "cashier"] as const;
+
+export async function getAccounts() {
+  const employeeModel = db.employee || db.Employee;
+  if (!employeeModel) return [];
+  const rows = await employeeModel.findMany({ orderBy: { createdAt: "asc" } });
+  return rows.map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    username: r.username,
+    role: r.role,
+    isActive: r.isActive !== false,
+    hasPin: !!r.pin,
+    createdAt: r.createdAt,
+  }));
+}
+
+export async function createAccount(data: {
+  name: string;
+  username: string;
+  password: string;
+  pin?: string;
+  role: string;
+  createdBy?: string;
+}) {
+  const name = (data.name || "").trim();
+  const username = (data.username || "").trim();
+  const password = (data.password || "").trim();
+  const pin = (data.pin || "").trim();
+  const role = (data.role || "").trim().toLowerCase();
+
+  if (!name || !username || !password) throw new Error("Nama, Username, dan Password wajib diisi.");
+  if (password.length < 6) throw new Error("Password minimal 6 karakter.");
+  if (!ASSIGNABLE_ROLES.includes(role as any)) throw new Error(`Role tidak valid. Pilihan: ${ASSIGNABLE_ROLES.join(", ")}.`);
+  if (pin && !/^\d{4,6}$/.test(pin)) throw new Error("PIN harus 4-6 digit angka.");
+
+  const employeeModel = db.employee || db.Employee;
+  const existing = await employeeModel.findFirst({ where: { username } }).catch(() => null);
+  if (existing) throw new Error("Username sudah dipakai akun lain.");
+
+  const newAccount = await employeeModel.create({
+    data: {
+      name,
+      username,
+      password: hashPassword(password),
+      pin: pin || null,
+      role,
+      isActive: true,
+    },
+  });
+
+  await createAuditLogEntry({
+    actorName: data.createdBy || "Owner",
+    action: "CREATE_ACCOUNT",
+    targetType: "Employee",
+    targetId: newAccount.id,
+    details: `Membuat akun baru "${name}" (username: ${username}, role: ${role})`,
+  });
+
+  return { success: true, id: newAccount.id };
+}
+
+export async function setAccountActive(data: { id: string; isActive: boolean; actorName?: string }) {
+  const employeeModel = db.employee || db.Employee;
+  const updated = await employeeModel.update({
+    where: { id: data.id },
+    data: { isActive: !!data.isActive },
+  });
+
+  await createAuditLogEntry({
+    actorName: data.actorName || "Owner",
+    action: data.isActive ? "ACTIVATE_ACCOUNT" : "DEACTIVATE_ACCOUNT",
+    targetType: "Employee",
+    targetId: data.id,
+    details: `${data.isActive ? "Mengaktifkan" : "Menonaktifkan"} akun "${updated.name}"`,
+  });
+
+  return { success: true };
+}
+
+export async function createAuditLogEntry(data: {
+  actorName: string;
+  actorRole?: string;
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  details?: string;
+}) {
+  try {
+    const auditLogModel = db.auditLog || db.AuditLog;
+    if (!auditLogModel) return;
+    await auditLogModel.create({
+      data: {
+        actorName: data.actorName,
+        actorRole: data.actorRole || "",
+        action: data.action,
+        targetType: data.targetType || null,
+        targetId: data.targetId || null,
+        details: data.details || "",
+      },
+    });
+  } catch (err) {
+    console.error("Error writing AuditLog entry:", err);
+  }
+}
+
+export async function getAuditLogs() {
+  try {
+    const auditLogModel = db.auditLog || db.AuditLog;
+    if (!auditLogModel) return [];
+    return await auditLogModel.findMany({ orderBy: { createdAt: "desc" }, take: 500 });
+  } catch (err) {
+    console.error("Error fetching AuditLogs:", err);
+    return [];
+  }
 }
 
 // =============================================================================
@@ -2070,11 +2229,22 @@ export async function voidOrderWithAuditLog(data: {
     const recipeModel = db.recipeItem || db.RecipeItem;
 
     let approverName = data.approvedBy || "Supervisor";
-    let isAuthorized = data.supervisorPin === "9999" || data.supervisorPin === "1234";
+    let isAuthorized = false;
 
-    if (empModel && !isAuthorized) {
+    // 1. Check against process.env.SUPERVISOR_PIN or process.env.ADMIN_PASSWORD
+    const envSupervisorPin = (process.env.SUPERVISOR_PIN || process.env.ADMIN_PASSWORD || "").trim();
+    if (envSupervisorPin && data.supervisorPin === envSupervisorPin) {
+      isAuthorized = true;
+      approverName = "Administrator";
+    }
+
+    // 2. Check against Database Employee with Admin / Supervisor / Manager role
+    if (!isAuthorized && empModel) {
       const emp = await empModel.findFirst({
-        where: { pin: data.supervisorPin },
+        where: { 
+          pin: data.supervisorPin,
+          role: { in: ["ADMIN", "MANAGER", "SUPERVISOR", "admin", "manager", "supervisor", "owner", "OWNER"] }
+        },
       }).catch(() => null);
       if (emp) {
         approverName = emp.name;
@@ -2210,11 +2380,22 @@ export async function refundOrder(data: {
     const stockMovementModel = db.stockMovement || db.StockMovement;
 
     let approverName = data.approvedBy || "Supervisor";
-    let isAuthorized = data.supervisorPin === "9999" || data.supervisorPin === "1234";
+    let isAuthorized = false;
 
-    if (empModel && !isAuthorized) {
+    // 1. Check against process.env.SUPERVISOR_PIN or process.env.ADMIN_PASSWORD
+    const envSupervisorPin = (process.env.SUPERVISOR_PIN || process.env.ADMIN_PASSWORD || "").trim();
+    if (envSupervisorPin && data.supervisorPin === envSupervisorPin) {
+      isAuthorized = true;
+      approverName = "Administrator";
+    }
+
+    // 2. Check against Database Employee with Admin / Supervisor / Manager role
+    if (!isAuthorized && empModel) {
       const emp = await empModel.findFirst({
-        where: { pin: data.supervisorPin },
+        where: { 
+          pin: data.supervisorPin,
+          role: { in: ["ADMIN", "MANAGER", "SUPERVISOR", "admin", "manager", "supervisor", "owner", "OWNER"] }
+        },
       }).catch(() => null);
       if (emp) {
         approverName = emp.name;
