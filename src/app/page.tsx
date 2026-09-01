@@ -53,36 +53,36 @@ export default function AdminDashboardPage() {
       <div className="p-4 md:p-6 lg:p-8 space-y-5 max-w-7xl mx-auto text-slate-900">
         
         {/* 1. Top Greeting Card */}
-        <div className="bg-white p-5 rounded-2xl border shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
+            <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
               Selamat Datang, {user?.name || "Refo"}
             </h1>
-            <p className="text-xs text-slate-500 mt-1 font-medium">
+            <p className="text-xs text-slate-500 mt-0.5 font-medium">
               Ringkasan performa penjualan dan operasional hari ini.
             </p>
           </div>
 
-          <div className="flex items-center gap-4 sm:gap-6 shrink-0">
-            <div className="text-right">
+          <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 sm:gap-6">
+            <div className="text-left sm:text-right">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                 LABA BERSIH HARI INI
               </span>
-              <span className="text-lg font-bold text-emerald-600">
+              <span className="text-base sm:text-lg font-bold text-emerald-600 font-mono">
                 Rp {Number(estimatedProfit || 0).toLocaleString("id-ID")}
               </span>
             </div>
 
             <div className="flex items-center gap-2">
               <Link href="/receipts/upload">
-                <Button size="lg" variant="outline" className="min-h-[44px] bg-white border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-semibold px-4 rounded-xl gap-2 shadow-2xs cursor-pointer">
+                <Button size="sm" variant="outline" className="min-h-[40px] bg-white border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-semibold px-3 sm:px-4 rounded-xl gap-2 shadow-2xs cursor-pointer active:scale-[0.98]">
                   <Camera className="w-4 h-4 text-rose-500" />
                   <span>Pindai Nota</span>
                 </Button>
               </Link>
 
               <Link href="/pos">
-                <Button size="lg" className="min-h-[44px] bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold px-4 rounded-xl gap-2 shadow-xs cursor-pointer">
+                <Button size="sm" className="min-h-[40px] bg-stone-800 hover:bg-stone-900 text-white text-xs font-semibold px-3 sm:px-4 rounded-xl gap-2 shadow-xs cursor-pointer active:scale-[0.98]">
                   <ShoppingCart className="w-4 h-4" />
                   <span>Buka Kasir POS &rarr;</span>
                 </Button>

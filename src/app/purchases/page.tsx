@@ -459,17 +459,19 @@ export default function PurchasesPage() {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 border-b border-slate-200/80 pb-3">
           <button
             onClick={() => setActiveMainTab("purchases")}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-between sm:justify-start gap-2 cursor-pointer active:scale-[0.98] ${
               activeMainTab === "purchases"
                 ? "bg-slate-900 text-white shadow-xs"
                 : "bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50"
             }`}
           >
-            <ShoppingBag className="w-4 h-4" />
-            <span>Transaksi &amp; PO Pembelian</span>
+            <div className="flex items-center gap-2">
+              <ShoppingBag className="w-4 h-4" />
+              <span>Transaksi &amp; PO Pembelian</span>
+            </div>
             <Badge className={`text-[10px] px-2 py-0 border-none font-bold ${
               activeMainTab === "purchases" ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-600"
             }`}>
@@ -479,14 +481,16 @@ export default function PurchasesPage() {
 
           <button
             onClick={() => setActiveMainTab("vendors")}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-between sm:justify-start gap-2 cursor-pointer active:scale-[0.98] ${
               activeMainTab === "vendors"
                 ? "bg-slate-900 text-white shadow-xs"
                 : "bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50"
             }`}
           >
-            <Truck className="w-4 h-4" />
-            <span>Data Supplier (Vendors)</span>
+            <div className="flex items-center gap-2">
+              <Truck className="w-4 h-4" />
+              <span>Data Supplier (Vendors)</span>
+            </div>
             <Badge className={`text-[10px] px-2 py-0 border-none font-bold ${
               activeMainTab === "vendors" ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-600"
             }`}>

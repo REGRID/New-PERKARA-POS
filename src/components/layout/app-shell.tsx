@@ -131,7 +131,7 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <AppShellContext.Provider value={true}>
-      <div className="h-screen w-screen overflow-hidden bg-[#f3f6f9] text-foreground flex flex-col lg:flex-row select-none">
+      <div className="min-h-[100dvh] h-[100dvh] w-full overflow-hidden bg-[#f3f6f9] text-foreground flex flex-col lg:flex-row select-none">
         <Sidebar mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} />
 
         <main className="flex-1 h-full min-w-0 overflow-y-auto flex flex-col custom-scrollbar">

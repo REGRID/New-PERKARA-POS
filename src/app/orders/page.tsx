@@ -473,17 +473,19 @@ export default function OrdersPage() {
         </div>
 
         {/* Tab Switcher: Orders vs Audit Logs */}
-        <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 border-b border-slate-200/80 pb-3">
           <button
             onClick={() => setActiveTab("ORDERS")}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-between sm:justify-start gap-2 cursor-pointer active:scale-[0.98] ${
               activeTab === "ORDERS"
                 ? "bg-slate-900 text-white shadow-xs"
                 : "bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50"
             }`}
           >
-            <Receipt className="w-4 h-4" />
-            <span>Semua Pesanan &amp; Penjualan</span>
+            <div className="flex items-center gap-2">
+              <Receipt className="w-4 h-4" />
+              <span>Semua Pesanan &amp; Penjualan</span>
+            </div>
             <Badge className={`text-[10px] px-2 py-0 border-none font-bold ${
               activeTab === "ORDERS" ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-600"
             }`}>
@@ -493,14 +495,16 @@ export default function OrdersPage() {
 
           <button
             onClick={() => setActiveTab("AUDIT_LOGS")}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-between sm:justify-start gap-2 cursor-pointer active:scale-[0.98] ${
               activeTab === "AUDIT_LOGS"
                 ? "bg-rose-700 text-white shadow-xs"
                 : "bg-white text-rose-700 border border-rose-200 hover:bg-rose-50"
             }`}
           >
-            <ShieldAlert className="w-4 h-4" />
-            <span>Riwayat Pembatalan (Void &amp; Refund)</span>
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4" />
+              <span>Riwayat Pembatalan (Void &amp; Refund)</span>
+            </div>
             <Badge className={`text-[10px] px-2 py-0 border-none font-bold ${
               activeTab === "AUDIT_LOGS" ? "bg-rose-900 text-rose-100" : "bg-rose-100 text-rose-800"
             }`}>

@@ -162,6 +162,8 @@ export default function POSTerminalPage() {
     { name: "Whipped Cream", price: 5000 },
   ];
 
+  const [mobilePosTab, setMobilePosTab] = useState<"catalog" | "cart">("catalog");
+
   const handleOpenCustomization = (product: any) => {
     setSelectedCustomProduct(product);
     setCustomSugar("Normal Sugar (100%)");
@@ -434,32 +436,32 @@ export default function POSTerminalPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="min-h-[100dvh] h-[100dvh] bg-background text-foreground flex flex-col overflow-hidden">
       
       {/* POS Dedicated Full Screen Header Bar */}
-      <header className="bg-slate-900 text-white p-3 flex items-center justify-between gap-2 shadow-md shrink-0">
-        <div className="flex items-center gap-3">
+      <header className="bg-slate-900 text-white p-2.5 sm:p-3 flex items-center justify-between gap-2 shadow-md shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3">
           {isAdmin ? (
             <Link href="/">
-              <Button size="icon" variant="outline" className="min-h-[40px] min-w-[40px] border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700">
+              <Button size="icon" variant="outline" className="min-h-[38px] min-w-[38px] sm:min-h-[40px] sm:min-w-[40px] border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700">
                 <LayoutDashboard className="w-4 h-4 text-indigo-400" />
               </Button>
             </Link>
           ) : (
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center font-bold text-white text-base">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-600 flex items-center justify-center font-bold text-white text-sm sm:text-base">
               POS
             </div>
           )}
 
           <div>
-            <h1 className="text-sm md:text-base font-extrabold flex items-center gap-2 text-white">
+            <h1 className="text-xs sm:text-sm md:text-base font-extrabold flex items-center gap-2 text-white">
               <span>Kasir POS</span>
-              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] font-bold">
+              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[9px] sm:text-[10px] font-bold">
                 Aktif
               </Badge>
             </h1>
-            <p className="text-[11px] text-slate-400 font-medium">
-              Kasir: <strong className="text-slate-200">{activeShift?.employeeName || user?.name || "Kasir Outlet"}</strong> ({isAdmin ? "Admin" : "Kasir Shift"})
+            <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium">
+              Kasir: <strong className="text-slate-200">{activeShift?.employeeName || user?.name || "Kasir"}</strong>
             </p>
           </div>
         </div>
@@ -533,32 +535,59 @@ export default function POSTerminalPage() {
         </div>
       </header>
 
+      {/* Mobile Tab Switcher for Small Screens */}
+      <div className="lg:hidden flex items-center bg-slate-100 p-1.5 border-b shrink-0">
+        <button
+          type="button"
+          onClick={() => setMobilePosTab("catalog")}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all text-center flex items-center justify-center gap-1.5 ${
+            mobilePosTab === "catalog" ? "bg-white text-indigo-700 shadow-2xs" : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <Coffee className="w-3.5 h-3.5" />
+          <span>Katalog Menu</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobilePosTab("cart")}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all text-center flex items-center justify-center gap-1.5 ${
+            mobilePosTab === "cart" ? "bg-white text-indigo-700 shadow-2xs" : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <ShoppingCart className="w-3.5 h-3.5" />
+          <span>Keranjang ({cart.reduce((s, i) => s + i.qty, 0)})</span>
+        </button>
+      </div>
+
       {/* Main POS Split Screen */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden relative">
         
         {/* Left Side: Product Catalogue Grid (Cols 7) */}
-        <div className="lg:col-span-7 p-4 border-r flex flex-col space-y-4 overflow-y-auto bg-muted/10">
+        <div className={`
+          lg:col-span-7 p-3 sm:p-4 border-r flex flex-col space-y-3 sm:space-y-4 overflow-y-auto bg-muted/10 custom-scrollbar
+          ${mobilePosTab === "cart" ? "hidden lg:flex" : "flex"}
+        `}>
           
           {/* Search & Category Filter */}
-          <div className="space-y-3">
+          <div className="space-y-2.5 sm:space-y-3">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-muted-foreground" />
               <Input 
                 placeholder="Cari nama menu..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="min-h-[44px] pl-9 bg-card border"
+                className="min-h-[42px] sm:min-h-[44px] pl-9 bg-card border rounded-xl text-xs sm:text-sm"
               />
             </div>
 
             {/* Category Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
               {categories.map((cat) => (
                 <Button
                   key={cat}
                   variant={selectedCategory === cat ? "default" : "outline"}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`min-h-[44px] px-5 rounded-xl text-xs font-semibold ${
+                  className={`min-h-[38px] sm:min-h-[44px] px-3.5 sm:px-5 rounded-xl text-xs font-semibold shrink-0 ${
                     selectedCategory === cat ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs" : ""
                   }`}
                 >
@@ -569,7 +598,7 @@ export default function POSTerminalPage() {
           </div>
 
           {/* Product Cards Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 pb-16 lg:pb-0">
             {products
               .filter(p => selectedCategory === "Semua" || p.category === selectedCategory)
               .filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -577,19 +606,19 @@ export default function POSTerminalPage() {
                 <Card 
                   key={product.id}
                   onClick={() => handleOpenCustomization(product)}
-                  className="hover:border-indigo-400 cursor-pointer transition-all flex flex-col justify-between p-3.5 min-h-[145px] shadow-xs hover:shadow-sm bg-card"
+                  className="hover:border-indigo-400 cursor-pointer transition-all flex flex-col justify-between p-3 min-h-[135px] sm:min-h-[145px] shadow-2xs hover:shadow-xs bg-card active:scale-[0.98]"
                 >
                   <div>
-                    <div className="p-2.5 rounded-xl border bg-muted/40 w-fit mb-2.5">
+                    <div className="p-2 rounded-xl border bg-muted/40 w-fit mb-2">
                       {getProductIcon(product.category)}
                     </div>
-                    <h3 className="font-bold text-sm text-foreground line-clamp-1">{product.name}</h3>
-                    <span className="text-[11px] text-muted-foreground">{product.category || "Menu"}</span>
+                    <h3 className="font-bold text-xs sm:text-sm text-foreground line-clamp-2">{product.name}</h3>
+                    <span className="text-[10px] sm:text-[11px] text-muted-foreground">{product.category || "Menu"}</span>
                   </div>
                   <div className="mt-2 flex items-center justify-between">
-                    <span className="font-bold text-xs text-foreground">Rp {Number(product.price).toLocaleString("id-ID")}</span>
-                    <Button size="icon" className="h-8 w-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs">
-                      <Plus className="w-4 h-4" />
+                    <span className="font-bold text-xs text-foreground font-mono">Rp {Number(product.price).toLocaleString("id-ID")}</span>
+                    <Button size="icon" className="h-7 w-7 sm:h-8 sm:w-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs">
+                      <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     </Button>
                   </div>
                 </Card>
@@ -599,20 +628,23 @@ export default function POSTerminalPage() {
         </div>
 
         {/* Right Side: Active Cart & Checkout (Cols 5) */}
-        <div className="lg:col-span-5 p-4 bg-card flex flex-col justify-between space-y-4">
+        <div className={`
+          lg:col-span-5 p-3 sm:p-4 bg-card flex flex-col justify-between space-y-4 overflow-hidden
+          ${mobilePosTab === "catalog" ? "hidden lg:flex" : "flex"}
+        `}>
           
-          <div className="space-y-4 flex-1 overflow-y-auto">
+          <div className="space-y-3 sm:space-y-4 flex-1 overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between border-b pb-2">
               <h2 className="font-bold text-sm flex items-center gap-2 text-foreground">
                 <ShoppingCart className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Keranjang</span>
+                <span>Keranjang Belanja</span>
               </h2>
               {cart.length > 0 && (
                 <Button 
                   size="sm" 
                   variant="ghost" 
                   onClick={() => setIsVoidModalOpen(true)}
-                  className="min-h-[36px] text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950 text-xs gap-1 font-semibold"
+                  className="min-h-[34px] text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950 text-xs gap-1 font-semibold"
                 >
                   <ShieldAlert className="w-3.5 h-3.5" />
                   <span>Batalkan Semua</span>
@@ -630,17 +662,22 @@ export default function POSTerminalPage() {
               <div className="space-y-2">
                 {cart.map((item, idx) => (
                   <div key={idx} className="p-3 rounded-xl border bg-muted/20 space-y-2 shadow-2xs">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-bold text-sm text-foreground">{item.name}</h4>
-                        <p className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">Rp {Number(item.price).toLocaleString("id-ID")}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-xs sm:text-sm text-foreground truncate">{item.name}</h4>
+                        {item.variantName && (
+                          <p className="text-[10px] text-slate-400 truncate">{item.variantName}</p>
+                        )}
+                        <p className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold font-mono">
+                          Rp {Number(item.price).toLocaleString("id-ID")}
+                        </p>
                       </div>
                       
-                      <div className="flex items-center gap-2 bg-card rounded-lg border p-1 shadow-2xs">
+                      <div className="flex items-center gap-1.5 bg-card rounded-lg border p-1 shadow-2xs shrink-0">
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateCartQty(idx, -1)}>
                           <Minus className="w-3 h-3" />
                         </Button>
-                        <span className="font-bold text-xs px-2 text-foreground">{item.qty}</span>
+                        <span className="font-bold text-xs px-1.5 text-foreground font-mono">{item.qty}</span>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateCartQty(idx, 1)}>
                           <Plus className="w-3 h-3" />
                         </Button>
@@ -653,17 +690,17 @@ export default function POSTerminalPage() {
           </div>
 
           {/* Cart Footer Summary & Checkout Button */}
-          <div className="border-t pt-4 space-y-3">
-            <div className="flex justify-between items-center text-sm">
+          <div className="border-t pt-3 sm:pt-4 space-y-2.5 sm:space-y-3 bg-card shrink-0">
+            <div className="flex justify-between items-center text-xs sm:text-sm">
               <span className="text-muted-foreground font-medium">Subtotal:</span>
-              <strong className="text-xl font-bold text-foreground">Rp {subtotal.toLocaleString("id-ID")}</strong>
+              <strong className="text-lg sm:text-xl font-bold text-foreground font-mono">Rp {subtotal.toLocaleString("id-ID")}</strong>
             </div>
 
             <Button 
               size="lg" 
               disabled={cart.length === 0}
               onClick={openCheckoutModal}
-              className="w-full min-h-[50px] font-bold text-base gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer"
+              className="w-full min-h-[46px] sm:min-h-[50px] font-bold text-sm sm:text-base gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer active:scale-[0.98]"
             >
               <CreditCard className="w-5 h-5" />
               <span>Bayar Rp {subtotal.toLocaleString("id-ID")}</span>
@@ -671,6 +708,27 @@ export default function POSTerminalPage() {
           </div>
 
         </div>
+
+        {/* Mobile Sticky Floating Cart Bar (When on catalog view with items in cart) */}
+        {cart.length > 0 && mobilePosTab === "catalog" && (
+          <div className="lg:hidden fixed bottom-3 inset-x-3 z-40">
+            <button
+              type="button"
+              onClick={() => setMobilePosTab("cart")}
+              className="w-full bg-slate-900 text-white p-3.5 rounded-2xl shadow-xl border border-slate-700 flex items-center justify-between cursor-pointer active:scale-[0.98]"
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center font-mono">
+                  {cart.reduce((s, i) => s + i.qty, 0)}
+                </span>
+                <span className="text-xs font-semibold">Lihat Pesanan</span>
+              </div>
+              <span className="text-sm font-extrabold font-mono text-emerald-400">
+                Rp {subtotal.toLocaleString("id-ID")} &rarr;
+              </span>
+            </button>
+          </div>
+        )}
 
       </div>
 
